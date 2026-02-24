@@ -4,6 +4,20 @@ A minimal library for protein sequence guidance using conditional generative mod
 
 > **CAUTION**: This repo is under **very** active development. The main interfaces (`ProbabilityModel`, `TransitionModel`) are stable and you can try the unconditional sampling example. Guided sampling for stability using a predictor trained on the Rocklin dataset will be released shortly. The `PredictiveModel` API is *unstable* as we are still integrating more models and preparing the training API.
 
+## Install
+
+```bash
+uv add .
+```
+
+```bash
+uv pip install -e .
+```
+
+```bash
+pip install -e .
+```
+
 ## References
 
 - **ProteinGuide Paper**: [arXiv:2505.04823](https://arxiv.org/abs/2505.04823)
