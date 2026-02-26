@@ -1,4 +1,6 @@
 TODO[pi] integrate with https://github.com/COLA-Laboratory/GraphFLA to get the different fitness landscapes
+- Also FLIP and SaProtHub
+- Models: Progen, Dayhoff, Evodiff, PMPNN, METL, SaProt
 
 - [ ] Test guided sampling
     - [ ] Get a stability guided generation demo

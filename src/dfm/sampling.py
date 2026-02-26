@@ -26,7 +26,10 @@ def tensor_to_string(x_SP, tokenizer):
 
 
 def sample_euler(
-    model: TransitionModel, x_SP: torch.LongTensor | List[str], n_steps: int, return_string=True
+    model: TransitionModel,
+    x_SP: torch.LongTensor | List[str],
+    n_steps: int,
+    return_string=True,
 ):
     if isinstance(x_SP, list):
         x_SP = model.tokenizer(x_SP, padding=True, return_tensors="pt")["input_ids"]
@@ -55,7 +58,10 @@ def sample_euler(
 
 
 def sample_any_order_ancestral(
-    model: TransitionModel, x_SP: torch.LongTensor | List[str], return_string=True
+    model: TransitionModel,
+    x_SP: torch.LongTensor | List[str],
+    n_parallel: int = 1,
+    return_string: bool = True,
 ):
     mask_token_id = model.tokenizer.mask_token_id
     pad_token_id = model.tokenizer.pad_token_id
@@ -75,7 +81,9 @@ def sample_any_order_ancestral(
 
     t = t_st
     while t != t_end:
-        x_SP = any_order_ancestral_step(model.get_log_probs, x_SP, mask_token_id)
+        x_SP = any_order_ancestral_step(
+            model.get_log_probs, x_SP, n_parallel, mask_token_id
+        )
         len_S = x_SP.size(1) - (x_SP == pad_token_id).sum(dim=1)
         t_S = 1 - (x_SP == mask_token_id).sum(dim=1) / len_S
         t_new = t_S.min().item()
@@ -93,6 +101,7 @@ def sample_any_order_ancestral(
 def any_order_ancestral_step(
     transition_log_prob_fn: TransitionFunc,  # is there any reason not to just pass the model here?
     x_SP: torch.LongTensor,
+    n_parallel: int,
     mask_token_id: int,
     next_pos_idx_SP: Optional[torch.LongTensor] = None,
 ) -> torch.FloatTensor:
@@ -105,8 +114,8 @@ def any_order_ancestral_step(
         next_pos_idx_SP = []  # idx tensor for the sequence and pos dimensions, doesn't actually have full SxP shape
         for s in range(x_SP.size(0)):
             masked_positions_S = (x_SP[s] == mask_token_id).nonzero().flatten()
-            if len(masked_positions_S) > 0:
-                rand_idx = random.randint(1, masked_positions_S.size(0)) - 1
+            rand_idxs = torch.randperm(len(masked_positions_S))[:n_parallel]
+            for p in masked_positions_S[rand_idxs]
                 p = masked_positions_S[rand_idx]
                 next_pos_idx_SP.append([s, p])
         next_pos_idx_SP = torch.LongTensor(next_pos_idx_SP)
