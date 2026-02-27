@@ -115,9 +115,8 @@ def any_order_ancestral_step(
         for s in range(x_SP.size(0)):
             masked_positions_S = (x_SP[s] == mask_token_id).nonzero().flatten()
             rand_idxs = torch.randperm(len(masked_positions_S))[:n_parallel]
-            for p in masked_positions_S[rand_idxs]
-                p = masked_positions_S[rand_idx]
-                next_pos_idx_SP.append([s, p])
+            for p in masked_positions_S[rand_idxs]:
+                next_pos_idx_SP.append([s, p.item()])
         next_pos_idx_SP = torch.LongTensor(next_pos_idx_SP)
 
     if next_pos_idx_SP.numel() == 0:
