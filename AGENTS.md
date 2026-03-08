@@ -105,10 +105,12 @@
 ## Stale Tests / Broken Imports
 
 - `test_guidance_data.py::TestGuidanceDataset` — 3 tests fail because they construct `GuidanceDataset` without the now-required `tokenize`, `noise_schedule`, `mask_token` args
-- `tests/test_logit_formatter.py` and `tests/test_transition_model.py` import from `dfm.generative_model` (should be `dfm.generative_modeling`)
 - `tests/test_esm.py` — may need updating for new TransitionModel composition pattern + ESMC changes
 - `guide.py` imports from `dfm.predictive_model` (should be `dfm.predictive_modeling`), also references `ConditionalTransitionModel` which no longer exists
 - `sampling.py` now uses `model.get_log_probs` (previously `model.transition_log_probs`)
+- `PassThroughLogitFormatter` has its own `__init__(self)` to avoid inheriting `LogitFormatter` Protocol's `__init__` (which requires a tokenizer arg)
+- `MaskedModelLogitFormatter` constructor takes `(tokenizer, output_dim=None)` — no `mask_token` string arg (old tests passed `"<mask>"` as second positional, which is wrong)
+- `MaskedModelLogitFormatter` extra columns beyond `vocab_size` (when `output_dim > vocab_size`) are blocked (`-inf`) for ALL input tokens including mask — they don't correspond to real tokens so no probability mass should flow there
 
 ## Stability Predictor (rocklin_ddg)
 

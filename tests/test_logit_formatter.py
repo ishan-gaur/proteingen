@@ -4,7 +4,7 @@ import torch
 import pytest
 from torch.nn import functional as F
 
-from dfm.generative_model import MaskedModelLogitFormatter, LogitFormatter
+from dfm.generative_modeling import MaskedModelLogitFormatter, LogitFormatter
 
 # ---------------------------------------------------------------------------
 # Constants — mask token strings per tokenizer
@@ -34,17 +34,17 @@ def bert_tokenizer():
 
 @pytest.fixture
 def esm_formatter(esm_tokenizer):
-    return MaskedModelLogitFormatter(esm_tokenizer, ESM_MASK_TOKEN)
+    return MaskedModelLogitFormatter(esm_tokenizer)
 
 
 @pytest.fixture
 def esm_formatter_64(esm_tokenizer):
-    return MaskedModelLogitFormatter(esm_tokenizer, ESM_MASK_TOKEN, output_dim=64)
+    return MaskedModelLogitFormatter(esm_tokenizer, output_dim=64)
 
 
 @pytest.fixture
 def bert_formatter(bert_tokenizer):
-    return MaskedModelLogitFormatter(bert_tokenizer, BERT_MASK_TOKEN)
+    return MaskedModelLogitFormatter(bert_tokenizer)
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +93,7 @@ class TestConstruction:
 
     def test_output_dim_too_small_raises(self, esm_tokenizer):
         with pytest.raises(AssertionError):
-            MaskedModelLogitFormatter(esm_tokenizer, ESM_MASK_TOKEN, output_dim=10)
+            MaskedModelLogitFormatter(esm_tokenizer, output_dim=10)
 
     def test_satisfies_protocol(self, esm_formatter):
         assert isinstance(esm_formatter, LogitFormatter)
@@ -159,15 +159,18 @@ class TestMaskMatrix:
         for idx in _non_special_ids(bert_tokenizer):
             assert row[idx] == 0.0
 
-    def test_output_dim_64_extra_columns_valid_for_mask(
+    def test_output_dim_64_extra_columns_blocked_for_all(
         self, esm_formatter_64, esm_tokenizer
     ):
-        """Columns beyond vocab_size should be valid for mask, blocked for others."""
+        """Columns beyond vocab_size don't correspond to real tokens and should
+        be blocked (-inf) for all input tokens, including mask."""
         matrix = esm_formatter_64.valid_output_mask_TiTo
         mask_id = _mask_token_id(esm_tokenizer, ESM_MASK_TOKEN)
 
         for col in range(esm_tokenizer.vocab_size, 64):
-            assert matrix[mask_id, col] == 0.0, f"mask should reach column {col}"
+            assert matrix[mask_id, col] == float("-inf"), (
+                f"mask should block extra column {col}"
+            )
 
         # Regular AA token should be blocked at extra columns
         aa_idx = esm_tokenizer.vocab["A"]
@@ -316,9 +319,7 @@ class TestDeviceTracking:
         class DummyModel(torch.nn.Module):
             def __init__(self):
                 super().__init__()
-                self.formatter = MaskedModelLogitFormatter(
-                    esm_tokenizer, ESM_MASK_TOKEN
-                )
+                self.formatter = MaskedModelLogitFormatter(esm_tokenizer)
 
         model = DummyModel().cuda()
         assert model.formatter.valid_output_mask_TiTo.device.type == "cuda"
