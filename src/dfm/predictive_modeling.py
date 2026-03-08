@@ -190,6 +190,7 @@ class OneHotMLP(nn.Module):
         n_layers: int,
         output_dim: int,
         padding_idx: int,
+        dropout: float = 0.0,
     ):
         super().__init__()
         self.vocab_size = vocab_size
@@ -198,6 +199,7 @@ class OneHotMLP(nn.Module):
         self.n_layers = n_layers
         self.output_dim = output_dim
         self.padding_idx = padding_idx
+        self.dropout = dropout
 
         # Frozen one-hot embedding: each token maps to its one-hot vector
         self.embed = nn.Embedding(
@@ -213,13 +215,80 @@ class OneHotMLP(nn.Module):
         ]
         for _ in range(n_layers - 1):
             layers.append(nn.ReLU())
+            if dropout > 0:
+                layers.append(nn.Dropout(dropout))
             layers.append(nn.Linear(self.model_dim, self.model_dim))
         layers.append(nn.ReLU())
+        if dropout > 0:
+            layers.append(nn.Dropout(dropout))
         layers.append(nn.Linear(self.model_dim, self.output_dim))
         self.layers = nn.Sequential(*layers)
 
     def forward(self, x_SP: torch.LongTensor):
-        x_SPT = F.one_hot(x_SP, num_classes=self.vocab_size)
+        x_SPT = F.one_hot(x_SP, num_classes=self.vocab_size).float()
         x_SPxT = x_SPT.reshape(x_SPT.size(0), -1)
         y_hat_SO = self.layers(x_SPxT)
+        return y_hat_SO
+
+
+class EmbeddingMLP(nn.Module):
+    """
+    MLP operating on learned token embeddings.
+
+    Each token is mapped to a learned embedding vector via ``nn.Embedding``,
+    the embeddings are flattened across all positions, then passed through an MLP.
+    This is a learned alternative to ``OneHotMLP``'s frozen identity embedding.
+
+    Tensor Dimension Labels:
+        S: batch (sample) index
+        P: position in sequence
+        E: embedding dimension
+        O: output dimension
+    """
+
+    def __init__(
+        self,
+        vocab_size: int,
+        sequence_length: int,
+        embed_dim: int,
+        model_dim: int,
+        n_layers: int,
+        output_dim: int,
+        padding_idx: int,
+        dropout: float = 0.0,
+    ):
+        super().__init__()
+        self.vocab_size = vocab_size
+        self.sequence_length = sequence_length
+        self.embed_dim = embed_dim
+        self.model_dim = model_dim
+        self.n_layers = n_layers
+        self.output_dim = output_dim
+        self.padding_idx = padding_idx
+        self.dropout = dropout
+
+        self.embed = nn.Embedding(
+            self.vocab_size,
+            self.embed_dim,
+            padding_idx=self.padding_idx,
+        )
+
+        layers: list[nn.Module] = [
+            nn.Linear(self.sequence_length * self.embed_dim, self.model_dim)
+        ]
+        for _ in range(n_layers - 1):
+            layers.append(nn.ReLU())
+            if dropout > 0:
+                layers.append(nn.Dropout(dropout))
+            layers.append(nn.Linear(self.model_dim, self.model_dim))
+        layers.append(nn.ReLU())
+        if dropout > 0:
+            layers.append(nn.Dropout(dropout))
+        layers.append(nn.Linear(self.model_dim, self.output_dim))
+        self.layers = nn.Sequential(*layers)
+
+    def forward(self, x_SP: torch.LongTensor):
+        x_SPE = self.embed(x_SP)
+        x_SPxE = x_SPE.reshape(x_SPE.size(0), -1)
+        y_hat_SO = self.layers(x_SPxE)
         return y_hat_SO

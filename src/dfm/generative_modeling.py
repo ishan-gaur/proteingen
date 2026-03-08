@@ -159,6 +159,9 @@ class LogitFormatter(Protocol):
 
 
 class PassThroughLogitFormatter(LogitFormatter):
+    def __init__(self):
+        pass
+
     def __call__(
         self, logits: torch.Tensor, input_ids: torch.LongTensor
     ) -> torch.FloatTensor:
@@ -226,9 +229,7 @@ class MaskedModelLogitFormatter(nn.Module, LogitFormatter):
 
         # Except for mask which maps to any non-special token
         valid_output_mask_TiTo[mask_token_idx, mask_token_idx] = BLOCK_OUT
-        valid_mask_outputs = set(
-            range(self.tokenizer.vocab_size)
-        )  # TODO[pi] we can just get rid of output_dim from this class at this point
+        valid_mask_outputs = set(range(self.tokenizer.vocab_size))
         for idx in self.tokenizer.added_tokens_decoder.keys():
             valid_mask_outputs.discard(idx)
         for idx in valid_mask_outputs:

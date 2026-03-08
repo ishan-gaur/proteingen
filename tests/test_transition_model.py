@@ -1,7 +1,7 @@
-"""Tests for TransitionModel ABC.
+"""Tests for TransitionModel.
 
-Uses a lightweight mock child class that mirrors the ESM pattern from
-~/PALM/esm-cath/src/esm_cath/model.py without importing it (avoids circular deps).
+TransitionModel is a concrete class that wraps an nn.Module backbone,
+a tokenizer, and a LogitFormatter into a ready-to-use ProbabilityModel.
 """
 
 import torch
@@ -9,7 +9,7 @@ import pytest
 from torch import nn
 from torch.nn import functional as F
 
-from dfm.generative_model import (
+from dfm.generative_modeling import (
     TransitionModel,
     LogitFormatter,
     PassThroughLogitFormatter,
@@ -17,112 +17,44 @@ from dfm.generative_model import (
 )
 
 
-# ---------------------------------------------------------------------------
-# Mock tokenizer — mimics HF PreTrainedTokenizerBase interface used by
-# EsmSequenceTokenizer in the real ESM child class
-# ---------------------------------------------------------------------------
-
-
-# class FakeTokenizer:
-#     """Minimal tokenizer satisfying TransitionModel.forward_from_string needs.
-
-#     20 standard amino acids (A-Y) at indices 0-19,
-#     plus <pad>=20, <cls>=21, <eos>=22, <mask>=23.
-#     """
-
-#     _AA = "ACDEFGHIKLMNPQRSTVWY"
-
-#     def __init__(self):
-#         self.vocab: dict[str, int] = {aa: i for i, aa in enumerate(self._AA)}
-#         self.vocab["<pad>"] = 20
-#         self.vocab["<cls>"] = 21
-#         self.vocab["<eos>"] = 22
-#         self.vocab["<mask>"] = 23
-#         self._idx_to_token = {v: k for k, v in self.vocab.items()}
-
-#         self.pad_token_id = 20
-#         self.cls_token_id = 21
-#         self.eos_token_id = 22
-#         self.mask_token_id = 23
-
-#         # HF tokenizers expose special tokens via added_tokens_decoder
-#         self.added_tokens_decoder: dict[int, object] = {
-#             20: "<pad>",
-#             21: "<cls>",
-#             22: "<eos>",
-#             23: "<mask>",
-#         }
-
-#     @property
-#     def vocab_size(self) -> int:
-#         return len(self.vocab)
-
-#     def encode(self, sequence: str) -> list[int]:
-#         """Encode with CLS/EOS wrapping, like EsmSequenceTokenizer."""
-#         ids = [self.cls_token_id]
-#         ids.extend(self.vocab.get(c, self.pad_token_id) for c in sequence)
-#         ids.append(self.eos_token_id)
-#         return ids
-
-#     def decode(self, ids: list[int]) -> str:
-#         return "".join(self._idx_to_token.get(i, "?") for i in ids)
-
-#     def __call__(self, sequence, padding=True, return_tensor="pt"):
-#         encoded_ids = [self.encode(sequence)
-
 from esm.tokenization.sequence_tokenizer import EsmSequenceTokenizer
 
 FakeTokenizer = EsmSequenceTokenizer
 
 # ---------------------------------------------------------------------------
-# Concrete TransitionModel children — mirror the ESM pattern:
-#   super().__init__(tokenizer=..., logit_formatter=...)
+# Mock backbones
 # ---------------------------------------------------------------------------
 
-VOCAB_SIZE = 33  # 20 AA + 4 special
+VOCAB_SIZE = 33  # ESM vocab
 OUTPUT_DIM = 64  # like ESM's 64-dim padded output
 
 
-class StubTransitionModel(TransitionModel):
-    """Concrete child that mirrors ESM's structure:
+class RandomBackbone(nn.Module):
+    """Returns random logits of shape (S, P, output_dim)."""
 
-    - Wraps a simple linear 'backbone' (so parameters() is non-empty)
-    - Passes tokenizer & logit_formatter up to the ABC __init__
-    - forward() returns log-softmax logits of shape (S, P, OUTPUT_DIM)
-    """
-
-    def __init__(
-        self,
-        tokenizer: FakeTokenizer | None = None,
-        logit_formatter: LogitFormatter | None = None,
-        output_dim: int = OUTPUT_DIM,
-    ):
-        tok = tokenizer or FakeTokenizer()
-        fmt = logit_formatter or PassThroughLogitFormatter()
-        super().__init__(tokenizer=tok, logit_formatter=fmt)
-        self._backbone = nn.Linear(1, 1)  # gives us a parameter for .device
+    def __init__(self, output_dim: int = OUTPUT_DIM):
+        super().__init__()
         self._output_dim = output_dim
+        self._dummy = nn.Linear(1, 1)  # gives us a parameter
 
-    def forward(self, seq_SP: torch.LongTensor) -> torch.FloatTensor:
+    def forward(self, seq_SP: torch.LongTensor, **kwargs) -> torch.FloatTensor:
         S, P = seq_SP.shape
-        logits_SPT = torch.randn(S, P, self._output_dim, device=seq_SP.device)
-        logits_SPT = self.logit_formatter(logits_SPT, seq_SP)
-        return F.log_softmax(logits_SPT, dim=-1)
+        return torch.randn(S, P, self._output_dim, device=seq_SP.device)
 
 
-class RecordingTransitionModel(TransitionModel):
+class RecordingBackbone(nn.Module):
     """Records every forward call's input tensor for assertion."""
 
-    def __init__(self, tokenizer: FakeTokenizer | None = None):
-        tok = tokenizer or FakeTokenizer()
-        super().__init__(tokenizer=tok, logit_formatter=PassThroughLogitFormatter())
-        self._backbone = nn.Linear(1, 1)
+    def __init__(self, output_dim: int = VOCAB_SIZE):
+        super().__init__()
+        self._output_dim = output_dim
+        self._dummy = nn.Linear(1, 1)
         self.forward_calls: list[torch.Tensor] = []
 
-    def forward(self, seq_SP: torch.LongTensor) -> torch.FloatTensor:
+    def forward(self, seq_SP: torch.LongTensor, **kwargs) -> torch.FloatTensor:
         self.forward_calls.append(seq_SP.clone())
         S, P = seq_SP.shape
-        return torch.randn(S, P, VOCAB_SIZE)
+        return torch.randn(S, P, self._output_dim)
 
 
 # ---------------------------------------------------------------------------
@@ -137,38 +69,29 @@ def tokenizer():
 
 @pytest.fixture
 def model(tokenizer):
-    return StubTransitionModel(tokenizer=tokenizer)
+    backbone = RandomBackbone(output_dim=OUTPUT_DIM)
+    formatter = PassThroughLogitFormatter()
+    return TransitionModel(backbone, tokenizer, formatter)
 
 
 @pytest.fixture
-def recording_model(tokenizer):
-    return RecordingTransitionModel(tokenizer=tokenizer)
+def recording_backbone():
+    return RecordingBackbone()
+
+
+@pytest.fixture
+def recording_model(tokenizer, recording_backbone):
+    formatter = PassThroughLogitFormatter()
+    return TransitionModel(recording_backbone, tokenizer, formatter)
 
 
 # ---------------------------------------------------------------------------
-# ABC contract tests
+# Construction tests
 # ---------------------------------------------------------------------------
 
 
-class TestABCContract:
-    def test_cannot_instantiate_base_class(self):
-        with pytest.raises(TypeError, match="abstract"):
-            TransitionModel(
-                tokenizer=FakeTokenizer(),
-                logit_formatter=PassThroughLogitFormatter(),
-            )
-
-    def test_missing_forward_raises(self):
-        class NoForward(TransitionModel):
-            pass
-
-        with pytest.raises(TypeError, match="abstract"):
-            NoForward(
-                tokenizer=FakeTokenizer(),
-                logit_formatter=PassThroughLogitFormatter(),
-            )
-
-    def test_complete_implementation_instantiates(self, model):
+class TestConstruction:
+    def test_instantiates(self, model):
         assert isinstance(model, TransitionModel)
         assert isinstance(model, nn.Module)
 
@@ -177,8 +100,17 @@ class TestABCContract:
 
     def test_logit_formatter_set_by_init(self):
         fmt = PassThroughLogitFormatter()
-        m = StubTransitionModel(logit_formatter=fmt)
+        tok = FakeTokenizer()
+        backbone = RandomBackbone()
+        m = TransitionModel(backbone, tok, fmt)
         assert m.logit_formatter is fmt
+
+    def test_model_set_by_init(self):
+        backbone = RandomBackbone()
+        tok = FakeTokenizer()
+        fmt = PassThroughLogitFormatter()
+        m = TransitionModel(backbone, tok, fmt)
+        assert m.model is backbone
 
 
 # ---------------------------------------------------------------------------
@@ -200,20 +132,6 @@ class TestDevice:
         model = model.cpu()
         assert model.device.type == "cpu"
 
-    def test_device_raises_without_parameters(self):
-        """If a child class has no nn.Parameters, .device raises StopIteration."""
-
-        class NoParams(TransitionModel):
-            def forward(self, seq_SP):
-                return torch.randn(1)
-
-        m = NoParams(
-            tokenizer=FakeTokenizer(),
-            logit_formatter=PassThroughLogitFormatter(),
-        )
-        with pytest.raises(StopIteration):
-            _ = m.device
-
 
 # ---------------------------------------------------------------------------
 # forward tests
@@ -226,14 +144,6 @@ class TestForward:
         out = model(seq)
         assert out.shape == (1, 5, OUTPUT_DIM)
 
-    def test_output_is_log_probs(self, model):
-        """log_softmax output should exponentiate to probabilities summing to 1."""
-        seq = torch.tensor([[21, 0, 4, 7, 22]])
-        log_probs = model(seq)
-        probs = log_probs.exp()
-        sums = probs.sum(dim=-1)
-        assert torch.allclose(sums, torch.ones_like(sums), atol=1e-5)
-
     def test_batched_forward(self, model):
         seq = torch.tensor(
             [
@@ -244,40 +154,79 @@ class TestForward:
         out = model(seq)
         assert out.shape == (2, 6, OUTPUT_DIM)
 
-    def test_forward_called_with_correct_tensor(self, recording_model):
+    def test_forward_called_with_correct_tensor(
+        self, recording_model, recording_backbone
+    ):
         seq = torch.tensor([[21, 0, 4, 22]])
         recording_model(seq)
-        assert len(recording_model.forward_calls) == 1
-        assert torch.equal(recording_model.forward_calls[0], seq)
+        assert len(recording_backbone.forward_calls) == 1
+        assert torch.equal(recording_backbone.forward_calls[0], seq)
 
 
 # ---------------------------------------------------------------------------
-# forward_from_string tests
+# get_log_probs tests
 # ---------------------------------------------------------------------------
 
 
-class TestForwardFromString:
-    def test_single_sequence(self, recording_model, tokenizer):
-        recording_model.forward_from_string(["ACE"])
-        assert len(recording_model.forward_calls) == 1
-        tensor = recording_model.forward_calls[0]
+class TestGetLogProbs:
+    def test_output_is_log_probs(self, model):
+        """get_log_probs output should exponentiate to probabilities summing to 1."""
+        seq = torch.tensor([[21, 0, 4, 7, 22]])
+        log_probs = model.get_log_probs(seq)
+        probs = log_probs.exp()
+        sums = probs.sum(dim=-1)
+        assert torch.allclose(sums, torch.ones_like(sums), atol=1e-5)
+
+    def test_temperature_scaling(self, model):
+        """Higher temperature should produce more uniform distributions."""
+        seq = torch.tensor([[21, 0, 4, 7, 22]])
+
+        with model.with_temp(0.1):
+            log_probs_cold = model.get_log_probs(seq)
+        with model.with_temp(10.0):
+            log_probs_hot = model.get_log_probs(seq)
+
+        # Hot distribution should have higher entropy (more uniform)
+        entropy_cold = -(log_probs_cold.exp() * log_probs_cold).sum(dim=-1).mean()
+        entropy_hot = -(log_probs_hot.exp() * log_probs_hot).sum(dim=-1).mean()
+        assert entropy_hot > entropy_cold
+
+
+# ---------------------------------------------------------------------------
+# get_log_probs_from_string tests
+# ---------------------------------------------------------------------------
+
+
+class TestGetLogProbsFromString:
+    def test_single_sequence(self, recording_model, recording_backbone, tokenizer):
+        recording_model.get_log_probs_from_string(["ACE"])
+        assert len(recording_backbone.forward_calls) == 1
+        tensor = recording_backbone.forward_calls[0]
         expected = torch.tensor([tokenizer.encode("ACE")], dtype=torch.long)
         assert torch.equal(tensor, expected)
 
     def test_output_shape(self, model):
-        out = model.forward_from_string(["ACE"])
+        out = model.get_log_probs_from_string(["ACE"])
         # encode adds CLS + EOS: "ACE" → [CLS, A, C, E, EOS] = 5 tokens
         assert out.shape == (1, 5, OUTPUT_DIM)
 
-    def test_batch_of_sequences(self, recording_model):
-        recording_model.forward_from_string(["AC", "ACDE"])
-        tensor = recording_model.forward_calls[0]
+    def test_output_is_log_probs(self, model):
+        log_probs = model.get_log_probs_from_string(["ACE"])
+        probs = log_probs.exp()
+        sums = probs.sum(dim=-1)
+        assert torch.allclose(sums, torch.ones_like(sums), atol=1e-5)
+
+    def test_batch_of_sequences(self, recording_model, recording_backbone):
+        recording_model.get_log_probs_from_string(["AC", "ACDE"])
+        tensor = recording_backbone.forward_calls[0]
         assert tensor.shape[0] == 2  # batch size
 
-    def test_padding_to_max_length(self, recording_model, tokenizer):
+    def test_padding_to_max_length(
+        self, recording_model, recording_backbone, tokenizer
+    ):
         """Shorter sequences should be right-padded to the longest."""
-        recording_model.forward_from_string(["AC", "ACDE"])
-        tensor = recording_model.forward_calls[0]
+        recording_model.get_log_probs_from_string(["AC", "ACDE"])
+        tensor = recording_backbone.forward_calls[0]
 
         # "AC"   → [CLS, A, C, EOS]       = 4 tokens → padded to 6
         # "ACDE" → [CLS, A, C, D, E, EOS] = 6 tokens
@@ -288,28 +237,30 @@ class TestForwardFromString:
         # Second sequence should have no padding
         assert tensor[1, -1].item() == tokenizer.eos_token_id
 
-    def test_equal_length_no_padding(self, recording_model, tokenizer):
-        recording_model.forward_from_string(["ACE", "FGH"])
-        tensor = recording_model.forward_calls[0]
+    def test_equal_length_no_padding(
+        self, recording_model, recording_backbone, tokenizer
+    ):
+        recording_model.get_log_probs_from_string(["ACE", "FGH"])
+        tensor = recording_backbone.forward_calls[0]
         # Both encode to length 5 (CLS + 3 AA + EOS), no padding needed
         assert tensor.shape == (2, 5)
         assert (tensor != tokenizer.pad_token_id).all()
 
-    def test_device_propagation(self, recording_model):
+    def test_device_propagation(self, recording_model, recording_backbone):
         """Tensor passed to forward should be on the model's device."""
-        recording_model.forward_from_string(["ACE"])
-        tensor = recording_model.forward_calls[0]
+        recording_model.get_log_probs_from_string(["ACE"])
+        tensor = recording_backbone.forward_calls[0]
         assert tensor.device == recording_model.device
 
-    def test_dtype_is_long(self, recording_model):
-        recording_model.forward_from_string(["ACE"])
-        tensor = recording_model.forward_calls[0]
+    def test_dtype_is_long(self, recording_model, recording_backbone):
+        recording_model.get_log_probs_from_string(["ACE"])
+        tensor = recording_backbone.forward_calls[0]
         assert tensor.dtype == torch.long
 
-    def test_empty_sequence(self, recording_model, tokenizer):
+    def test_empty_sequence(self, recording_model, recording_backbone, tokenizer):
         """Empty string should still produce CLS + EOS."""
-        recording_model.forward_from_string([""])
-        tensor = recording_model.forward_calls[0]
+        recording_model.get_log_probs_from_string([""])
+        tensor = recording_backbone.forward_calls[0]
         assert tensor.shape == (1, 2)
         assert tensor[0, 0].item() == tokenizer.cls_token_id
         assert tensor[0, 1].item() == tokenizer.eos_token_id
@@ -321,23 +272,19 @@ class TestForwardFromString:
 
 
 class TestFormatLogitsIntegration:
-    """Verify that the ABC's contract around logit_formatter plays correctly
-    with MaskedModelLogitFomatter — the formatter used by ESM."""
+    """Verify that TransitionModel + MaskedModelLogitFormatter work together."""
 
     @pytest.fixture
     def esm_like_model(self, tokenizer):
-        """Model using MaskedModelLogitFomatter, like the real ESM class."""
-        formatter = MaskedModelLogitFormatter(
-            tokenizer, "<mask>", output_dim=OUTPUT_DIM
-        )
-        return StubTransitionModel(
-            tokenizer=tokenizer, logit_formatter=formatter, output_dim=OUTPUT_DIM
-        )
+        """Model using MaskedModelLogitFormatter, like the real ESM class."""
+        backbone = RandomBackbone(output_dim=OUTPUT_DIM)
+        formatter = MaskedModelLogitFormatter(tokenizer, output_dim=OUTPUT_DIM)
+        return TransitionModel(backbone, tokenizer, formatter)
 
     def test_mask_positions_block_special_tokens(self, esm_like_model, tokenizer):
-        mask_id = tokenizer.mask_token_id
+        mask_id = tokenizer.vocab["<mask>"]
         seq = torch.tensor([[tokenizer.cls_token_id, mask_id, tokenizer.eos_token_id]])
-        log_probs = esm_like_model(seq)
+        log_probs = esm_like_model.get_log_probs(seq)
 
         # At the mask position, special tokens should have prob ~0
         mask_pos_probs = log_probs[0, 1].exp()
@@ -347,9 +294,9 @@ class TestFormatLogitsIntegration:
             )
 
     def test_special_positions_predict_themselves(self, esm_like_model, tokenizer):
-        mask_id = tokenizer.mask_token_id
+        mask_id = tokenizer.vocab["<mask>"]
         seq = torch.tensor([[tokenizer.cls_token_id, mask_id, tokenizer.eos_token_id]])
-        log_probs = esm_like_model(seq)
+        log_probs = esm_like_model.get_log_probs(seq)
 
         # CLS position: all probability on CLS
         cls_probs = log_probs[0, 0].exp()
@@ -367,15 +314,15 @@ class TestFormatLogitsIntegration:
         """A non-mask, non-special token should have all mass on itself."""
         aa_id = tokenizer.vocab["A"]
         seq = torch.tensor([[tokenizer.cls_token_id, aa_id, tokenizer.eos_token_id]])
-        log_probs = esm_like_model(seq)
+        log_probs = esm_like_model.get_log_probs(seq)
         aa_probs = log_probs[0, 1].exp()
         assert torch.isclose(aa_probs[aa_id], torch.tensor(1.0), atol=1e-5)
 
     def test_mask_position_allows_all_non_special(self, esm_like_model, tokenizer):
         """Mask position should have nonzero probability for every non-special token."""
-        mask_id = tokenizer.mask_token_id
+        mask_id = tokenizer.vocab["<mask>"]
         seq = torch.tensor([[tokenizer.cls_token_id, mask_id, tokenizer.eos_token_id]])
-        log_probs = esm_like_model(seq)
+        log_probs = esm_like_model.get_log_probs(seq)
         mask_probs = log_probs[0, 1].exp()
 
         non_special = set(range(tokenizer.vocab_size)) - set(
@@ -392,19 +339,22 @@ class TestFormatLogitsIntegration:
 
 
 # ---------------------------------------------------------------------------
-# get_transition_log_probs tests
+# conditioning tests
 # ---------------------------------------------------------------------------
 
 
-class TestGetTransitionLogProbsFn:
-    """get_transition_log_probs_fn should return a callable that applies
-    logit_formatter to the raw forward output. Currently the method body
-    is incomplete (no return statement), so this documents intended behavior."""
+class TestConditioning:
+    def test_set_condition_and_clear(self, model):
+        model.set_condition_({"key": torch.tensor([1.0])})
+        assert model.observations is not None
+        model.observations = None
+        assert model.observations is None
 
-    def test_returns_callable(self, model):
-        """get_transition_log_probs_fn should return a callable."""
-        result = model.get_transition_log_probs_fn()
-        assert callable(result)
+    def test_conditioned_on_context_manager(self, model):
+        assert model.observations is None
+        with model.conditioned_on({"key": torch.tensor([1.0])}):
+            assert model.observations is not None
+        assert model.observations is None
 
 
 # ---------------------------------------------------------------------------
@@ -433,22 +383,17 @@ class TestModuleIntegration:
         assert model.training
 
     def test_formatter_submodule_device_propagation(self, tokenizer):
-        """When logit_formatter is an nn.Module (like MaskedModelLogitFomatter),
+        """When logit_formatter is an nn.Module (like MaskedModelLogitFormatter),
         registering it as a submodule lets .to(device) propagate buffers."""
-        formatter = MaskedModelLogitFormatter(
-            tokenizer, "<mask>", output_dim=OUTPUT_DIM
-        )
+        formatter = MaskedModelLogitFormatter(tokenizer, output_dim=OUTPUT_DIM)
+        backbone = RandomBackbone()
 
-        class ModuleFormatterModel(TransitionModel):
+        class SubmoduleModel(TransitionModel):
             def __init__(self):
-                super().__init__(tokenizer=tokenizer, logit_formatter=formatter)
-                self._backbone = nn.Linear(1, 1)
+                super().__init__(backbone, tokenizer, formatter)
                 # Register formatter as a named submodule so .to() propagates
                 self.add_module("_formatter_module", formatter)
 
-            def forward(self, seq_SP):
-                return torch.randn(1)
-
-        m = ModuleFormatterModel()
+        m = SubmoduleModel()
         child_types = [type(c) for c in m.children()]
         assert MaskedModelLogitFormatter in child_types
