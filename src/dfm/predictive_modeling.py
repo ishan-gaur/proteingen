@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
-from typing import Callable, Any, Dict
+from typing import Callable, Any, Dict, Optional
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dfm.probability_model import ProbabilityModel
@@ -231,6 +231,82 @@ class OneHotMLP(nn.Module):
         return y_hat_SO
 
 
+def pca_embed_init(
+    pretrained_weights: torch.Tensor,
+    pretrained_vocab: dict[str, int],
+    target_vocab: dict[str, int],
+    n_components: int,
+    target_vocab_size: Optional[int] = None,
+) -> torch.Tensor:
+    """Project pretrained embeddings onto their top principal components, mapped to target vocab indices.
+
+    Finds shared tokens between the pretrained and target vocabularies,
+    computes PCA over the pretrained embeddings of those shared tokens,
+    and returns the projected embeddings arranged in the target vocabulary's
+    index order.
+
+    Args:
+        pretrained_weights: Embedding weight matrix, shape (V_pretrained, D_pretrained).
+        pretrained_vocab: Token string → index mapping for the pretrained model.
+        target_vocab: Token string → index mapping for the target model.
+        n_components: Number of principal components to keep.
+        target_vocab_size: Total number of rows in the output tensor. Must be
+            large enough to contain all indices in ``target_vocab``.  When
+            ``None`` (default), inferred as ``max(target_vocab.values()) + 1``.
+            Set this when the target embedding table has extra slots (e.g. a
+            padding index) that are not listed in ``target_vocab``.
+
+    Returns:
+        Tensor of shape (target_vocab_size, n_components) with PCA-projected
+        embeddings at the correct target indices. Rows for tokens not found in
+        the pretrained vocabulary (or extra slots) are zero.
+
+    Raises:
+        ValueError: If no shared tokens exist, n_components exceeds the
+            number of shared tokens or the pretrained embedding dimension,
+            or target_vocab_size is too small for the target vocab.
+    """
+    shared_tokens = sorted(set(pretrained_vocab.keys()) & set(target_vocab.keys()))
+    if len(shared_tokens) == 0:
+        raise ValueError(
+            "No shared tokens between pretrained and target vocabularies"
+        )
+    if n_components > len(shared_tokens):
+        raise ValueError(
+            f"n_components ({n_components}) exceeds number of shared tokens ({len(shared_tokens)})"
+        )
+    if n_components > pretrained_weights.shape[1]:
+        raise ValueError(
+            f"n_components ({n_components}) exceeds pretrained embedding dim ({pretrained_weights.shape[1]})"
+        )
+
+    min_target_size = max(target_vocab.values()) + 1
+    if target_vocab_size is None:
+        target_vocab_size = min_target_size
+    elif target_vocab_size < min_target_size:
+        raise ValueError(
+            f"target_vocab_size ({target_vocab_size}) is too small to contain "
+            f"all target vocab indices (max index = {min_target_size - 1})"
+        )
+
+    # Extract pretrained embeddings for shared tokens
+    pretrained_indices = [pretrained_vocab[t] for t in shared_tokens]
+    shared_embeddings = pretrained_weights[pretrained_indices].float()  # (n_shared, D)
+
+    # PCA: center, SVD, project onto top-k components
+    mean = shared_embeddings.mean(dim=0)
+    centered = shared_embeddings - mean
+    _, _, Vt = torch.linalg.svd(centered, full_matrices=False)
+    projected = centered @ Vt[:n_components].T  # (n_shared, n_components)
+
+    # Place projections at the correct target indices
+    output = torch.zeros(target_vocab_size, n_components)
+    for i, token in enumerate(shared_tokens):
+        output[target_vocab[token]] = projected[i]
+
+    return output
+
+
 class EmbeddingMLP(nn.Module):
     """
     MLP operating on learned token embeddings.
@@ -238,6 +314,10 @@ class EmbeddingMLP(nn.Module):
     Each token is mapped to a learned embedding vector via ``nn.Embedding``,
     the embeddings are flattened across all positions, then passed through an MLP.
     This is a learned alternative to ``OneHotMLP``'s frozen identity embedding.
+
+    Use :meth:`init_embed_from_pretrained_pca` to initialize the embedding
+    layer from a pretrained model's embeddings (e.g. ESMC), compressed to
+    ``embed_dim`` principal components with automatic cross-tokenizer mapping.
 
     Tensor Dimension Labels:
         S: batch (sample) index
@@ -286,6 +366,36 @@ class EmbeddingMLP(nn.Module):
             layers.append(nn.Dropout(dropout))
         layers.append(nn.Linear(self.model_dim, self.output_dim))
         self.layers = nn.Sequential(*layers)
+
+    def init_embed_from_pretrained_pca(
+        self,
+        source: nn.Embedding,
+        source_vocab: dict[str, int],
+        target_vocab: dict[str, int],
+    ) -> None:
+        """Initialize embedding layer from PCA of a pretrained model's embeddings.
+
+        Finds tokens shared between source and target vocabularies, runs PCA
+        on their pretrained embeddings, and copies the first ``self.embed_dim``
+        principal components into this model's embedding layer at the correct
+        target indices.  Unmatched rows and the padding row are zeroed.
+
+        Args:
+            source: Pretrained embedding layer (e.g. ``esmc_model.embed``).
+            source_vocab: Token string → index mapping for the pretrained model
+                (e.g. ``esm_tokenizer.vocab``).
+            target_vocab: Token string → index mapping for this model
+                (e.g. ``mpnn_tokenizer.vocab``).
+        """
+        weights = pca_embed_init(
+            pretrained_weights=source.weight.detach(),
+            pretrained_vocab=source_vocab,
+            target_vocab=target_vocab,
+            n_components=self.embed_dim,
+            target_vocab_size=self.vocab_size,
+        )
+        self.embed.weight.data.copy_(weights)
+        self.embed.weight.data[self.padding_idx].zero_()
 
     def forward(self, x_SP: torch.LongTensor):
         x_SPE = self.embed(x_SP)

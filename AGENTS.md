@@ -35,16 +35,18 @@
 - `src/dfm/` — core library (installed as editable package; run `uv pip install -e .` after changes)
   - `probability_model.py` — `ProbabilityModel` ABC (shared base: temp, conditioning, abstract forward/format_raw_to_logits/preprocess_observations/collate_observations, concrete get_log_probs)
   - `generative_modeling.py` — `TransitionModel` (concrete, inherits ProbabilityModel), `LogitFormatter` protocol, `MaskedModelLogitFormatter`, `PassThroughLogitFormatter`, `MPNNTokenizer`
-  - `predictive_modeling.py` — `PredictiveModel` (inherits `ProbabilityModel`), `ClassValuedPredictiveModel`, `RealValuedPredictiveModel`, `OneHotMLP`, `LinearProbe`
+  - `predictive_modeling.py` — `PredictiveModel` (inherits `ProbabilityModel`), `ClassValuedPredictiveModel`, `RealValuedPredictiveModel`, `OneHotMLP`, `EmbeddingMLP`, `LinearProbe`, `pca_embed_init`
   - `guide.py` — `TAG`, `DEG`, `TokenizerTranslator` (guidance algorithms)
   - `sampling.py` — `sample_any_order_ancestral` (uses `model.get_log_probs`)
   - `data.py` — `GuidanceDataset` base class, `NoiseSchedule` type alias, schedule functions
-  - `models/esm.py` — `ESMC(TransitionModel)` — single subclass, overrides `format_raw_to_logits` to unwrap ESMCOutput
+  - `models/esm.py` — `ESMC(TransitionModel)`, `ESMCEmbedding(PreTrainedEmbeddingModel)` — ESMC as masked LM and as frozen embedding extractor
   - `models/rocklin_ddg/` — stability predictor (StabilityPMPNN, PreTrainedStabilityPredictor), data_utils, guidance_utils
   - `models/utils.py` — `pdb_to_atom37_and_seq` (incomplete)
 - `examples/unconditional_sampling.py` — working end-to-end ESMC sampling example
 - `examples/stability_guidance/main.py` — cleaned-up stability guidance example (uses dfm abstractions, many TODOs)
-- `tests/` — pytest tests (`test_guidance_data.py`, `test_logit_formatter.py`, `test_transition_model.py`)
+- `examples/pca_embedding_init.py` — end-to-end example: ESMC PCA → EmbeddingMLP initialization
+- `examples/trpb_linear_probe.py` — trains LinearProbe on ESMC embeddings for TrpB fitness prediction (HF dataset: SaProtHub/Dataset-TrpB_fitness_landsacpe)
+- `tests/` — pytest tests (`test_guidance_data.py`, `test_logit_formatter.py`, `test_transition_model.py`, `test_embedding_mlp.py`, `test_pca_embed_init.py`)
 - `TODO.md` — phased roadmap (Phase 1 done, Phase 2–4 pending)
 - **Deleted**: `mixins.py` (conditioning folded into ProbabilityModel), `ConditionalTransitionModel`, `ConditionalPredictiveModel`
 
@@ -99,8 +101,36 @@
 - Imports ESM as `from esm.models.esmc import ESMC as _ESMC` to avoid name shadowing (the dfm class is also called ESMC)
 - Overrides `format_raw_to_logits` to extract `.sequence_logits.float()` from `ESMCOutput` dataclass, then applies logit_formatter
 - `OUTPUT_DIM = 64` — ESM's 33-token vocab padded to 64-dim output for memory alignment
+- `model.embed` is an `nn.Embedding(64, 960)` — to load for PCA: `ESMC.from_pretrained("esmc_300m", device=torch.device("cpu"))` (must pass `torch.device`, not string "cpu" — ESM calls `.type` on it)
 - `MaskedModelLogitFormatter(tokenizer, OUTPUT_DIM)` — takes 2 args (tokenizer, output_dim), NOT 3 (old code erroneously passed `"<mask>"` as second arg)
 - ESM3IF stub removed — left as TODO[pi]
+
+## ESMCEmbedding Model
+
+- `ESMCEmbedding(PreTrainedEmbeddingModel)` in `models/esm.py` — frozen ESMC feature extractor for downstream probes
+- `EMB_DIM = 960` — mean-pooled over non-special positions (CLS, EOS, PAD masked out before pooling)
+- All ESMC parameters frozen (`requires_grad = False`) — pure feature extractor
+- `forward(seq_SP)` takes token IDs, returns pooled embeddings `(S, D)`
+- `forward_ohe(ohe_seq_SPT)` satisfies `PreTrainedEmbeddingModel` ABC, returns `(log_probs, pooled_embeddings)`
+- `tokenize(sequences)` convenience method: raw AA strings → token IDs with CLS/EOS framing
+- Compatible with `LinearProbe(embed_model, output_dim)` — probe calls `embed_model(token_ids)` which dispatches to `forward`
+- Exported from `dfm.models`
+
+## EmbeddingMLP / pca_embed_init Design
+
+- `EmbeddingMLP` in `predictive_modeling.py` — MLP with learned `nn.Embedding` layer, alternative to `OneHotMLP`'s frozen identity embedding
+- **`init_embed_from_pretrained_pca(source, source_vocab, target_vocab)`** — method on EmbeddingMLP that initializes embedding from PCA of a pretrained `nn.Embedding`. Uses `self.embed_dim` as n_components, `self.vocab_size` as target size — no redundant params. Zeroes the padding row after copy.
+- `pca_embed_init()` is now an **internal helper** (not exported from `dfm.__init__`), called by the method above
+- Token matching is by string key (e.g. `"A"`, `"C"`) — shared tokens are the intersection of `source_vocab.keys()` and `target_vocab.keys()`. Unmatched tokens (e.g. UNK `"X"` in MPNN vs `"<unk>"` in ESM) naturally get zero rows — no need to filter vocabs before passing
+- PCA is computed ONLY over the shared tokens' embeddings (not the full pretrained vocab) — special tokens like `<cls>`, `<mask>` etc. are excluded from the centering and SVD
+- Uses `torch.linalg.svd` (NOT `np.linalg.svd`) to keep everything in torch
+- ESMC `embed` layer: `Embedding(64, 960)` — 64 tokens (33 real vocab + 31 alignment padding), 960-dim embeddings
+- First 20 PCs of ESMC's 20 AA embeddings capture ~100% variance (20 tokens in 960-d = rank 19 after centering, so 20 components is exact)
+- Exported from `dfm.__init__`: `EmbeddingMLP` (not `pca_embed_init`)
+- Tests in `tests/test_pca_embed_init.py` (21 tests): synthetic fast tests + ESMC integration tests (module-scoped fixture loads model once)
+- Example in `examples/pca_embedding_init.py`
+- **Design decision**: PCA init is a post-construction method, NOT a constructor param — avoids redundant shape args and lets the model exist before deciding on initialization. Old `initial_embed_weights` constructor param was removed.
+- Consumer: `~/kortemme_tyrosine_kinase_design/train_ohe_mlp.py` uses the old API (pre-method `pca_embed_init` + `initial_embed_weights` constructor) — needs updating
 
 ## Stale Tests / Broken Imports
 
@@ -134,3 +164,6 @@
 - PMPNN vocabulary: 20 standard amino acids + UNK (X), indexed 0–20
 - Mapping: one-letter AA → three-letter code (atomworks `DICT_THREE_TO_ONE`) → PMPNN index (`MPNN_TOKEN_ENCODING.token_to_idx`)
 - `MPNNTokenizer()`: encode("ACDE") → [0,4,3,6], decode([0,4,3,6]) → "ACDE", __call__(["ACDE"]) → {"input_ids": tensor}
+- ESM tokenizer (`EsmSequenceTokenizer`): vocab_size=33, indices 0–3 are special (`<cls>`, `<pad>`, `<eos>`, `<unk>`), AAs at 4–23 (e.g. A=5, L=4, C=23), non-standard at 24–31, `<mask>`=32
+- Both tokenizers expose `.vocab` as `dict[str, int]` (token string → index) — this is the interface `pca_embed_init` uses for cross-tokenizer mapping
+- Simple 20-AA vocab for predictive models: `{aa: i for i, aa in enumerate("ACDEFGHIKLMNPQRSTVWY")}` with padding at index 20, vocab_size=21

@@ -17,6 +17,7 @@ dependencies = [
     "python-lsp-server>=1.14.0",
     "transformers<4.48.2",
     "esm>=3.2.3",
+    "datasets>=2.14.4",
 ]
 
 [dependency-groups]
