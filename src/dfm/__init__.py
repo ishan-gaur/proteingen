@@ -15,7 +15,7 @@ from .generative_modeling import (
 
 from .probability_model import ProbabilityModel
 
-from .predictive_modeling import PredictiveModel, LinearProbe
+from .predictive_modeling import PredictiveModel, LinearProbe, EmbeddingMLP
 
 from .sampling import sample_any_order_ancestral
 

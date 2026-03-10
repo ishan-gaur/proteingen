@@ -19,6 +19,115 @@ from typing import TypedDict
 import numpy as np
 
 
+class ESMCEmbedding(PreTrainedEmbeddingModel):
+    """Frozen ESMC encoder that produces mean-pooled sequence embeddings.
+
+    Wraps ESMC to extract per-token embeddings from the transformer trunk,
+    then mean-pools over non-special positions to produce a single vector
+    per sequence.  All ESMC parameters are frozen — this class is intended
+    as a fixed feature extractor for downstream probes (e.g. ``LinearProbe``).
+
+    Tensor Index Legend:
+        S: batch (sequence) index
+        P: position index in sequence
+        D: embedding dimension (960 for esmc_300m)
+        T: token/vocab dimension (for one-hot inputs)
+    """
+
+    EMB_DIM = 960
+
+    def __init__(self, esmc_checkpoint: str = "esmc_300m"):
+        super().__init__()
+        self.tokenizer = EsmSequenceTokenizer()
+        self._esmc = _ESMC.from_pretrained(
+            esmc_checkpoint, device=torch.device("cpu")
+        ).eval()
+        # Freeze all parameters — pure feature extractor
+        for p in self._esmc.parameters():
+            p.requires_grad = False
+
+    @torch.no_grad()
+    def forward(self, seq_SP: torch.LongTensor) -> torch.FloatTensor:
+        """Extract mean-pooled embeddings from token IDs.
+
+        Args:
+            seq_SP: Token IDs, shape (S, P).  Should include CLS/EOS
+                framing tokens as produced by ``EsmSequenceTokenizer``.
+
+        Returns:
+            Mean-pooled embeddings, shape (S, D).
+        """
+        output: ESMCOutput = self._esmc(seq_SP)
+        embeddings_SPD = output.embeddings  # (S, P, D)
+
+        # Mask out special tokens (CLS, EOS, PAD) before pooling
+        pad_id = self.tokenizer.pad_token_id
+        cls_id = self.tokenizer.cls_token_id
+        eos_id = self.tokenizer.eos_token_id
+        special = {pad_id, cls_id, eos_id}
+        mask_SP = torch.ones_like(seq_SP, dtype=torch.bool)
+        for sid in special:
+            if sid is not None:
+                mask_SP = mask_SP & (seq_SP != sid)
+
+        # Mean pool over non-special positions
+        mask_SP1 = mask_SP.unsqueeze(-1).float()  # (S, P, 1)
+        pooled_SD = (embeddings_SPD * mask_SP1).sum(dim=1) / mask_SP1.sum(dim=1).clamp(
+            min=1
+        )
+        return pooled_SD
+
+    @torch.no_grad()
+    def forward_ohe(
+        self, ohe_seq_SPT: torch.FloatTensor
+    ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
+        """Extract log probs and embeddings from one-hot encoded input.
+
+        Converts one-hot to token IDs via argmax, runs the model, and
+        returns both sequence logits (as log probs) and pooled embeddings.
+
+        Args:
+            ohe_seq_SPT: One-hot encoded tokens, shape (S, P, T).
+
+        Returns:
+            Tuple of (log_probs (S, P, T), pooled_embeddings (S, D)).
+        """
+        seq_SP = ohe_seq_SPT.argmax(dim=-1)
+        output: ESMCOutput = self._esmc(seq_SP)
+        log_probs = torch.log_softmax(output.sequence_logits.float(), dim=-1)
+
+        # Pool embeddings the same way as forward()
+        embeddings_SPD = output.embeddings
+        pad_id = self.tokenizer.pad_token_id
+        cls_id = self.tokenizer.cls_token_id
+        eos_id = self.tokenizer.eos_token_id
+        special = {pad_id, cls_id, eos_id}
+        mask_SP = torch.ones(seq_SP.shape, dtype=torch.bool, device=seq_SP.device)
+        for sid in special:
+            if sid is not None:
+                mask_SP = mask_SP & (seq_SP != sid)
+        mask_SP1 = mask_SP.unsqueeze(-1).float()
+        pooled_SD = (embeddings_SPD * mask_SP1).sum(dim=1) / mask_SP1.sum(dim=1).clamp(
+            min=1
+        )
+
+        return log_probs, pooled_SD
+
+    def tokenize(self, sequences: list[str]) -> torch.LongTensor:
+        """Tokenize raw AA strings to token IDs (with CLS/EOS framing).
+
+        Convenience method for use in data pipelines.
+
+        Args:
+            sequences: List of amino acid strings.
+
+        Returns:
+            Token IDs tensor, shape (S, P).
+        """
+        encoded = self.tokenizer(sequences, padding=True, return_tensors="pt")
+        return encoded["input_ids"]
+
+
 class ESMC(TransitionModel):
     """ESM-C masked language model wrapped as a TransitionModel.
 
