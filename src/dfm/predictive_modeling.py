@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
-from typing import Callable, Any, Dict, Optional
+from typing import Any, Dict, Optional
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dfm.probability_model import ProbabilityModel
@@ -11,116 +11,157 @@ from transformers import PreTrainedTokenizerBase
 class PredictiveModel(ProbabilityModel, ABC):
     """Base class for predictive models used in guidance.
 
-    Subclasses implement ``forward()`` to return logits by wrapping a base
-    predictor model and converting its raw output to logits (via a
-    raw_output_to_logits conversion). ``ProbabilityModel.get_log_probs()``
-    then handles temperature-scaled log_softmax.
+    Predictive models answer: "what is log p(target_event | sequence)?"
 
-    Child classes must set ``self.input_dim`` (vocab size) for the
-    ``target_log_probs_given_seq`` convenience method to work.
+    The target event is set via ``set_target_()`` or the ``target()`` context
+    manager. ``forward()`` returns raw predictions (class logits, regression
+    values, etc.). ``format_raw_to_logits()`` converts those to binary logits
+    ``(B, 2)``: ``[false_logit, true_logit]``. The inherited
+    ``ProbabilityModel.get_log_probs`` applies temperature-scaled log_softmax,
+    and this class's override takes ``[:, 1]`` to return the scalar
+    log p(target=True | x).
+
+    Pipeline::
+
+        forward(ohe_seq) → raw output (class logits, regression value, ...)
+            ↓
+        format_raw_to_logits(raw) → (B, 2) binary logits [false, true]
+            ↓
+        ProbabilityModel.get_log_probs: log_softmax(logits / temp) → (B, 2)
+            ↓
+        PredictiveModel.get_log_probs: [:, 1] → (B,) log p(target | x)
+
+    Subclasses must set ``self.input_dim`` (vocabulary size for OHE).
     """
 
-    def __init__(self, model: nn.Module, tokenizer: PreTrainedTokenizerBase):
+    def __init__(self, tokenizer: PreTrainedTokenizerBase):
         super().__init__()
-        self.model = model
         self.tokenizer = tokenizer
+        self._target = None
+
+
+    def set_target_(self, target_spec):
+        """Set the target event in-place."""
+        self._target = target_spec
+
+    def set_target(self, target_spec):
+        """Set the target event, returning self for chaining."""
+        self._target = target_spec
+        return self
+
+    @contextmanager
+    def with_target(self, target_spec):
+        """Context manager: temporarily set target, revert on exit."""
+        old = self._target
+        self._target = target_spec
+        try:
+            yield self
+        finally:
+            self._target = old
 
     @abstractmethod
-    def forward(
-        self, ohe_seq_SPT: torch.FloatTensor, **kwargs
-    ):  # note this is a float and one-hot encoded as we might want to take a gradient on it
-        raw_output = self.model(ohe_seq_SPT)
-        return raw_output
+    def forward(self, ohe_seq_SPT: torch.FloatTensor, **kwargs) -> Any:
+        """Return raw predictions from one-hot encoded input.
+
+        Must be differentiable w.r.t. ohe_seq_SPT for TAG guidance.
+        """
+        ...
 
     @abstractmethod
     def format_raw_to_logits(
         self, raw_output: Any, ohe_seq_SPT: torch.FloatTensor, **kwargs
-    ):
-        # sets a specification of the target so that the raw forward regression
-        # value or class logits turn into a cdf or class probability
+    ) -> torch.FloatTensor:
+        """Convert raw predictions → binary logits (B, 2): [false_logit, true_logit].
+
+        Uses ``self._target`` to determine what event is being evaluated.
+        The parent's ``get_log_probs`` applies ``log_softmax(logits / temp)``
+        on top.
+        """
         ...
 
-    # TODO[pi] make a note in the documentation somewhere that we recommend
-    # making a typeddict for the conditioning information and setting
-    # the kwargs for these functions as regular arguments
-    @abstractmethod
-    def preprocess_observations(
-        self, observations: Dict[str, Any]
-    ) -> Dict[str, Any]: ...
+    def preprocess_observations(self, observations: Dict[str, Any]) -> Dict[str, Any]:
+        """Default: pass-through. Override for expensive one-time caching."""
+        return observations
 
-    def get_log_prob_target_from_seq(self, seq_SP):
+    def collate_observations(
+        self, x_B: torch.Tensor, observations: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Default: tile each observation tensor to match batch size."""
+        batch_size = x_B.size(0)
+        return {
+            k: v.unsqueeze(0).expand(batch_size, *v.shape)
+            if isinstance(v, torch.Tensor) and v.dim() > 0
+            else v
+            for k, v in observations.items()
+        }
+
+    def get_log_probs(self, ohe_seq_SPT: torch.FloatTensor) -> torch.FloatTensor:
+        """Return log p(target=True | x), scalar per sequence.
+
+        Calls the parent pipeline (forward → format_raw_to_logits →
+        log_softmax with temperature) to get (B, 2), then takes [:, 1].
+        """
+        assert self._target is not None, (
+            "Target not set. Call set_target_() or use target() context manager."
+        )
+        log_probs_B2 = super().get_log_probs(ohe_seq_SPT)  # (B, 2)
+        assert log_probs_B2.shape[1] == 2, (
+            f"Expected binary logits (B, 2) from format_raw_to_logits, got shape {log_probs_B2.shape}"
+        )
+        return log_probs_B2[:, 1]  # (B,)
+
+    def get_log_probs_from_string(self, seq_SP: torch.LongTensor) -> torch.FloatTensor:
+        """Convenience: one-hot encode token IDs, then get_log_probs."""
         ohe_seq_SPT = F.one_hot(seq_SP, self.input_dim).float()
         return self.get_log_probs(ohe_seq_SPT)
 
 
-class RealValuedPredictiveModel(PredictiveModel, ABC):
-    def __init__(self, tokenizer):
-        super().__init__(tokenizer)
-        self.threshold = None
+class CategoricalPredictiveModel(PredictiveModel, ABC):
+    """Predictive model with categorical (multi-class) output.
 
-    @contextmanager
-    def with_target(self, threshold: Callable[torch.Tensor, bool]):
-        pre_context_target = self.threshold
-        self.threshold = threshold
-        try:
-            yield self
-        finally:
-            self.threshold = pre_context_target
+    Target is an int (class index). ``format_raw_to_logits`` converts
+    multi-class logits ``(B, C)`` to binary logits ``(B, 2)`` by splitting
+    the target class from the rest:
 
-    @abstractmethod
-    def compute_log_cdf(
-        self, prediction: torch.Tensor
-    ) -> float:  # Prediction could be ensemble of values, mean/variance, monte-carlo samples, even the CDF
-        pass
+    - ``true_logit = logits[:, target_class]``
+    - ``false_logit = logsumexp(logits for non-target classes)``
 
-    def target_log_probs_given_ohe(self, ohe_seq_SPT):
-        prediction = self.forward(ohe_seq_SPT)
-        logp_y_g_x_S = self.compute_log_cdf(prediction)
-        return logp_y_g_x_S
+    Subclasses implement ``forward()`` to return class logits ``(B, C)``.
+    """
 
+    def format_raw_to_logits(
+        self, raw_output: torch.FloatTensor, ohe_seq_SPT: torch.FloatTensor, **kwargs
+    ) -> torch.FloatTensor:
+        logits_BC = raw_output
+        target_logit_B = logits_BC[:, self._target]
+        # logsumexp of non-target classes = logit for "not target"
+        C = logits_BC.shape[-1]
+        mask = torch.ones(C, dtype=torch.bool, device=logits_BC.device)
+        mask[self._target] = False
+        false_logit_B = torch.logsumexp(logits_BC[:, mask], dim=-1)
+        return torch.stack([false_logit_B, target_logit_B], dim=-1)  # (B, 2)
 
-class EnsemblePredictiveModel(RealValuedPredictiveModel):
+class BinaryPredictiveModel(PredictiveModel):
     pass
 
+class PointEstimatePredictiveModel(PredictiveModel, ABC):
+    """Predictive model with real-valued output.
 
-class GaussianPredictiveModel(RealValuedPredictiveModel):
+    Target is a threshold (float). Subclasses implement ``forward()`` to
+    return predictions and ``format_raw_to_logits()`` to convert predictions
+    + threshold into binary logits representing P(prediction > threshold | x).
+
+    The conversion depends on how the model represents uncertainty:
+
+    - Gaussian (mu, sigma): normal CDF
+    - Ensemble: empirical fraction above threshold
+    - Point estimate: step function (not differentiable — use DEG, not TAG)
+    """
+
     pass
 
-
-class BinaryVariablePredictiveModel(ProbabilityModel):
+class GaussianPredictiveModel(PredictiveModel):
     pass
-
-
-class CategoricalVariablePredictiveModel(ProbabilityModel, ABC):
-    def __init__(self, tokenizer):
-        super().__init__(tokenizer)
-        self.target_class = None
-
-    @contextmanager
-    def with_target(self, target_class: int):
-        pre_context_class = self.target_class
-        self.target_class = target_class
-        try:
-            yield self
-        finally:
-            self.target_class = pre_context_class
-
-    def target_log_probs_given_ohe(self, ohe_seq_SP: torch.LongTensor):
-        logits_y_g_x_SC = self.forward(ohe_seq_SP)
-        logp_y_g_x_S = F.log_softmax(logits_y_g_x_SC / self.temp)[:, self.target_class]
-        return logp_y_g_x_S
-
-
-# TODO[pi] RealValuedPredictiveModel, ClassValuedPredictiveModel, and
-# EnsemblePredictiveModel should be refactored into TargetProbabilityMixin
-# variants. TargetProbabilityMixin is an ABC whose concrete versions
-# (ClassTargetMixin, RealValuedTargetMixin, EnsembleTargetMixin,
-# GaussianTargetMixin) each define how a model's raw output (logits,
-# regression value, ensemble, mean/variance) gets converted into
-# log p(target_event | x). These would be mixed into PredictiveModel
-# subclasses instead of baked into the class hierarchy.
-
-
 # ==========================================================================================
 # ==========================================================================================
 # The following classes are templates to train your own predictive models with.

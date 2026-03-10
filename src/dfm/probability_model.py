@@ -10,7 +10,6 @@ from contextlib import contextmanager
 from typing import Optional, Any, Dict
 
 
-# TODO[pi] this only works for categorical random variables!!! So logtis need to turn into densities and then you don't have a temp
 class ProbabilityModel(nn.Module, ABC):
     """Base class for models that produce log probability distributions.
 
