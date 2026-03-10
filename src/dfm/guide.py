@@ -98,9 +98,9 @@ class TAG(TransitionModel):
                 ohe_inner = ohe_seq_SPT
 
             # The conversion is done separately so that the gradients accumulate in the generative model's token space
-            logp_y_g_x_S = self.pred_model.target_log_probs_given_ohe(
+            logp_y_g_x_S = self.pred_model.get_log_probs(
                 self.gen_to_pred_space(ohe_inner)
-            )  # TODO[pi] the user should set the class/threshold so this doesn't logpy_g_x_SC
+            )
             logp_y_g_x_S.sum().backward()
             logp_y_g_xtilde_SPT = ohe_seq_SPT.grad
         return logp_y_g_xtilde_SPT + logp_xtilde_g_x_SPT

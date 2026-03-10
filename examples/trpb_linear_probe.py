@@ -235,5 +235,40 @@ def main():
     )
 
 
+# ── 5. Guidance integration (sketch) ────────────────────────────────────
+#
+# After training, the probe can be wrapped as a PredictiveModel for use
+# with TAG/DEG guided sampling. Since LinearProbe outputs a point estimate
+# (no uncertainty), a RealValuedPredictiveModel subclass would define how
+# to convert predictions + threshold into binary logits.
+#
+# Example (requires a RealValuedPredictiveModel subclass):
+#
+#   from dfm import RealValuedPredictiveModel
+#   from dfm.guide import DEG
+#   from dfm.models.esm import ESMC as ESMCTransition
+#
+#   class FitnessPredictor(RealValuedPredictiveModel):
+#       def __init__(self, probe, tokenizer):
+#           super().__init__(model=probe, tokenizer=tokenizer)
+#           self.input_dim = tokenizer.vocab_size
+#
+#       def forward(self, ohe_seq_SPT, **kwargs):
+#           seq_SP = ohe_seq_SPT.argmax(dim=-1)
+#           return self.model(seq_SP)
+#
+#       def format_raw_to_logits(self, raw_output, ohe_seq_SPT, **kwargs):
+#           # Convert point estimate + threshold to binary logits
+#           pred_B = raw_output.reshape(-1)
+#           # ... model-specific uncertainty → CDF conversion ...
+#
+#   predictor = FitnessPredictor(probe, esm_tokenizer)
+#   gen_model = ESMCTransition("esmc_300m")
+#
+#   with predictor.target(threshold=0.5):
+#       guided = DEG(gen_model, predictor)
+#       seqs = sample_any_order_ancestral(guided, masked_seqs)
+
+
 if __name__ == "__main__":
     main()
