@@ -158,7 +158,7 @@ class DEG(TransitionModel):
                 seq_SP[s].unsqueeze(0).repeat(n_tok, 1)
             )  # X is the index over tokens we're trying
             seq_XP[:, p] = torch.arange(n_tok)
-            logp_y_g_xtilde_X = self.pred_model.get_log_prob_target_from_seq(seq_XP)
+            logp_y_g_xtilde_X = self.pred_model.get_log_probs_from_string(seq_XP)
             logp_y_g_xtilde_SPT[s, p, :n_tok] = logp_y_g_xtilde_X
             # Don't need to take care of making the others -inf since the logit_formatter will take care of the invalid ones (including the invalid ones we tested lol)
         return logp_y_g_xtilde_SPT + logp_xtilde_g_x_SPT
