@@ -18,7 +18,9 @@ from .probability_model import ProbabilityModel
 from .predictive_modeling import (
     PredictiveModel,
     CategoricalPredictiveModel,
-    RealValuedPredictiveModel,
+    BinaryPredictiveModel,
+    PointEstimatePredictiveModel,
+    GaussianPredictiveModel,
     LinearProbe,
     EmbeddingMLP,
 )

@@ -46,14 +46,14 @@ class PredictiveModel(ProbabilityModel, ABC):
 
     def set_target(self, target_spec):
         """Set the target event, returning self for chaining."""
-        self._target = target_spec
+        self.set_target_(target_spec)
         return self
 
     @contextmanager
     def with_target(self, target_spec):
         """Context manager: temporarily set target, revert on exit."""
         old = self._target
-        self._target = target_spec
+        self.set_target_(target_spec)
         try:
             yield self
         finally:
@@ -79,22 +79,6 @@ class PredictiveModel(ProbabilityModel, ABC):
         """
         ...
 
-    def preprocess_observations(self, observations: Dict[str, Any]) -> Dict[str, Any]:
-        """Default: pass-through. Override for expensive one-time caching."""
-        return observations
-
-    def collate_observations(
-        self, x_B: torch.Tensor, observations: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Default: tile each observation tensor to match batch size."""
-        batch_size = x_B.size(0)
-        return {
-            k: v.unsqueeze(0).expand(batch_size, *v.shape)
-            if isinstance(v, torch.Tensor) and v.dim() > 0
-            else v
-            for k, v in observations.items()
-        }
-
     def get_log_probs(self, ohe_seq_SPT: torch.FloatTensor) -> torch.FloatTensor:
         """Return log p(target=True | x), scalar per sequence.
 
@@ -119,7 +103,7 @@ class PredictiveModel(ProbabilityModel, ABC):
 class CategoricalPredictiveModel(PredictiveModel, ABC):
     """Predictive model with categorical (multi-class) output.
 
-    Target is an int (class index). ``format_raw_to_logits`` converts
+    Target is a class index (int). ``format_raw_to_logits`` converts
     multi-class logits ``(B, C)`` to binary logits ``(B, 2)`` by splitting
     the target class from the rest:
 
@@ -127,7 +111,35 @@ class CategoricalPredictiveModel(PredictiveModel, ABC):
     - ``false_logit = logsumexp(logits for non-target classes)``
 
     Subclasses implement ``forward()`` to return class logits ``(B, C)``.
+
+    Optionally pass ``class_names`` to enable setting target by string::
+
+        model = MyClassifier(tokenizer, class_names={"stable": 0, "unstable": 1})
+        model.set_target_("stable")  # equivalent to set_target_(0)
     """
+
+    def __init__(
+        self,
+        tokenizer,
+        class_names: Optional[Dict[str, int]] = None,
+    ):
+        super().__init__(tokenizer)
+        self.class_names = class_names or {}
+
+    def set_target_(self, target_spec):
+        """Set target class. Accepts int (class index) or str (class name)."""
+        if isinstance(target_spec, str):
+            assert target_spec in self.class_names, (
+                f"Unknown class name '{target_spec}'. "
+                f"Known classes: {list(self.class_names.keys())}"
+            )
+            self._target = self.class_names[target_spec]
+        else:
+            self._target = target_spec
+
+    def set_target(self, target_spec):
+        self.set_target_(target_spec)
+        return self
 
     def format_raw_to_logits(
         self, raw_output: torch.FloatTensor, ohe_seq_SPT: torch.FloatTensor, **kwargs
@@ -141,27 +153,94 @@ class CategoricalPredictiveModel(PredictiveModel, ABC):
         false_logit_B = torch.logsumexp(logits_BC[:, mask], dim=-1)
         return torch.stack([false_logit_B, target_logit_B], dim=-1)  # (B, 2)
 
-class BinaryPredictiveModel(PredictiveModel):
-    pass
 
-class PointEstimatePredictiveModel(PredictiveModel, ABC):
-    """Predictive model with real-valued output.
+class BinaryPredictiveModel(PredictiveModel, ABC):
+    """Predictive model with a single binary logit output.
 
-    Target is a threshold (float). Subclasses implement ``forward()`` to
-    return predictions and ``format_raw_to_logits()`` to convert predictions
-    + threshold into binary logits representing P(prediction > threshold | x).
+    ``forward()`` returns a single logit per sequence where
+    ``sigmoid(logit) = P(positive | x)``. Uses the identity
+    ``sigmoid(x) = softmax([0, x])[1]`` to produce binary logits.
 
-    The conversion depends on how the model represents uncertainty:
-
-    - Gaussian (mu, sigma): normal CDF
-    - Ensemble: empirical fraction above threshold
-    - Point estimate: step function (not differentiable — use DEG, not TAG)
+    Target is a bool: ``True`` for P(positive), ``False`` for P(negative).
+    Defaults to ``True``.
     """
 
-    pass
+    def __init__(self, tokenizer):
+        super().__init__(tokenizer)
+        self._target = True
 
-class GaussianPredictiveModel(PredictiveModel):
-    pass
+    def format_raw_to_logits(
+        self, raw_output: torch.FloatTensor, ohe_seq_SPT: torch.FloatTensor, **kwargs
+    ) -> torch.FloatTensor:
+        logit_B = raw_output.reshape(-1)
+        zero_B = torch.zeros_like(logit_B)
+        if self._target:
+            return torch.stack([zero_B, logit_B], dim=-1)  # (B, 2)
+        else:
+            return torch.stack([logit_B, zero_B], dim=-1)  # (B, 2)
+
+
+class PointEstimatePredictiveModel(PredictiveModel, ABC):
+    """Predictive model with a real-valued point estimate output.
+
+    ``forward()`` returns a scalar prediction per sequence ``(B,)`` or ``(B, 1)``.
+    Target is a threshold (float). Converts to binary logits using a steep
+    sigmoid approximation of the step function.
+
+    Not differentiable through the threshold — use DEG, not TAG.
+
+    The sharpness parameter ``k`` controls how steep the step is.
+    Large ``k`` → hard step (good for DEG). Smaller ``k`` → softer
+    (but still not a proper probabilistic model — use
+    ``GaussianPredictiveModel`` if you have uncertainty estimates).
+    """
+
+    def __init__(self, tokenizer, k: float = 100.0):
+        super().__init__(tokenizer)
+        self.k = k
+
+    def format_raw_to_logits(
+        self, raw_output: torch.FloatTensor, ohe_seq_SPT: torch.FloatTensor, **kwargs
+    ) -> torch.FloatTensor:
+        pred_B = raw_output.reshape(-1)
+        # steep sigmoid approximation: sigmoid(k * (pred - threshold))
+        # maps to binary logits via sigmoid(x) = softmax([0, x])[1]
+        logit_B = self.k * (pred_B - self._target)
+        zero_B = torch.zeros_like(logit_B)
+        return torch.stack([zero_B, logit_B], dim=-1)  # (B, 2)
+
+
+class GaussianPredictiveModel(PredictiveModel, ABC):
+    """Predictive model with Gaussian (mean, variance) output.
+
+    ``forward()`` returns ``(B, 2)`` where column 0 is the mean and
+    column 1 is the log-variance. Target is a threshold (float).
+    Converts to binary logits via the Gaussian CDF:
+    ``P(Y > threshold) = 1 - Phi((threshold - mu) / sigma)``.
+
+    Differentiable through both mean and variance — works with TAG.
+    """
+
+    def format_raw_to_logits(
+        self, raw_output: torch.FloatTensor, ohe_seq_SPT: torch.FloatTensor, **kwargs
+    ) -> torch.FloatTensor:
+        mu_B = raw_output[:, 0]
+        log_var_B = raw_output[:, 1]
+        sigma_B = (log_var_B / 2).exp()
+
+        # P(Y > threshold) = Phi((mu - threshold) / sigma)
+        # We need unnormalized logits since the parent applies log_softmax.
+        # Use log_ndtr for numerically stable log Phi(z):
+        #   logit = log(p_above / p_below) = log_ndtr(z) - log_ndtr(-z)
+        # Then softmax([0, logit])[1] = sigmoid(logit) = p_above.
+        z_B = (mu_B - self._target) / sigma_B
+        # log_ndtr handles extreme z values without NaN
+        log_p_above = torch.special.log_ndtr(z_B)
+        log_p_below = torch.special.log_ndtr(-z_B)
+        logit_B = log_p_above - log_p_below  # log-odds
+
+        zero_B = torch.zeros_like(logit_B)
+        return torch.stack([zero_B, logit_B], dim=-1)  # (B, 2)
 # ==========================================================================================
 # ==========================================================================================
 # The following classes are templates to train your own predictive models with.

@@ -75,29 +75,6 @@ class TransitionModel(ProbabilityModel):
         logits_SPT = self.logit_formatter(logits_SPT, seq_SP)
         return logits_SPT
 
-    def preprocess_observations(self, observations: Dict[str, Any]) -> Dict[str, Any]:
-        """Default: pass through. Override for expensive one-time caching."""
-        return observations
-
-    # TODO[pi] maybe we should make this an abstract class and not have it
-    # take a model as input. The current setup makes it easy to take
-    # a model as input, but doesn't set it up as a parent classes for
-    # creating models in the first place. Then "default" code like the below could be removed.
-    # We might not want to actually define this upfront?
-    # Like one of the observations might be a huge tensor you only want one copy of
-    # But at least if this is defined this becomes a concrete class
-    def collate_observations(
-        self, x_B: torch.Tensor, observations: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Default: tile each observation tensor to match batch size."""
-        batch_size = x_B.size(0)
-        return {
-            k: v.unsqueeze(0).expand(batch_size, *v.shape)
-            if isinstance(v, torch.Tensor) and v.dim() > 0
-            else v
-            for k, v in observations.items()
-        }
-
     def get_log_probs_from_string(
         self, sequences: list[str]
     ):  # TODO[pi] check all the type hints in the src folder

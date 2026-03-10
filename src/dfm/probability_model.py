@@ -37,23 +37,33 @@ class ProbabilityModel(nn.Module, ABC):
     def device(self):
         return next(self.parameters()).device
 
-    @abstractmethod
     def preprocess_observations(self, observations: Dict[str, Any]) -> Dict[str, Any]:
         """Transform raw observations into cached form.
 
         Called once when ``set_condition_()`` or ``conditioned_on()`` is
-        invoked. Use this for expensive operations (e.g. encoding structure)
+        invoked. Override for expensive operations (e.g. encoding structure)
         that should not be repeated every forward pass.
-        """
-        ...
 
-    @staticmethod
-    @abstractmethod
+        Default: pass through.
+        """
+        return observations
+
     def collate_observations(
-        x_B: torch.Tensor, observations: Dict[str, Any]
+        self, x_B: torch.Tensor, observations: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Collate observations for input to the forward function."""
-        ...
+        """Collate observations for input to the forward function.
+
+        Default: tile each observation tensor to match batch size.
+        Override when you need custom collation (e.g. only expanding
+        certain keys, or handling non-tensor observations).
+        """
+        batch_size = x_B.size(0)
+        return {
+            k: v.unsqueeze(0).expand(batch_size, *v.shape)
+            if isinstance(v, torch.Tensor) and v.dim() > 0
+            else v
+            for k, v in observations.items()
+        }
 
     def set_condition_(self, observations: Dict[str, Any]):
         """Preprocess and cache observations in-place."""
@@ -109,6 +119,7 @@ class ProbabilityModel(nn.Module, ABC):
         Input is some batched tensor with otherwise arbitrary dimensions.
         Default implementation: ``log_softmax(forward(x, **kwargs) / temp)``.
         """
+        assert self.temp > 0, f"Temperature must be positive, got {self.temp}"
         if self.observations is not None:
             obs = self.collate_observations(x_B, self.observations)
             raw_output = self.forward(x_B, **obs)
