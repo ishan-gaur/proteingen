@@ -90,10 +90,19 @@
 
 ## PredictiveModel Design
 
-- `PredictiveModel(ProbabilityModel, ABC)` — adds `tokenizer` to init
-- Still has `with_target` (abstract), `target_log_probs_given_ohe` (on subclasses), `get_log_prob_target_given_seq` (convenience)
-- `ClassValuedPredictiveModel` and `RealValuedPredictiveModel` exist but will be rewritten as `TargetProbabilityMixin` variants
-- Child classes must set `self.input_dim` for `get_log_prob_target_given_seq` to work
+- `PredictiveModel(ProbabilityModel, ABC)` — adds `model`, `tokenizer`, `_target` to init
+- **Binary logit pattern**: `format_raw_to_logits` must return `(B, 2)` binary logits `[false_logit, true_logit]`. Parent's `get_log_probs` applies `log_softmax(logits / temp)` → `(B, 2)`. PredictiveModel's `get_log_probs` takes `[:, 1]` → scalar `log p(target | x)`.
+- **Target management**: `set_target_()` (in-place), `set_target()` (returns self), `target()` (context manager with revert). Asserts target is set before `get_log_probs`.
+- **Chaining**: `model.condition(obs).target(spec)` — `condition()` sets observations permanently (returns self), `target()` is a context manager
+- `CategoricalPredictiveModel(PredictiveModel, ABC)` — concrete `format_raw_to_logits`: `true_logit = logits[:, target_class]`, `false_logit = logsumexp(rest)`. Subclasses only implement `forward`.
+- `RealValuedPredictiveModel(PredictiveModel, ABC)` — abstract, `format_raw_to_logits` left to subclasses (depends on uncertainty: Gaussian CDF, ensemble fraction, etc.)
+- **Binary predictor math**: `sigmoid(x) = softmax([0, x])[1]` — binary models return `[0, logit]` as their binary logits
+- Child classes must set `self.input_dim` for `get_log_prob_target_from_seq` (OHE conversion) and for TAG's `TokenizerTranslator`
+- Template nn.Modules (`LinearProbe`, `OneHotMLP`, `EmbeddingMLP`) stay as plain `nn.Module` — get wrapped in a `PredictiveModel` subclass for guidance use
+- `forward` takes OHE float input (`ohe_seq_SPT`) for TAG differentiability. Models that internally need token IDs do argmax (not differentiable — use DEG instead of TAG)
+- TAG now calls `pred_model.get_log_probs(ohe)` directly (replaces old `target_log_probs_given_ohe`). DEG calls `get_log_prob_target_from_seq(token_ids)`.
+- Old classes removed: `CategoricalVariablePredictiveModel`, `BinaryVariablePredictiveModel`, `EnsemblePredictiveModel`, `GaussianPredictiveModel`
+- **TODO**: concrete `RealValuedPredictiveModel` subclasses (Gaussian, Ensemble) not yet implemented
 
 ## ESMC Model
 
@@ -146,7 +155,7 @@
 
 - `StabilityPMPNN` in `models/rocklin_ddg/stability_predictor.py` — PMPNN-based stability predictor with encode/decode split
 - `encode_structure()` is expensive (runs once per structure), `decode()` is cheap (runs per sample) — this is the conditioning pattern formalized by ProbabilityModel's `preprocess_observations`
-- `PreTrainedStabilityPredictor(ClassValuedPredictiveModel)` wraps StabilityPMPNN — syntax errors fixed (missing self, `class` keyword), but forward/conditioning not yet implemented
+- `PreTrainedStabilityPredictor(PredictiveModel)` wraps StabilityPMPNN — uses binary logit pattern `[0, logit]`, sets `_target = True` by default, no longer overrides `get_log_probs`
 - The old working example (`models/rocklin_ddg/example_usage.py`) uses local `data_utils.py` and `guidance_utils.py` — these do NOT use dfm abstractions
 - `data_utils.py` has ~300 lines of PMPNN-specific featurization (featurize, prepare_conditioning_inputs, token conversion, PDB loading via biotite)
 - `guidance_utils.py` has flow matching Euler sampling + TAG guidance + ESM3 inverse folding wrappers — most of this is replicated by `guide.py` (TAG/DEG) and `sampling.py`
