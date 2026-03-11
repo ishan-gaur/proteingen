@@ -9,6 +9,7 @@ from .data import (
 
 from .generative_modeling import (
     TransitionModel,
+    TransitionModelWithEmbedding,
     LogitFormatter,
     MaskedModelLogitFormatter,
 )

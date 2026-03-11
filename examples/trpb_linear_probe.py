@@ -61,6 +61,13 @@ class TrpBFitnessPredictor(PointEstimatePredictiveModel):
         self.probe = LinearProbe(embed_model=esmc, output_dim=1, pooling_fn=masked_mean_pool)
         self.input_dim = esmc.OUTPUT_DIM
 
+    def forward(self, ohe_seq_SPT: torch.FloatTensor, **kwargs) -> torch.FloatTensor:
+        esmc = self.probe.embed_model
+        emb_SPD = esmc.differentiable_embedding(ohe_seq_SPT)
+        seq_SP = ohe_seq_SPT.argmax(dim=-1)
+        pooled = self.probe.pooling_fn(emb_SPD, seq_SP)
+        return self.probe.w(pooled)
+
 
 # ── Data loading ─────────────────────────────────────────────────────────────
 

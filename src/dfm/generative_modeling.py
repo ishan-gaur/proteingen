@@ -82,6 +82,59 @@ class TransitionModel(ProbabilityModel):
         seq_SP = tokenized["input_ids"].to(device=self.device, dtype=torch.long)
         return self.get_log_probs(seq_SP)
 
+class TransitionModelWithEmbedding(TransitionModel, ABC):
+    """TransitionModel that exposes a differentiable embedding step.
+
+    Subclasses implement two methods that split the model's forward pass:
+
+    - ``differentiable_embedding(ohe_seq_SPT)`` — OHE float input → deep
+      embeddings (after transformer / encoder body).
+    - ``embedding_to_logits(embedding_SPD)`` — deep embeddings → raw logits.
+
+    This class provides concrete ``forward`` and ``format_raw_to_logits``
+    that compose these two steps, create a differentiable OHE from token IDs
+    (so gradients flow through the embedding step for TAG), and apply the
+    logit formatter.
+
+    The OHE tensor is stashed as ``self._ohe`` after each forward pass so
+    TAG can read ``model._ohe.grad`` after backprop.
+
+    Subclasses must set ``EMB_DIM`` (int) for downstream use (e.g. LinearProbe).
+    """
+
+    EMB_DIM: int  # subclasses must set this
+
+    @abstractmethod
+    def differentiable_embedding(
+        self, ohe_seq_SPT: torch.FloatTensor
+    ) -> torch.FloatTensor:
+        """OHE (or soft distribution) over tokens → deep embeddings (S, P, D).
+
+        Typically: ``ohe @ embed.weight`` → transformer body.
+        """
+        ...
+
+    @abstractmethod
+    def embedding_to_logits(
+        self, embedding_SPD: torch.FloatTensor
+    ) -> torch.FloatTensor:
+        """Deep embeddings → raw logits (S, P, T). No logit formatting."""
+        ...
+
+    def forward(self, seq_SP: torch.LongTensor, **kwargs) -> torch.FloatTensor:
+        ohe_seq_SPT = F.one_hot(seq_SP, num_classes=self.OUTPUT_DIM).float()
+        ohe_seq_SPT.requires_grad_(True)
+        self._ohe = ohe_seq_SPT
+        embedding_SPD = self.differentiable_embedding(ohe_seq_SPT)
+        self._embedding = embedding_SPD
+        logits_SPT = self.embedding_to_logits(embedding_SPD)
+        return logits_SPT
+
+    def format_raw_to_logits(
+        self, logits_SPT: torch.FloatTensor, seq_SP: torch.LongTensor, **kwargs
+    ) -> torch.FloatTensor:
+        return self.logit_formatter(logits_SPT, seq_SP)
+
 
 @runtime_checkable
 class LogitFormatter(Protocol):
