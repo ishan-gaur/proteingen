@@ -1,37 +1,29 @@
 import attr
 import torch
 from torch import nn
+from torch.nn import functional as F
 from dfm.generative_modeling import (
+    TransitionModelWithEmbedding,
     TransitionModel,
     MaskedModelLogitFormatter,
-    LogitFormatter,
 )
-from dfm.predictive_modeling import PreTrainedEmbeddingModel
 from esm.utils import generation
 from esm.sdk.api import ESMProtein, LogitsConfig
 from esm.models.esmc import ESMC as _ESMC
-from esm.models.esmc import ESMCOutput
 from esm.models.esm3 import ESM3 as _ESM3
-from esm.models.esm3 import ESMOutput
 from esm.tokenization.sequence_tokenizer import EsmSequenceTokenizer
-from transformers import PreTrainedTokenizerBase
 from typing import TypedDict
 import numpy as np
 
 
-class ESMC(TransitionModel, PreTrainedEmbeddingModel):
-    """ESM-C masked language model wrapped as a TransitionModel.
-
-    Also serves as a frozen embedding extractor (via ``PreTrainedEmbeddingModel``).
-    Use ``embed(seq_SP)`` for mean-pooled embeddings from token IDs, or
-    ``forward_ohe(ohe_seq_SPT)`` for a differentiable path through the
-    embedding layer (for TAG guidance).
+class ESMC(TransitionModelWithEmbedding):
+    """ESM-C masked language model as a TransitionModelWithEmbedding.
 
     Tensor Index Legend:
         S: sequence index in batch
         P: position index in sequence
-        T: token/vocab dimension
-        D: embedding dimension (960)
+        T: token/vocab dimension (OUTPUT_DIM = 64)
+        D: embedding dimension (EMB_DIM = 960)
     """
 
     OUTPUT_DIM = 64
@@ -45,37 +37,14 @@ class ESMC(TransitionModel, PreTrainedEmbeddingModel):
             model=esmc, tokenizer=tokenizer, logit_formatter=logit_formatter
         )
 
-    def forward(self, seq_SP: torch.LongTensor, **kwargs) -> ESMCOutput:
-        """Standard forward pass from token IDs (for TransitionModel use)."""
-        return self.model(seq_SP, **kwargs)
+    def differentiable_embedding(self, ohe_seq_SPT: torch.FloatTensor) -> torch.FloatTensor:
+        x_SPD = ohe_seq_SPT @ self.model.embed.weight
+        sequence_id = ohe_seq_SPT.argmax(-1) != self.tokenizer.pad_token_id
+        x_SPD, _, _ = self.model.transformer(x_SPD, sequence_id=sequence_id)
+        return x_SPD
 
-    def forward_ohe(
-        self, ohe_seq_SPT: torch.FloatTensor
-    ) -> ESMCOutput:
-        """Differentiable forward pass from one-hot encoded input.
-
-        Uses ``ohe @ embedding_weights`` instead of ``embedding[token_ids]``
-        so gradients flow through the embedding step (needed for TAG).
-
-        Returns the same ``ESMCOutput`` as ``forward()``.
-        """
-        x_SPD = ohe_seq_SPT @ self.model.embed.weight  # (S, P, D)
-        seq_SP = ohe_seq_SPT.argmax(dim=-1)
-        sequence_id = seq_SP != self.tokenizer.pad_token_id
-
-        x, _, hiddens = self.model.transformer(x_SPD, sequence_id=sequence_id)
-        hiddens = torch.stack(hiddens, dim=0)
-        sequence_logits = self.model.sequence_head(x)
-        return ESMCOutput(
-            sequence_logits=sequence_logits, embeddings=x, hidden_states=hiddens
-        )
-
-    def format_raw_to_logits(
-        self, model_output: ESMCOutput, seq_SP: torch.LongTensor
-    ) -> torch.FloatTensor:
-        logits_SPT = model_output.sequence_logits.float()
-        logits_SPT = self.logit_formatter(logits_SPT, seq_SP)
-        return logits_SPT
+    def embedding_to_logits(self, embedding_SPD: torch.FloatTensor) -> torch.FloatTensor:
+        return self.model.sequence_head(embedding_SPD)
 
 
 

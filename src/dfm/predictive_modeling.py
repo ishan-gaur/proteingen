@@ -4,10 +4,14 @@ from torch.nn import functional as F
 from typing import Any, Dict, Optional
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
+from dfm.generative_modeling import TransitionModelWithEmbedding
 from dfm.probability_model import ProbabilityModel
 from transformers import PreTrainedTokenizerBase
 
 
+# TODO[pi] Switch forward() from OHE to token IDs. OHE creation and padding
+# (vocab_size → OUTPUT_DIM) moves internal. Add grad_log_prob(seq_SP) that
+# stashes _ohe, runs backward, returns gradients for TAG. Removes input_dim.
 class PredictiveModel(ProbabilityModel, ABC):
     """Base class for predictive models used in guidance.
 
@@ -58,14 +62,6 @@ class PredictiveModel(ProbabilityModel, ABC):
             yield self
         finally:
             self._target = old
-
-    @abstractmethod
-    def forward(self, ohe_seq_SPT: torch.FloatTensor, **kwargs) -> Any:
-        """Return raw predictions from one-hot encoded input.
-
-        Must be differentiable w.r.t. ohe_seq_SPT for TAG guidance.
-        """
-        ...
 
     @abstractmethod
     def format_raw_to_logits(
@@ -250,30 +246,6 @@ class GaussianPredictiveModel(PredictiveModel, ABC):
 # ==========================================================================================
 
 
-class PreTrainedEmbeddingModel(nn.Module, ABC):
-    EMB_DIM = None
-
-    @abstractmethod
-    def forward_ohe(
-        self, ohe_seq_SPT: torch.FloatTensor
-    ) -> Any:
-        """Differentiable forward pass from one-hot encoded input."""
-        ...
-
-    # @staticmethod
-    # def masked_pool_embeddings(
-    #     embeddings_SPD: torch.Tensor,
-    #     seq_SP: torch.LongTensor,
-    #     special_ids: set[int],
-    # ) -> torch.Tensor:
-    #     """Mean-pool embeddings over non-special positions. Shape (S, D)."""
-    #     mask_SP = torch.ones_like(seq_SP, dtype=torch.bool)
-    #     for sid in special_ids:
-    #         mask_SP = mask_SP & (seq_SP != sid)
-    #     mask_SP1 = mask_SP.unsqueeze(-1).float()
-    #     return (embeddings_SPD * mask_SP1).sum(dim=1) / mask_SP1.sum(dim=1).clamp(min=1)
-
-
 class LinearProbe(nn.Module):
     """
     Linear probe on top of pre-computed embeddings.
@@ -286,7 +258,7 @@ class LinearProbe(nn.Module):
 
     def __init__(
         self,
-        embed_model: PreTrainedEmbeddingModel,
+        embed_model: TransitionModelWithEmbedding,
         output_dim: int,
         pooling_fn: Optional[callable] = None,
     ):
@@ -317,17 +289,27 @@ class LinearProbe(nn.Module):
             token_ids = tokenizer(
                 batch_seqs, padding=True, return_tensors="pt"
             )["input_ids"].to(device)
-            output = self.embed_model(token_ids)
-            pooled = self.pooling_fn(output.embeddings, token_ids)
+            ohe_SPT = F.one_hot(token_ids, num_classes=tokenizer.vocab_size).float()
+            emb_SPD = self.embed_model.differentiable_embedding(ohe_SPT)
+            pooled = self.pooling_fn(emb_SPD, token_ids)
             all_embeddings.append(pooled.cpu())
             if (start // batch_size) % 50 == 0:
                 print(f"  Embedded {min(start + batch_size, n):>6d} / {n}")
         return torch.cat(all_embeddings, dim=0)
 
-    def forward(self, seq_SP: torch.LongTensor):
-        output = self.embed_model(seq_SP)
-        pooled_SD = self.pooling_fn(output.embeddings, seq_SP)
+    def forward(self, seq_SP: torch.LongTensor) -> torch.FloatTensor:
+        """Full forward: embed → pool → linear. Not differentiable through OHE."""
+        ohe_SPT = F.one_hot(seq_SP, num_classes=tokenizer.vocab_size).float()
+        emb_SPD = self.embed_model.differentiable_embedding(ohe_SPT)
+        pooled_SD = self.pooling_fn(emb_SPD, seq_SP)
         return self.w(pooled_SD)
+
+    def forward(self, ohe_seq_SPT: torch.FloatTensor, **kwargs) -> torch.FloatTensor:
+        esmc = self.probe.embed_model
+        emb_SPD = esmc.differentiable_embedding(ohe_seq_SPT)
+        seq_SP = ohe_seq_SPT.argmax(dim=-1)
+        pooled = self.probe.pooling_fn(emb_SPD, seq_SP)
+        return self.probe.w(pooled)
 
 
 class OneHotMLP(nn.Module):
