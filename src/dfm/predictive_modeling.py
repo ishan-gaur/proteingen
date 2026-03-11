@@ -9,15 +9,15 @@ from dfm.probability_model import ProbabilityModel
 from transformers import PreTrainedTokenizerBase
 
 
-# TODO[pi] Switch forward() from OHE to token IDs. OHE creation and padding
-# (vocab_size → OUTPUT_DIM) moves internal. Add grad_log_prob(seq_SP) that
-# stashes _ohe, runs backward, returns gradients for TAG. Removes input_dim.
+# TODO[pi] Think carefully about tokenizer mismatch: the predictor's tokenizer
+# (used for OHE/grad_log_prob) may differ from the underlying model's tokenizer
+# (e.g. ESMC's 64-wide embed table vs 33 vocab_size).
 class PredictiveModel(ProbabilityModel, ABC):
     """Base class for predictive models used in guidance.
 
     Predictive models answer: "what is log p(target_event | sequence)?"
 
-    The target event is set via ``set_target_()`` or the ``target()`` context
+    The target event is set via ``set_target_()`` or the ``with_target()`` context
     manager. ``forward()`` returns raw predictions (class logits, regression
     values, etc.). ``format_raw_to_logits()`` converts those to binary logits
     ``(B, 2)``: ``[false_logit, true_logit]``. The inherited
@@ -27,6 +27,8 @@ class PredictiveModel(ProbabilityModel, ABC):
 
     Pipeline::
 
+        get_log_probs(seq_SP) — creates OHE, stashes self._ohe
+            ↓
         forward(ohe_seq) → raw output (class logits, regression value, ...)
             ↓
         format_raw_to_logits(raw) → (B, 2) binary logits [false, true]
@@ -35,65 +37,83 @@ class PredictiveModel(ProbabilityModel, ABC):
             ↓
         PredictiveModel.get_log_probs: [:, 1] → (B,) log p(target | x)
 
-    Subclasses must set ``self.input_dim`` (vocabulary size for OHE).
+    For TAG guidance, use ``grad_log_prob(seq_SP)`` which runs the pipeline,
+    backprops, and returns gradients w.r.t. the vocab-sized OHE.
     """
 
     def __init__(self, tokenizer: PreTrainedTokenizerBase):
         super().__init__()
         self.tokenizer = tokenizer
-        self._target = None
+        self.target = None
+        self._ohe = None
 
-
-    def set_target_(self, target_spec):
+    def set_target_(self, target):
         """Set the target event in-place."""
-        self._target = target_spec
+        self.target = target
 
-    def set_target(self, target_spec):
+    def set_target(self, target):
         """Set the target event, returning self for chaining."""
-        self.set_target_(target_spec)
+        self.set_target_(target)
         return self
 
     @contextmanager
     def with_target(self, target_spec):
         """Context manager: temporarily set target, revert on exit."""
-        old = self._target
+        old = self.target
         self.set_target_(target_spec)
         try:
             yield self
         finally:
-            self._target = old
+            self.target = old
+
+    def forward(self, ohe_seq_SPT: torch.FloatTensor, **kwargs) -> Any:
+        """Forward pass to produce raw predictions. To be implemented by subclasses. Must take OHE as input.
+        OHE dimension will be the tokenizer's vocab size."""
+        ...
 
     @abstractmethod
     def format_raw_to_logits(
-        self, raw_output: Any, ohe_seq_SPT: torch.FloatTensor, **kwargs
+        self, raw_output: Any, seq_SPT: torch.FloatTensor, **kwargs
     ) -> torch.FloatTensor:
         """Convert raw predictions → binary logits (B, 2): [false_logit, true_logit].
 
-        Uses ``self._target`` to determine what event is being evaluated.
+        Uses ``self.target`` to determine what event is being evaluated.
         The parent's ``get_log_probs`` applies ``log_softmax(logits / temp)``
         on top.
         """
         ...
 
-    def get_log_probs(self, ohe_seq_SPT: torch.FloatTensor) -> torch.FloatTensor:
+    def get_log_probs(self, seq_SP: torch.LongTensor) -> torch.FloatTensor:
         """Return log p(target=True | x), scalar per sequence.
 
-        Calls the parent pipeline (forward → format_raw_to_logits →
-        log_softmax with temperature) to get (B, 2), then takes [:, 1].
+        Creates a vocab-sized OHE from token IDs, stashes it as ``self._ohe``
+        (for gradient access via ``grad_log_prob``), then runs the parent
+        pipeline (forward → format_raw_to_logits → log_softmax) to get
+        (B, 2) and returns [:, 1].
         """
-        assert self._target is not None, (
-            "Target not set. Call set_target_() or use target() context manager."
+        assert self.target is not None, (
+            "Target not set. Call set_target_() or use with_target() context manager."
         )
+        ohe_seq_SPT = F.one_hot(seq_SP, self.tokenizer.vocab_size).float()
+        ohe_seq_SPT.requires_grad_(True)
+        self._ohe = ohe_seq_SPT
         log_probs_B2 = super().get_log_probs(ohe_seq_SPT)  # (B, 2)
         assert log_probs_B2.shape[1] == 2, (
             f"Expected binary logits (B, 2) from format_raw_to_logits, got shape {log_probs_B2.shape}"
         )
         return log_probs_B2[:, 1]  # (B,)
 
-    def get_log_probs_from_string(self, seq_SP: torch.LongTensor) -> torch.FloatTensor:
-        """Convenience: one-hot encode token IDs, then get_log_probs."""
-        ohe_seq_SPT = F.one_hot(seq_SP, self.input_dim).float()
-        return self.get_log_probs(ohe_seq_SPT)
+    def grad_log_prob(self, seq_SP: torch.LongTensor) -> torch.FloatTensor:
+        """Return gradient of log p(target | x) w.r.t. vocab-sized OHE.
+
+        Runs ``get_log_probs`` (which creates and stashes the OHE),
+        backprops, and returns ``self._ohe.grad`` of shape (B, P, vocab_size).
+        This is the gradient signal TAG adds to transition model logits.
+        """
+        with torch.enable_grad():
+            log_p = self.get_log_probs(seq_SP)
+            log_p.sum().backward()
+            return self._ohe.grad
 
 
 class CategoricalPredictiveModel(PredictiveModel, ABC):
@@ -129,9 +149,9 @@ class CategoricalPredictiveModel(PredictiveModel, ABC):
                 f"Unknown class name '{target_spec}'. "
                 f"Known classes: {list(self.class_names.keys())}"
             )
-            self._target = self.class_names[target_spec]
+            self.target = self.class_names[target_spec]
         else:
-            self._target = target_spec
+            self.target = target_spec
 
     def set_target(self, target_spec):
         self.set_target_(target_spec)
@@ -141,11 +161,11 @@ class CategoricalPredictiveModel(PredictiveModel, ABC):
         self, raw_output: torch.FloatTensor, ohe_seq_SPT: torch.FloatTensor, **kwargs
     ) -> torch.FloatTensor:
         logits_BC = raw_output
-        target_logit_B = logits_BC[:, self._target]
+        target_logit_B = logits_BC[:, self.target]
         # logsumexp of non-target classes = logit for "not target"
         C = logits_BC.shape[-1]
         mask = torch.ones(C, dtype=torch.bool, device=logits_BC.device)
-        mask[self._target] = False
+        mask[self.target] = False
         false_logit_B = torch.logsumexp(logits_BC[:, mask], dim=-1)
         return torch.stack([false_logit_B, target_logit_B], dim=-1)  # (B, 2)
 
@@ -163,14 +183,14 @@ class BinaryPredictiveModel(PredictiveModel, ABC):
 
     def __init__(self, tokenizer):
         super().__init__(tokenizer)
-        self._target = True
+        self.target = True
 
     def format_raw_to_logits(
         self, raw_output: torch.FloatTensor, ohe_seq_SPT: torch.FloatTensor, **kwargs
     ) -> torch.FloatTensor:
         logit_B = raw_output.reshape(-1)
         zero_B = torch.zeros_like(logit_B)
-        if self._target:
+        if self.target:
             return torch.stack([zero_B, logit_B], dim=-1)  # (B, 2)
         else:
             return torch.stack([logit_B, zero_B], dim=-1)  # (B, 2)
@@ -201,7 +221,7 @@ class PointEstimatePredictiveModel(PredictiveModel, ABC):
         pred_B = raw_output.reshape(-1)
         # steep sigmoid approximation: sigmoid(k * (pred - threshold))
         # maps to binary logits via sigmoid(x) = softmax([0, x])[1]
-        logit_B = self.k * (pred_B - self._target)
+        logit_B = self.k * (pred_B - self.target)
         zero_B = torch.zeros_like(logit_B)
         return torch.stack([zero_B, logit_B], dim=-1)  # (B, 2)
 
@@ -229,7 +249,7 @@ class GaussianPredictiveModel(PredictiveModel, ABC):
         # Use log_ndtr for numerically stable log Phi(z):
         #   logit = log(p_above / p_below) = log_ndtr(z) - log_ndtr(-z)
         # Then softmax([0, logit])[1] = sigmoid(logit) = p_above.
-        z_B = (mu_B - self._target) / sigma_B
+        z_B = (mu_B - self.target) / sigma_B
         # log_ndtr handles extreme z values without NaN
         log_p_above = torch.special.log_ndtr(z_B)
         log_p_below = torch.special.log_ndtr(-z_B)
@@ -246,7 +266,7 @@ class GaussianPredictiveModel(PredictiveModel, ABC):
 # ==========================================================================================
 
 
-class LinearProbe(nn.Module):
+class LinearProbe(PredictiveModel, ABC):
     """
     Linear probe on top of pre-computed embeddings.
 
@@ -262,18 +282,41 @@ class LinearProbe(nn.Module):
         output_dim: int,
         pooling_fn: Optional[callable] = None,
     ):
-        super().__init__()
+        super().__init__(tokenizer=embed_model.tokenizer)
         self.embed_model = embed_model
         self.embedding_dim = embed_model.EMB_DIM
         self.output_dim = output_dim
         self.w = nn.Linear(self.embedding_dim, self.output_dim)
-        self.pooling_fn = pooling_fn or (lambda emb_SPD, seq_SP: emb_SPD.mean(dim=1))
+        def _mean_pool_non_padding(emb_SPD, seq_SP):
+            mask = (seq_SP != self.tokenizer.pad_token_id).unsqueeze(-1).float()
+            return (emb_SPD * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1)
+
+        self.pooling_fn = pooling_fn or _mean_pool_non_padding
 
         for p in self.embed_model.parameters():
             p.requires_grad = False
 
+    def forward(self, ohe_seq_SPT: torch.FloatTensor) -> torch.FloatTensor:
+        """Full forward: differentiable embed → pool → linear."""
+        emb_SPD = self.embed_model.differentiable_embedding(ohe_seq_SPT)
+        seq_SP = ohe_seq_SPT.argmax(dim=-1)
+        pooled_SD = self.pooling_fn(emb_SPD, seq_SP)
+        return self.w(pooled_SD)
+
+    @abstractmethod
+    def format_raw_to_logits(
+        self, y_SO: torch.FloatTensor, seq_SPT: torch.FloatTensor, **kwargs
+    ) -> torch.FloatTensor:
+        """Convert raw predictions → binary logits (B, 2): [false_logit, true_logit].
+
+        Uses ``self.target`` to determine what event is being evaluated.
+        The parent's ``get_log_probs`` applies ``log_softmax(logits / temp)``
+        on top.
+        """
+        ...
+
     @torch.no_grad()
-    def compute_embeddings(
+    def precompute_embeddings(
         self,
         sequences: list[str],
         batch_size: int,
@@ -289,27 +332,13 @@ class LinearProbe(nn.Module):
             token_ids = tokenizer(
                 batch_seqs, padding=True, return_tensors="pt"
             )["input_ids"].to(device)
-            ohe_SPT = F.one_hot(token_ids, num_classes=tokenizer.vocab_size).float()
-            emb_SPD = self.embed_model.differentiable_embedding(ohe_SPT)
+            emb_SPD = self.embed_model.embed(token_ids)
             pooled = self.pooling_fn(emb_SPD, token_ids)
             all_embeddings.append(pooled.cpu())
             if (start // batch_size) % 50 == 0:
                 print(f"  Embedded {min(start + batch_size, n):>6d} / {n}")
         return torch.cat(all_embeddings, dim=0)
 
-    def forward(self, seq_SP: torch.LongTensor) -> torch.FloatTensor:
-        """Full forward: embed → pool → linear. Not differentiable through OHE."""
-        ohe_SPT = F.one_hot(seq_SP, num_classes=tokenizer.vocab_size).float()
-        emb_SPD = self.embed_model.differentiable_embedding(ohe_SPT)
-        pooled_SD = self.pooling_fn(emb_SPD, seq_SP)
-        return self.w(pooled_SD)
-
-    def forward(self, ohe_seq_SPT: torch.FloatTensor, **kwargs) -> torch.FloatTensor:
-        esmc = self.probe.embed_model
-        emb_SPD = esmc.differentiable_embedding(ohe_seq_SPT)
-        seq_SP = ohe_seq_SPT.argmax(dim=-1)
-        pooled = self.probe.pooling_fn(emb_SPD, seq_SP)
-        return self.probe.w(pooled)
 
 
 class OneHotMLP(nn.Module):

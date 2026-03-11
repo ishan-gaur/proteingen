@@ -38,13 +38,21 @@ class ESMC(TransitionModelWithEmbedding):
         )
 
     def differentiable_embedding(self, ohe_seq_SPT: torch.FloatTensor) -> torch.FloatTensor:
+        if ohe_seq_SPT.shape[-1] < self.OUTPUT_DIM:
+            ohe_seq_SPT = F.pad(ohe_seq_SPT, (0, self.OUTPUT_DIM - ohe_seq_SPT.shape[-1]))
         x_SPD = ohe_seq_SPT @ self.model.embed.weight
         sequence_id = ohe_seq_SPT.argmax(-1) != self.tokenizer.pad_token_id
         x_SPD, _, _ = self.model.transformer(x_SPD, sequence_id=sequence_id)
         return x_SPD
 
-    def embedding_to_logits(self, embedding_SPD: torch.FloatTensor) -> torch.FloatTensor:
+    def embedding_to_outputs(self, embedding_SPD: torch.FloatTensor) -> torch.FloatTensor:
         return self.model.sequence_head(embedding_SPD)
+
+    def format_raw_to_logits(
+        self, raw_output, seq_SP: torch.LongTensor, **kwargs
+    ) -> torch.FloatTensor:
+        logits_SPT = raw_output.sequence_logits.float()
+        return self.logit_formatter(logits_SPT, seq_SP)
 
 
 

@@ -34,12 +34,12 @@
 
 - `src/dfm/` — core library (installed as editable package; run `uv pip install -e .` after changes)
   - `probability_model.py` — `ProbabilityModel` ABC (shared base: temp, conditioning, abstract forward/format_raw_to_logits/preprocess_observations/collate_observations, concrete get_log_probs)
-  - `generative_modeling.py` — `TransitionModel` (concrete, inherits ProbabilityModel), `LogitFormatter` protocol, `MaskedModelLogitFormatter`, `PassThroughLogitFormatter`, `MPNNTokenizer`
-  - `predictive_modeling.py` — `PredictiveModel`, `CategoricalPredictiveModel`, `BinaryPredictiveModel`, `PointEstimatePredictiveModel`, `GaussianPredictiveModel`, `PreTrainedEmbeddingModel` ABC, `LinearProbe`, `OneHotMLP`, `EmbeddingMLP`, `pca_embed_init`
+  - `generative_modeling.py` — `TransitionModel` (concrete), `TransitionModelWithEmbedding` (ABC, adds differentiable embedding), `LogitFormatter` protocol, `MaskedModelLogitFormatter`, `PassThroughLogitFormatter`, `MPNNTokenizer`
+  - `predictive_modeling.py` — `PredictiveModel`, `CategoricalPredictiveModel`, `BinaryPredictiveModel`, `PointEstimatePredictiveModel`, `GaussianPredictiveModel`, `LinearProbe`, `OneHotMLP`, `EmbeddingMLP`, `pca_embed_init`
   - `guide.py` — `TAG`, `DEG`, `TokenizerTranslator` (guidance algorithms)
   - `sampling.py` — `sample_any_order_ancestral` (uses `model.get_log_probs`)
   - `data.py` — `GuidanceDataset` base class, `NoiseSchedule` type alias, schedule functions
-  - `models/esm.py` — `ESMC(TransitionModel, PreTrainedEmbeddingModel)` — ESMC as both masked LM and embedding extractor (ESMCEmbedding was deleted)
+  - `models/esm.py` — `ESMC(TransitionModelWithEmbedding)` — ESMC as masked LM + embedding extractor via differentiable embedding
   - `models/rocklin_ddg/` — stability predictor (StabilityPMPNN, PreTrainedStabilityPredictor), data_utils, guidance_utils
   - `models/utils.py` — `pdb_to_atom37_and_seq` (incomplete)
 - `examples/unconditional_sampling.py` — working end-to-end ESMC sampling example
@@ -61,6 +61,18 @@
 - `generative_modeling.py` uses `from __future__ import annotations` for lazy annotation eval (needed because `TransitionModel` references `LogitFormatter` which is defined later in the file)
 - Run tests with `uv run python -m pytest` (not `uv run pytest` — pytest not on PATH directly) [×1]
 - The ESM child class in `~/PALM/esm-cath/src/esm_cath/model.py` is an older consumer — may need updating to new composition pattern
+
+## TransitionModelWithEmbedding Design
+
+- `TransitionModelWithEmbedding(TransitionModel, ABC)` — extends TransitionModel with differentiable embedding support
+- Two abstract methods subclasses implement: `differentiable_embedding(ohe_SPT) → emb_SPD` and `embedding_to_logits(emb_SPD) → logits_SPT`
+- Public `embed(seq_SP) → emb_SPD` — handles OHE creation from token IDs, padding (vocab_size → OUTPUT_DIM), and calls `differentiable_embedding`. Stashes `self._ohe` for gradient access.
+- `forward(seq_SP)` calls `embed(seq_SP)` then `embedding_to_logits(emb)` — two lines
+- `format_raw_to_logits` applies `self.logit_formatter` — inherited from TransitionModel pattern
+- **OHE padding**: OHE is created at `tokenizer.vocab_size` (e.g. 33 for ESM), then zero-padded to `OUTPUT_DIM` (e.g. 64) before `differentiable_embedding`. Gradients flow back through pad to vocab-sized `_ohe`. TAG only sees vocab-sized gradients.
+- `EMB_DIM: int` — subclasses must set (e.g. 960 for ESMC)
+- `PreTrainedEmbeddingModel` ABC was deleted — functionality replaced by this class
+- LinearProbe now takes `TransitionModelWithEmbedding` as embed_model, calls `embed_model.embed(seq_SP)` for both caching and forward
 
 ## LogitFormatter / MaskedModelLogitFomatter Design
 
@@ -98,36 +110,37 @@
 - `BinaryPredictiveModel(PredictiveModel, ABC)` — for models with single logit output. Uses `sigmoid(x) = softmax([0, x])[1]`. Defaults `_target = True`. Respects `_target = False` by swapping logits.
 - `PointEstimatePredictiveModel(PredictiveModel, ABC)` — for real-valued point estimates. Target is threshold (float). Uses steep sigmoid approximation with configurable `k`. Good for DEG, not TAG.
 - `GaussianPredictiveModel(PredictiveModel, ABC)` — forward returns `(B, 2)` with `(mean, log_var)`. Uses `torch.special.log_ndtr` for numerically stable Gaussian CDF log-odds. Differentiable — works with TAG.
-- Child classes must set `self.input_dim` for `get_log_probs_from_string` (OHE conversion) and for TAG's `TokenizerTranslator`
+- `input_dim` is now a property returning `tokenizer.vocab_size` — no manual setting
+- `get_log_probs(seq_SP)` takes token IDs, creates vocab-sized OHE internally, stashes `self._ohe`, runs forward → format_raw_to_logits → log_softmax → [:, 1]. Does NOT use parent ProbabilityModel.get_log_probs — runs its own pipeline.
+- `grad_log_prob(seq_SP)` — runs `get_log_probs`, backprops, returns `self._ohe.grad` (shape B, P, vocab_size). Uses `torch.enable_grad()` context. This is what TAG calls.
+- `forward` currently takes OHE (from get_log_probs), but IN PROGRESS switching to token IDs — see TODO[pi] on the class. When forward takes token IDs, predictors can just delegate to `self.probe(seq_SP)` and the OHE is created inside `embed_model.embed()`. The predictor must then set `self._ohe` from the embed model for `grad_log_prob` to work.
 - Template nn.Modules (`LinearProbe`, `OneHotMLP`, `EmbeddingMLP`) stay as plain `nn.Module` — get composed into a `PredictiveModel` subclass for guidance use (composition, not inheritance — multiple inheritance with nn.Module causes double-init issues)
-- `forward` takes OHE float input (`ohe_seq_SPT`) for TAG differentiability
-- TAG calls `pred_model.get_log_probs(ohe)` directly. DEG calls `get_log_probs_from_string(token_ids)`.
+- TODO[pi] on the class: think about tokenizer mismatch — predictor's tokenizer (used for OHE) may differ from underlying model's tokenizer (ESMC's 64-wide embed table vs 33 vocab_size)
 
 ## LinearProbe Design
 
-- `LinearProbe(nn.Module)` — wraps a `PreTrainedEmbeddingModel` + `nn.Linear`
-- Constructor takes `embed_model`, `output_dim`, optional `pooling_fn(emb_SPD, seq_SP) -> pooled_SD`
+- `LinearProbe(nn.Module)` — wraps a `TransitionModelWithEmbedding` + `nn.Linear`
+- Constructor takes `embed_model: TransitionModelWithEmbedding`, `output_dim`, optional `pooling_fn(emb_SPD, seq_SP) -> pooled_SD`
 - Default pooling: `emb_SPD.mean(dim=1)` — override for masked pooling (e.g. exclude special tokens)
 - `pooling_fn` takes **two args**: `(embeddings_SPD, seq_SP)` — seq_SP needed for masking special tokens
 - Freezes `embed_model` parameters in `__init__`
-- `compute_embeddings(sequences, batch_size, device)` — pre-computes pooled embeddings using `embed_model.forward()` + `pooling_fn` for efficient training on cached embeddings
-- `forward(seq_SP)` — full pipeline: `embed_model(seq_SP)` → `pooling_fn` → `linear`
+- `compute_embeddings(sequences, batch_size, device)` — calls `embed_model.embed(token_ids)` to get pooled embeddings for training
+- `forward(seq_SP)` — `embed_model.embed(seq_SP)` → `pooling_fn` → `linear`
+- Both `compute_embeddings` and `forward` use the public `embed()` method (not `_embedding` or `differentiable_embedding` directly)
 
 ## ESMC Model
 
-- `ESMC(TransitionModel, PreTrainedEmbeddingModel)` in `models/esm.py` — serves as both masked LM and embedding extractor
+- `ESMC(TransitionModelWithEmbedding)` in `models/esm.py` — very concise implementation
 - Imports ESM as `from esm.models.esmc import ESMC as _ESMC` to avoid name shadowing
 - `OUTPUT_DIM = 64`, `EMB_DIM = 960`
-- `forward(seq_SP)` — standard forward from token IDs, returns `ESMCOutput` (has `.sequence_logits`, `.embeddings`, `.hidden_states`)
-- `forward_ohe(ohe_seq_SPT)` — differentiable forward using `ohe @ self.model.embed.weight` instead of `self.model.embed(token_ids)`. Runs transformer + sequence_head directly (bypasses `_ESMC.forward`). Returns same `ESMCOutput`. Gradients flow through embedding step — needed for TAG.
-- Both forward paths share the same transformer trunk; only the embedding lookup differs
-- `format_raw_to_logits` extracts `.sequence_logits.float()` from `ESMCOutput`, applies logit_formatter
-- No separate `ESMCEmbedding` class — `ESMC` handles both roles. `ESMCEmbedding` was deleted.
-- No convenience `tokenize()` or `embed()` wrappers — callers use `m.tokenizer(seqs, return_tensors="pt")["input_ids"]` directly
-- Pooling is done by callers using `pooling_fn` (e.g. on LinearProbe) — not baked into ESMC
+- `differentiable_embedding(ohe_SPT)` — `ohe @ embed.weight` → transformer → returns deep embeddings. ~4 lines.
+- `embedding_to_logits(emb_SPD)` — `return self.model.sequence_head(emb_SPD)`. 1 line.
+- `forward`, `format_raw_to_logits`, `embed` — all inherited from `TransitionModelWithEmbedding`
+- `embed(seq_SP)` (inherited) creates vocab-sized OHE (33), pads to OUTPUT_DIM (64), calls `differentiable_embedding`
 - ESM tokenizer `all_special_ids` returns 6 IDs: `<cls>=0, <pad>=1, <eos>=2, <unk>=3, |=31, <mask>=32` — use these for masked pooling
 - `_ESMC` internals: `self.model.embed` (nn.Embedding(64,960)), `self.model.transformer` (TransformerStack), `self.model.sequence_head` (Sequential). `_use_flash_attn` is False on this setup.
 - `MaskedModelLogitFormatter(tokenizer, OUTPUT_DIM)` — takes 2 args (tokenizer, output_dim)
+- No `forward_ohe`, `ESMCEmbedding`, or `PreTrainedEmbeddingModel` — all replaced by TransitionModelWithEmbedding
 
 ## EmbeddingMLP / pca_embed_init Design
 
@@ -148,12 +161,21 @@
 ## Stale Tests / Broken Imports
 
 - `test_guidance_data.py::TestGuidanceDataset` — 3 tests fail because they construct `GuidanceDataset` without the now-required `tokenize`, `noise_schedule`, `mask_token` args
-- `tests/test_esm.py` — needs updating: `ESMCEmbedding` no longer exists, ESMC now serves both roles
+- `tests/test_esm.py` — needs updating: ESMC now inherits `TransitionModelWithEmbedding` (not plain `TransitionModel`), `ESMCEmbedding`/`PreTrainedEmbeddingModel` deleted
 - `tests/test_sampling.py` — 31 errors (pre-existing, not from this session's changes)
-- `tests/test_embedding_mlp.py` — may need updating: LinearProbe constructor now takes `pooling_fn` kwarg, freezes embed_model
+- `tests/test_embedding_mlp.py` — may need updating: LinearProbe now takes `TransitionModelWithEmbedding` (not `PreTrainedEmbeddingModel`), uses `embed()` method
+- `models/seki_tyrosine_kinase.py` — manually sets `self.input_dim` which shadows the new property; needs updating
 - `guide.py` imports from `dfm.predictive_model` (should be `dfm.predictive_modeling`), also references `ConditionalTransitionModel` which no longer exists
 - `sampling.py` now uses `model.get_log_probs` (previously `model.transition_log_probs`)
 - Core tests pass: 116 passed as of this session (logit_formatter, transition_model, embedding_mlp, pca_embed_init)
+
+## In-Progress: PredictiveModel forward(token_ids) Refactor
+
+- Currently `PredictiveModel.get_log_probs(seq_SP)` creates OHE and passes it to `forward(ohe)` — so forward receives OHE
+- Goal: switch forward to take token IDs, so predictors like TrpBFitnessPredictor can just do `return self.probe(seq_SP)` instead of manually padding OHE and calling `differentiable_embedding`
+- Blocker: `grad_log_prob` needs `self._ohe` — if forward takes token IDs, OHE is created deep inside `embed_model.embed()` and stashed on the embed model. Predictor must surface it (e.g. `self._ohe = self.probe.embed_model._ohe` in forward). One extra line per predictor.
+- `get_log_probs` would run its own pipeline directly (forward → format_raw_to_logits → log_softmax) rather than calling `super().get_log_probs(ohe)` — this is partially done already
+- Stability predictor on a separate branch — don't touch it during this refactor
 
 ## Stability Predictor (rocklin_ddg)
 
