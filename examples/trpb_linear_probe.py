@@ -22,10 +22,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from huggingface_hub import hf_hub_download
 from scipy.stats import spearmanr
 from dfm.models.esm import ESMC
-from dfm.predictive_modeling import (
-    PointEstimatePredictiveModel,
-    LinearProbe,
-)
+from dfm.predictive_modeling import LinearProbe
 import pandas as pd
 
 
@@ -36,37 +33,28 @@ CACHE_DIR = Path("data/trpb_embeddings")
 # ── TrpB fitness predictor ──────────────────────────────────────────────────
 
 
-class TrpBFitnessPredictor(PointEstimatePredictiveModel):
+class TrpBFitnessPredictor(LinearProbe):
     """Predicts TrpB fitness from sequence using ESMC embeddings + linear probe.
 
     At inference / guidance time, the full pipeline runs:
         ohe_seq → ESMC (differentiable embedding) → pool → linear → scalar
 
-    For training, pre-compute embeddings via ``self.probe.compute_embeddings()``
-    and train ``self.probe.w`` directly on those cached embeddings.
+    For training, pre-compute embeddings via ``self.precompute_embeddings()``
+    and train ``self.w`` directly on those cached embeddings.
     """
 
-    def __init__(self, esmc_checkpoint: str = "esmc_300m"):
+    def __init__(self, esmc_checkpoint: str = "esmc_300m", k: float = 100.0):
         esmc = ESMC(esmc_checkpoint)
-        super().__init__(tokenizer=esmc.tokenizer)
-        special_ids = set(esmc.tokenizer.all_special_ids)
+        super().__init__(embed_model=esmc, output_dim=1)
+        self.k = k
 
-        def masked_mean_pool(emb_SPD, seq_SP):
-            mask_SP = torch.ones_like(seq_SP, dtype=torch.bool)
-            for sid in special_ids:
-                mask_SP = mask_SP & (seq_SP != sid)
-            mask_SP1 = mask_SP.unsqueeze(-1).float()
-            return (emb_SPD * mask_SP1).sum(dim=1) / mask_SP1.sum(dim=1).clamp(min=1)
-
-        self.probe = LinearProbe(embed_model=esmc, output_dim=1, pooling_fn=masked_mean_pool)
-        self.input_dim = esmc.OUTPUT_DIM
-
-    def forward(self, ohe_seq_SPT: torch.FloatTensor, **kwargs) -> torch.FloatTensor:
-        esmc = self.probe.embed_model
-        emb_SPD = esmc.differentiable_embedding(ohe_seq_SPT)
-        seq_SP = ohe_seq_SPT.argmax(dim=-1)
-        pooled = self.probe.pooling_fn(emb_SPD, seq_SP)
-        return self.probe.w(pooled)
+    def format_raw_to_logits(
+        self, raw_output: torch.FloatTensor, ohe_seq_SPT: torch.FloatTensor, **kwargs
+    ) -> torch.FloatTensor:
+        pred_B = raw_output.reshape(-1)
+        logit_B = self.k * (pred_B - self.target)
+        zero_B = torch.zeros_like(logit_B)
+        return torch.stack([zero_B, logit_B], dim=-1)  # (B, 2)
 
 
 # ── Data loading ─────────────────────────────────────────────────────────────
@@ -80,7 +68,7 @@ def load_trpb_data() -> pd.DataFrame:
 def get_or_compute_embeddings(
     split_name: str,
     sequences: list[str],
-    probe: LinearProbe,
+    predictor: TrpBFitnessPredictor,
     batch_size: int,
     device: torch.device,
 ) -> torch.Tensor:
@@ -89,7 +77,7 @@ def get_or_compute_embeddings(
         print(f"  Loading cached {split_name} embeddings from {cache_path}")
         return torch.load(cache_path, weights_only=True)
 
-    embeddings = probe.compute_embeddings(sequences, batch_size, device)
+    embeddings = predictor.precompute_embeddings(sequences, batch_size, device)
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     torch.save(embeddings, cache_path)
     print(f"  Cached to {cache_path}")
@@ -126,17 +114,17 @@ def main():
 
     print("Computing embeddings...")
     train_emb = get_or_compute_embeddings(
-        "train", train_df["protein"].tolist(), predictor.probe, args.embed_batch_size, device
+        "train", train_df["protein"].tolist(), predictor, args.embed_batch_size, device
     )
     valid_emb = get_or_compute_embeddings(
-        "valid", valid_df["protein"].tolist(), predictor.probe, args.embed_batch_size, device
+        "valid", valid_df["protein"].tolist(), predictor, args.embed_batch_size, device
     )
     test_emb = get_or_compute_embeddings(
-        "test", test_df["protein"].tolist(), predictor.probe, args.embed_batch_size, device
+        "test", test_df["protein"].tolist(), predictor, args.embed_batch_size, device
     )
 
     # Free ESMC GPU memory
-    predictor.probe.embed_model.cpu()
+    predictor.embed_model.cpu()
     if device.type == "cuda":
         torch.cuda.empty_cache()
 
@@ -157,7 +145,7 @@ def main():
     )
 
     # ── Train the linear layer ───────────────────────────────────────────
-    linear = predictor.probe.w.to(device)
+    linear = predictor.w.to(device)
     print(f"Linear probe: {sum(p.numel() for p in linear.parameters())} params")
 
     optimizer = torch.optim.AdamW(

@@ -70,7 +70,7 @@ class TransitionModel(ProbabilityModel):
     def format_raw_to_logits(
         self, raw_forward_output: torch.FloatTensor, seq_SP: torch.LongTensor, **kwargs
     ) -> torch.FloatTensor:
-        """Default: model produces outputs, they might just not be masked properly."""
+        """Default: model produces outputs, they might just not be masked properly. Most common function to override."""
         logits_SPT = raw_forward_output
         logits_SPT = self.logit_formatter(logits_SPT, seq_SP)
         return logits_SPT
@@ -89,15 +89,12 @@ class TransitionModelWithEmbedding(TransitionModel, ABC):
 
     - ``differentiable_embedding(ohe_seq_SPT)`` — OHE float input → deep
       embeddings (after transformer / encoder body).
-    - ``embedding_to_logits(embedding_SPD)`` — deep embeddings → raw logits.
+    - ``embedding_to_outputs(embedding_SPD)`` — deep embeddings → raw outputs
 
     This class provides concrete ``forward`` and ``format_raw_to_logits``
     that compose these two steps, create a differentiable OHE from token IDs
     (so gradients flow through the embedding step for TAG), and apply the
     logit formatter.
-
-    The OHE tensor is stashed as ``self._ohe`` after each forward pass so
-    TAG can read ``model._ohe.grad`` after backprop.
 
     Subclasses must set ``EMB_DIM`` (int) for downstream use (e.g. LinearProbe).
     """
@@ -115,25 +112,16 @@ class TransitionModelWithEmbedding(TransitionModel, ABC):
         ...
 
     @abstractmethod
-    def embedding_to_logits(
+    def embedding_to_outputs(
         self, embedding_SPD: torch.FloatTensor
-    ) -> torch.FloatTensor:
-        """Deep embeddings → raw logits (S, P, T). No logit formatting."""
+    ) -> Any:
+        """Deep embeddings → regular raw model outputs. IMPORTANT, the output of this function should be of the same type as the forward function!"""
         ...
 
-    def forward(self, seq_SP: torch.LongTensor, **kwargs) -> torch.FloatTensor:
-        ohe_seq_SPT = F.one_hot(seq_SP, num_classes=self.OUTPUT_DIM).float()
-        ohe_seq_SPT.requires_grad_(True)
-        self._ohe = ohe_seq_SPT
-        embedding_SPD = self.differentiable_embedding(ohe_seq_SPT)
-        self._embedding = embedding_SPD
-        logits_SPT = self.embedding_to_logits(embedding_SPD)
-        return logits_SPT
-
-    def format_raw_to_logits(
-        self, logits_SPT: torch.FloatTensor, seq_SP: torch.LongTensor, **kwargs
-    ) -> torch.FloatTensor:
-        return self.logit_formatter(logits_SPT, seq_SP)
+    def embed(self, seq_SP: torch.LongTensor) -> torch.FloatTensor:
+        """Token IDs → deep embeddings (S, P, D)."""
+        ohe_seq_SPT = F.one_hot(seq_SP, num_classes=self.tokenizer.vocab_size).float()
+        return self.differentiable_embedding(ohe_seq_SPT)
 
 
 @runtime_checkable
