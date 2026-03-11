@@ -256,9 +256,22 @@ class PreTrainedEmbeddingModel(nn.Module, ABC):
     @abstractmethod
     def forward_ohe(
         self, ohe_seq_SPT: torch.FloatTensor
-    ) -> (torch.FloatTensor, torch.FloatTensor):
-        # returns both the log probs and embeddings
-        pass
+    ) -> Any:
+        """Differentiable forward pass from one-hot encoded input."""
+        ...
+
+    # @staticmethod
+    # def masked_pool_embeddings(
+    #     embeddings_SPD: torch.Tensor,
+    #     seq_SP: torch.LongTensor,
+    #     special_ids: set[int],
+    # ) -> torch.Tensor:
+    #     """Mean-pool embeddings over non-special positions. Shape (S, D)."""
+    #     mask_SP = torch.ones_like(seq_SP, dtype=torch.bool)
+    #     for sid in special_ids:
+    #         mask_SP = mask_SP & (seq_SP != sid)
+    #     mask_SP1 = mask_SP.unsqueeze(-1).float()
+    #     return (embeddings_SPD * mask_SP1).sum(dim=1) / mask_SP1.sum(dim=1).clamp(min=1)
 
 
 class LinearProbe(nn.Module):
@@ -275,17 +288,46 @@ class LinearProbe(nn.Module):
         self,
         embed_model: PreTrainedEmbeddingModel,
         output_dim: int,
+        pooling_fn: Optional[callable] = None,
     ):
         super().__init__()
         self.embed_model = embed_model
         self.embedding_dim = embed_model.EMB_DIM
         self.output_dim = output_dim
         self.w = nn.Linear(self.embedding_dim, self.output_dim)
+        self.pooling_fn = pooling_fn or (lambda emb_SPD, seq_SP: emb_SPD.mean(dim=1))
 
-    def forward(self, ohe_x_SPT: torch.LongTensor):
-        x_ID = self.embed_model(ohe_x_SPT)
-        y_IO = self.w(x_ID)
-        return y_IO
+        for p in self.embed_model.parameters():
+            p.requires_grad = False
+
+    @torch.no_grad()
+    def compute_embeddings(
+        self,
+        sequences: list[str],
+        batch_size: int,
+        device: torch.device,
+    ) -> torch.Tensor:
+        """Pre-compute pooled embeddings for training. Shape (N, EMB_DIM)."""
+        self.embed_model.to(device)
+        tokenizer = self.embed_model.tokenizer
+        all_embeddings = []
+        n = len(sequences)
+        for start in range(0, n, batch_size):
+            batch_seqs = sequences[start : start + batch_size]
+            token_ids = tokenizer(
+                batch_seqs, padding=True, return_tensors="pt"
+            )["input_ids"].to(device)
+            output = self.embed_model(token_ids)
+            pooled = self.pooling_fn(output.embeddings, token_ids)
+            all_embeddings.append(pooled.cpu())
+            if (start // batch_size) % 50 == 0:
+                print(f"  Embedded {min(start + batch_size, n):>6d} / {n}")
+        return torch.cat(all_embeddings, dim=0)
+
+    def forward(self, seq_SP: torch.LongTensor):
+        output = self.embed_model(seq_SP)
+        pooled_SD = self.pooling_fn(output.embeddings, seq_SP)
+        return self.w(pooled_SD)
 
 
 class OneHotMLP(nn.Module):
