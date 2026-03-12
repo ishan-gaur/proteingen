@@ -1,51 +1,82 @@
-"""Train a linear probe on ESMC embeddings to predict TrpB fitness.
+"""Train an MLP probe on ESMC embeddings to predict TrpB fitness, then run guided sampling.
 
-Uses frozen ESMC-300m embeddings (mean-pooled over sequence positions) with
-a single linear layer to predict continuous fitness values from the
-SaProtHub/Dataset-TrpB_fitness_landsacpe dataset (160k protein sequences,
-length 397, real-valued fitness labels).
+Uses frozen ESMC embeddings at variable positions (concatenated per-position)
+with an MLP head to predict continuous fitness values from the SaProtHub TrpB
+dataset (160k protein sequences, length 397, 4 variable positions).
 
-Pre-computes embeddings once (cached to disk), then trains the linear layer
-with MSE loss.
+Pre-computes embeddings once (cached to disk), trains the MLP head,
+then demonstrates TAG-guided sampling vs unguided sampling.
 
 Usage:
-    uv run python examples/trpb_linear_probe.py
-    uv run python examples/trpb_linear_probe.py --device cuda --embed-batch-size 64
+    uv run python examples/trpb_linear_probe.py --device cuda
 """
 
 import argparse
+import random
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, TensorDataset
 from huggingface_hub import hf_hub_download
 from scipy.stats import spearmanr
+from torch.utils.data import DataLoader, TensorDataset
+
+from dfm.guide import TAG
 from dfm.models.esm import ESMC
 from dfm.predictive_modeling import LinearProbe
-import pandas as pd
+from dfm.sampling import sample_any_order_ancestral
 
 
 DATASET_ID = "SaProtHub/Dataset-TrpB_fitness_landsacpe"
-CACHE_DIR = Path("data/trpb_embeddings")
 
 
 # ── TrpB fitness predictor ──────────────────────────────────────────────────
 
 
 class TrpBFitnessPredictor(LinearProbe):
-    """Predicts TrpB fitness from sequence using ESMC embeddings + linear probe.
+    """Predicts TrpB fitness using ESMC embeddings at variable positions + MLP head.
 
-    At inference / guidance time, the full pipeline runs:
-        ohe_seq → ESMC (differentiable embedding) → pool → linear → scalar
-
-    For training, pre-compute embeddings via ``self.precompute_embeddings()``
-    and train ``self.w`` directly on those cached embeddings.
+    Uses per-position embeddings at the 4 variable sites (concatenated, not averaged),
+    preserving position-specific information. The MLP head learns nonlinear
+    interactions between positions.
     """
 
-    def __init__(self, esmc_checkpoint: str = "esmc_300m", k: float = 100.0):
+    def __init__(
+        self,
+        esmc_checkpoint: str = "esmc_300m",
+        variable_positions: list[int] | None = None,
+        hidden_dim: int = 256,
+        k: float = 100.0,
+    ):
         esmc = ESMC(esmc_checkpoint)
-        super().__init__(embed_model=esmc, output_dim=1)
+
+        # Variable-position concat pooling: extract and concatenate embeddings
+        # at the variable sites. +1 offset for CLS token.
+        var_pos_tokens = [p + 1 for p in variable_positions] if variable_positions else None
+
+        def varpos_concat_pool(emb_SPD, seq_SP):
+            if var_pos_tokens is not None:
+                return emb_SPD[:, var_pos_tokens, :].reshape(emb_SPD.shape[0], -1)
+            # Fallback: mean pool excluding special tokens
+            mask = (seq_SP != esmc.tokenizer.pad_token_id).unsqueeze(-1).float()
+            return (emb_SPD * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1)
+
+        super().__init__(embed_model=esmc, output_dim=1, pooling_fn=varpos_concat_pool)
+
+        # Replace linear head with MLP
+        n_pos = len(variable_positions) if variable_positions else 1
+        head_input_dim = n_pos * esmc.EMB_DIM
+        self.w = nn.Sequential(
+            nn.Linear(head_input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(hidden_dim, hidden_dim // 2),
+            nn.ReLU(),
+            nn.Linear(hidden_dim // 2, 1),
+        )
         self.k = k
 
     def format_raw_to_logits(
@@ -65,65 +96,123 @@ def load_trpb_data() -> pd.DataFrame:
     return pd.read_csv(path)
 
 
+def find_variable_positions(df: pd.DataFrame) -> list[int]:
+    arr = np.array([list(s) for s in df["protein"].tolist()])
+    n_unique = np.array([len(set(arr[:, i])) for i in range(arr.shape[1])])
+    return np.where(n_unique > 1)[0].tolist()
+
+
 def get_or_compute_embeddings(
     split_name: str,
     sequences: list[str],
     predictor: TrpBFitnessPredictor,
     batch_size: int,
     device: torch.device,
+    cache_dir: Path,
 ) -> torch.Tensor:
-    cache_path = CACHE_DIR / f"{split_name}.pt"
+    cache_path = cache_dir / f"{split_name}.pt"
     if cache_path.exists():
-        print(f"  Loading cached {split_name} embeddings from {cache_path}")
-        return torch.load(cache_path, weights_only=True)
+        emb = torch.load(cache_path, weights_only=True)
+        print(f"  Loaded cached {split_name} embeddings: {emb.shape}")
+        return emb
 
     embeddings = predictor.precompute_embeddings(sequences, batch_size, device)
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cache_dir.mkdir(parents=True, exist_ok=True)
     torch.save(embeddings, cache_path)
-    print(f"  Cached to {cache_path}")
+    print(f"  Cached to {cache_path}: {embeddings.shape}")
     return embeddings
 
 
-# ── Training ─────────────────────────────────────────────────────────────────
+# ── Scoring helper ───────────────────────────────────────────────────────────
+
+
+def score_sequences(
+    sequences: list[str],
+    predictor: TrpBFitnessPredictor,
+    variable_pos: list[int],
+    seq_to_label: dict,
+) -> list[tuple[str, float, float | None]]:
+    tokenizer = predictor.tokenizer
+    results = []
+    with torch.no_grad():
+        for seq in sequences:
+            var_res = "".join(seq[p] for p in variable_pos)
+            tokens = tokenizer([seq], return_tensors="pt")["input_ids"]
+            emb = predictor.embed_model.embed(tokens)
+            pooled = predictor.pooling_fn(emb, tokens)
+            pred = predictor.w(pooled).item()
+            actual = seq_to_label.get(seq)
+            results.append((var_res, pred, actual))
+    return results
+
+
+def print_results(results: list, label: str):
+    print(f"\n{label}")
+    print(f"{'Var res':>10} | {'Predicted':>10} | {'Actual':>10}")
+    print("-" * 36)
+    actual_vals = []
+    for var_res, pred, actual in results:
+        actual_str = f"{actual:.4f}" if actual is not None else "N/A"
+        print(f"{var_res:>10} | {pred:>10.4f} | {actual_str:>10}")
+        if actual is not None:
+            actual_vals.append(actual)
+    if actual_vals:
+        print(f"  Mean actual fitness: {np.mean(actual_vals):.4f}")
+
+
+# ── Main ─────────────────────────────────────────────────────────────────────
 
 
 def main():
-    parser = argparse.ArgumentParser(description="TrpB fitness linear probe")
-    parser.add_argument(
-        "--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu"
-    )
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--esmc-checkpoint", default="esmc_600m")
     parser.add_argument("--embed-batch-size", type=int, default=32)
-    parser.add_argument("--train-batch-size", type=int, default=256)
-    parser.add_argument("--epochs", type=int, default=50)
+    parser.add_argument("--train-batch-size", type=int, default=512)
+    parser.add_argument("--epochs", type=int, default=200)
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--weight-decay", type=float, default=1e-4)
+    parser.add_argument("--n-samples", type=int, default=20)
+    parser.add_argument("--n-runs", type=int, default=5, help="Number of sampling runs for statistics")
+    parser.add_argument("--gen-temp", type=float, default=2.0)
+    parser.add_argument("--guidance-scale", type=float, default=3.0)
+    parser.add_argument("--hidden-dim", type=int, default=256)
     args = parser.parse_args()
     device = torch.device(args.device)
 
     # ── Load data ────────────────────────────────────────────────────────
     print("Loading TrpB fitness dataset...")
     df = load_trpb_data()
+    variable_pos = find_variable_positions(df)
+    seq_to_label = dict(zip(df["protein"], df["label"]))
+    labels = df["label"].values
+    print(f"  {len(df)} sequences, variable positions: {variable_pos}")
+    print(f"  Labels: mean={labels.mean():.4f}, std={labels.std():.4f}, max={labels.max():.4f}")
+
     train_df = df[df["stage"] == "train"].reset_index(drop=True)
     valid_df = df[df["stage"] == "valid"].reset_index(drop=True)
     test_df = df[df["stage"] == "test"].reset_index(drop=True)
-    print(f"  Train: {len(train_df)}, Valid: {len(valid_df)}, Test: {len(test_df)}")
 
     # ── Build predictor & compute embeddings ─────────────────────────────
-    print("Building TrpB fitness predictor...")
-    predictor = TrpBFitnessPredictor("esmc_300m")
+    print(f"\nBuilding predictor (ESMC={args.esmc_checkpoint}, hidden={args.hidden_dim})...")
+    predictor = TrpBFitnessPredictor(
+        args.esmc_checkpoint,
+        variable_positions=variable_pos,
+        hidden_dim=args.hidden_dim,
+    )
 
+    cache_dir = Path(f"data/trpb_embeddings/{args.esmc_checkpoint}_varpos")
     print("Computing embeddings...")
     train_emb = get_or_compute_embeddings(
-        "train", train_df["protein"].tolist(), predictor, args.embed_batch_size, device
+        "train", train_df["protein"].tolist(), predictor, args.embed_batch_size, device, cache_dir
     )
     valid_emb = get_or_compute_embeddings(
-        "valid", valid_df["protein"].tolist(), predictor, args.embed_batch_size, device
+        "valid", valid_df["protein"].tolist(), predictor, args.embed_batch_size, device, cache_dir
     )
     test_emb = get_or_compute_embeddings(
-        "test", test_df["protein"].tolist(), predictor, args.embed_batch_size, device
+        "test", test_df["protein"].tolist(), predictor, args.embed_batch_size, device, cache_dir
     )
 
-    # Free ESMC GPU memory
+    # Free ESMC GPU memory during training
     predictor.embed_model.cpu()
     if device.type == "cuda":
         torch.cuda.empty_cache()
@@ -132,95 +221,144 @@ def main():
     valid_labels = torch.tensor(valid_df["label"].values, dtype=torch.float32)
     test_labels = torch.tensor(test_df["label"].values, dtype=torch.float32)
 
+    # ── Train the MLP head ───────────────────────────────────────────────
+    head = predictor.w.to(device)
+    n_params = sum(p.numel() for p in head.parameters())
+    print(f"MLP head: {n_params} params, input_dim={train_emb.shape[1]}")
+
     train_loader = DataLoader(
-        TensorDataset(train_emb, train_labels),
-        batch_size=args.train_batch_size,
-        shuffle=True,
+        TensorDataset(train_emb, train_labels), batch_size=args.train_batch_size, shuffle=True
     )
-    valid_loader = DataLoader(
-        TensorDataset(valid_emb, valid_labels), batch_size=args.train_batch_size
-    )
-    test_loader = DataLoader(
-        TensorDataset(test_emb, test_labels), batch_size=args.train_batch_size
-    )
+    optimizer = torch.optim.AdamW(head.parameters(), lr=args.lr, weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
-    # ── Train the linear layer ───────────────────────────────────────────
-    linear = predictor.w.to(device)
-    print(f"Linear probe: {sum(p.numel() for p in linear.parameters())} params")
-
-    optimizer = torch.optim.AdamW(
-        linear.parameters(), lr=args.lr, weight_decay=args.weight_decay
-    )
-
-    print(f"\nTraining for {args.epochs} epochs...")
-    best_valid_rho = -float("inf")
-    best_epoch = 0
-    best_state = None
-
+    best_rho, best_epoch, best_state = -1.0, 0, None
     for epoch in range(1, args.epochs + 1):
-        linear.train()
-        total_loss = 0.0
-        n_batches = 0
+        head.train()
         for emb_batch, label_batch in train_loader:
             emb_batch, label_batch = emb_batch.to(device), label_batch.to(device)
-            pred = linear(emb_batch).squeeze(-1)
+            pred = head(emb_batch).squeeze(-1)
             loss = F.mse_loss(pred, label_batch)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            total_loss += loss.item()
-            n_batches += 1
-        train_loss = total_loss / n_batches
+        scheduler.step()
 
-        linear.eval()
-        with torch.no_grad():
-            preds = torch.cat(
-                [linear(e.to(device)).squeeze(-1).cpu() for e, _ in valid_loader]
-            )
-            labels = torch.cat([l for _, l in valid_loader])
-            valid_mse = F.mse_loss(preds, labels).item()
-            valid_rho, _ = spearmanr(preds.numpy(), labels.numpy())
+        if epoch % 10 == 0 or epoch == 1:
+            head.eval()
+            with torch.no_grad():
+                vpreds = head(valid_emb.to(device)).squeeze(-1).cpu()
+                rho, _ = spearmanr(vpreds.numpy(), valid_labels.numpy())
+            if rho > best_rho:
+                best_rho = rho
+                best_epoch = epoch
+                best_state = {k: v.clone() for k, v in head.state_dict().items()}
+            print(f"  Epoch {epoch:3d} | valid ρ={rho:.4f} (best={best_rho:.4f})")
 
-        if valid_rho > best_valid_rho:
-            best_valid_rho = valid_rho
-            best_epoch = epoch
-            best_state = {k: v.clone() for k, v in linear.state_dict().items()}
-
-        if epoch % 5 == 0 or epoch == 1:
-            print(
-                f"  Epoch {epoch:3d} | "
-                f"Train MSE: {train_loss:.6f} | "
-                f"Valid MSE: {valid_mse:.6f} | "
-                f"Valid ρ: {valid_rho:.4f}"
-            )
-
-    # ── Evaluate best model on test set ──────────────────────────────────
-    print(f"\nBest validation ρ = {best_valid_rho:.4f} at epoch {best_epoch}")
     assert best_state is not None
-    linear.load_state_dict(best_state)
-    linear.eval()
+    head.load_state_dict(best_state)
+    head.eval()
     with torch.no_grad():
-        preds = torch.cat(
-            [linear(e.to(device)).squeeze(-1).cpu() for e, _ in test_loader]
+        tpreds = head(test_emb.to(device)).squeeze(-1).cpu()
+        test_rho, _ = spearmanr(tpreds.numpy(), test_labels.numpy())
+    print(f"\nBest valid ρ={best_rho:.4f} @ epoch {best_epoch}, test ρ={test_rho:.4f}")
+
+    # ── Guided sampling comparison ───────────────────────────────────────
+    print("\n" + "=" * 60)
+    print("GUIDED SAMPLING COMPARISON")
+    print("=" * 60)
+
+    threshold = float(np.percentile(labels, 99))
+    predictor.set_target_(threshold)
+    predictor.cpu()
+    print(f"Target threshold: {threshold:.4f} (99th percentile)")
+    print(f"Gen temp: {args.gen_temp}, Guidance scale: {args.guidance_scale}")
+
+    gen_model = ESMC(args.esmc_checkpoint)
+    tokenizer = gen_model.tokenizer
+    template_seq = df["protein"].iloc[0]
+
+    mask_id = tokenizer.vocab["<mask>"]
+    template_tokens = tokenizer([template_seq], return_tensors="pt")["input_ids"]
+    mask_positions = [p + 1 for p in variable_pos]
+
+    def make_masked(n):
+        masked = template_tokens.repeat(n, 1)
+        for mp in mask_positions:
+            masked[:, mp] = mask_id
+        return masked
+
+    n = args.n_samples
+
+    # Collect results over multiple runs
+    results_by_condition = {
+        "random": [],
+        "unguided": [],
+        "guided": [],
+        "guided_hot": [],
+    }
+    aas = "ACDEFGHIKLMNPQRSTVWY"
+
+    for run in range(args.n_runs):
+        print(f"\n--- Run {run + 1}/{args.n_runs} ---")
+
+        # 1. Random
+        random_seqs = []
+        for _ in range(n):
+            seq_list = list(template_seq)
+            for p in variable_pos:
+                seq_list[p] = random.choice(aas)
+            random_seqs.append("".join(seq_list))
+        for _, _, actual in score_sequences(random_seqs, predictor, variable_pos, seq_to_label):
+            if actual is not None:
+                results_by_condition["random"].append(actual)
+
+        # 2. Unguided (ESMC, temp=1.0)
+        gen_model.set_temp_(1.0)
+        unguided = sample_any_order_ancestral(gen_model, make_masked(n), return_string=True)
+        unguided = [s.replace(" ", "") for s in unguided]
+        for _, _, actual in score_sequences(unguided, predictor, variable_pos, seq_to_label):
+            if actual is not None:
+                results_by_condition["unguided"].append(actual)
+
+        # 3. TAG guided, temp=1.0, guidance_scale
+        tag = TAG(gen_model, predictor, guidance_scale=args.guidance_scale)
+        guided = sample_any_order_ancestral(tag, make_masked(n), return_string=True)
+        guided = [s.replace(" ", "") for s in guided]
+        for _, _, actual in score_sequences(guided, predictor, variable_pos, seq_to_label):
+            if actual is not None:
+                results_by_condition["guided"].append(actual)
+
+        # 4. TAG guided, higher gen temp, guidance_scale
+        gen_model.set_temp_(args.gen_temp)
+        tag_hot = TAG(gen_model, predictor, guidance_scale=args.guidance_scale)
+        guided_hot = sample_any_order_ancestral(tag_hot, make_masked(n), return_string=True)
+        guided_hot = [s.replace(" ", "") for s in guided_hot]
+        gen_model.set_temp_(1.0)
+        for _, _, actual in score_sequences(guided_hot, predictor, variable_pos, seq_to_label):
+            if actual is not None:
+                results_by_condition["guided_hot"].append(actual)
+
+    # ── Summary statistics ───────────────────────────────────────────────
+    print("\n" + "=" * 60)
+    print("SUMMARY (actual fitness, aggregated over all runs)")
+    print("=" * 60)
+    print(f"{'Condition':>30s} | {'N':>5s} | {'Mean':>8s} | {'Std':>8s} | {'Median':>8s} | {'% > 0.3':>8s}")
+    print("-" * 80)
+    for name, label in [
+        ("random", "Random"),
+        ("unguided", "Unguided (temp=1.0)"),
+        ("guided", f"TAG guided (scale={args.guidance_scale})"),
+        ("guided_hot", f"TAG (temp={args.gen_temp}, scale={args.guidance_scale})"),
+    ]:
+        vals = results_by_condition[name]
+        vals_arr = np.array(vals)
+        pct_above = (vals_arr > 0.3).mean() * 100
+        print(
+            f"{label:>30s} | {len(vals):>5d} | "
+            f"{vals_arr.mean():>8.4f} | {vals_arr.std():>8.4f} | "
+            f"{np.median(vals_arr):>8.4f} | {pct_above:>7.1f}%"
         )
-        labels = torch.cat([l for _, l in test_loader])
-        test_mse = F.mse_loss(preds, labels).item()
-        test_rho, test_pval = spearmanr(preds.numpy(), labels.numpy())
-
-    print(
-        f"Test MSE: {test_mse:.6f} | "
-        f"Test ρ: {test_rho:.4f} | "
-        f"Test p-value: {test_pval:.2e}"
-    )
-
-    # ── Guidance usage ───────────────────────────────────────────────────
-    # After training, the predictor is ready for guided sampling:
-    #
-    #   from dfm.guide import DEG
-    #   gen_model = ESMC("esmc_300m")  # as TransitionModel
-    #   with predictor.with_target(0.5):  # threshold
-    #       guided = DEG(gen_model, predictor)
-    #       seqs = sample_any_order_ancestral(guided, masked_seqs)
 
 
 if __name__ == "__main__":
