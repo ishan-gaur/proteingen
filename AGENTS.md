@@ -142,6 +142,31 @@
 - `MaskedModelLogitFormatter(tokenizer, OUTPUT_DIM)` — takes 2 args (tokenizer, output_dim)
 - No `forward_ohe`, `ESMCEmbedding`, or `PreTrainedEmbeddingModel` — all replaced by TransitionModelWithEmbedding
 
+## ESM3 Model
+
+- `ESM3(TransitionModelWithEmbedding)` in `models/esm.py` — sequence-only masked LM
+- `OUTPUT_DIM = 64`, `EMB_DIM = 1536` (esm3-open)
+- Loads with `.float()` — ESM3 uses bfloat16 on GPU by default, but needs float32 on CPU
+- `from_pretrained` accepts `device=torch.device("cpu")` (same as ESMC)
+- ESM3 encoder sums embeddings from 7 tracks: sequence + structure + ss8 + sasa + function + residue + plddt. For sequence-only use, non-sequence tracks use default padding values.
+- `_non_sequence_embedding(seq_SP)` computes constant non-sequence track embeddings. Needs `seq_SP` to set structure tokens correctly at special positions (CLS→STRUCTURE_BOS, EOS→STRUCTURE_EOS, PAD→STRUCTURE_PAD).
+- `differentiable_embedding`: `ohe @ encoder.sequence_embed.weight` + `_non_sequence_embedding` → transformer (with NaN coords → geom attn disabled)
+- `embedding_to_outputs`: `self.model.output_heads.sequence_head(emb)`
+- `forward(seq_SP)` must pass `sequence_tokens=seq_SP` as keyword arg — ESM3's forward uses keyword-only params (`*`)
+- `format_raw_to_logits` extracts `.sequence_logits.float()` from ESMOutput
+- ESM3 constants: `esm.utils.constants.esm3` (imported as `ESM3_CONSTANTS`), `rbf` in `esm.utils.misc`
+- `build_affine3d_from_coordinates` from `esm.utils.structure.affine3d` — NaN coords produce all-False affine_mask
+- ESM3 internals: `self.model.encoder` (EncodeInputs), `self.model.transformer` (TransformerStack), `self.model.output_heads` (OutputHeads)
+- **Structure conditioning**: `set_condition_({"coords_RAX": tensor/np.array})` or `conditioned_on(...)` context manager. `preprocess_observations` runs VQ-VAE encoder once (expensive) → caches `structure_tokens` + `coordinates` (both with BOS/EOS padding). Both `differentiable_embedding` and `forward` read from `self.observations`.
+- `_non_sequence_embedding` takes optional `structure_tokens` — if provided (from conditioning), uses them directly; otherwise defaults to STRUCTURE_MASK_TOKEN with special-position overrides
+- `differentiable_embedding` uses cached coordinates for `build_affine3d_from_coordinates` → geometric attention enabled; NaN coords when unconditioned → geom attn disabled
+- `forward` passes `structure_tokens` and `structure_coords` kwargs to ESM3's native forward when conditioned
+- `collate_observations` tiles structure_tokens and coordinates to batch size
+- ESM3's structure VQ-VAE encoder: `self.model.encode(ESMProtein(coordinates=coords))` — coordinates must be atom37 format `(L, 37, 3)`. BOS/EOS coordinate padding uses `inf` (not `nan`).
+- VQ-VAE warning: `torch.cuda.amp.autocast` deprecation — harmless
+- Tests in `tests/test_esm3.py` (21 tests) — construction, embed path vs forward match, gradient flow, log probs, batching, structure conditioning (8 tests), temperature
+- Same tokenizer as ESMC: `EsmSequenceTokenizer` (vocab_size=33)
+
 ## EmbeddingMLP / pca_embed_init Design
 
 - `EmbeddingMLP` in `predictive_modeling.py` — MLP with learned `nn.Embedding` layer, alternative to `OneHotMLP`'s frozen identity embedding
@@ -187,6 +212,21 @@
 - `guidance_utils.py` has flow matching Euler sampling + TAG guidance + ESM3 inverse folding wrappers — most of this is replicated by `guide.py` (TAG/DEG) and `sampling.py`
 - The new example (`examples/stability_guidance/main.py`) uses dfm abstractions but has many unresolved TODOs
 - **Next steps**: implement PreTrainedStabilityPredictor.forward using ProbabilityModel conditioning (preprocess_observations = encode_structure, forward uses cached embeddings + decoder), finish pdb_to_atom37_and_seq in models/utils.py, get the new example working, then delete the old code
+
+## TAG / Guidance Gotchas
+
+- **Gradient vanishes on <mask> tokens**: predictor trained on real AA embeddings → gradients through frozen ESMC transformer vanish ~10^6x when input contains <mask> tokens. Fix: fill mask positions with gen model's argmax before computing predictor gradients.
+- **Steep sigmoid saturates gradient**: with `k=100` and prediction above threshold, `sigmoid(k*(pred-threshold))` → 1, gradient → 0. Use lower k (5-10) or enumeration-based guidance (DEG) instead.
+- **Enumeration > gradient for frozen-LM probes**: TAG gradients through 30-layer frozen transformer are unreliable. DEG-style enumeration (evaluate all 20 AAs at each position) gives much better guidance because it only needs correct rankings, not accurate gradients.
+- **Gen temperature is key for guidance**: ESMC prior at well-determined positions (e.g. G at pos 227 with log prob -0.00) is essentially unoverridable. Higher gen temp (2-3) flattens the prior, giving guidance room to steer. Combined with guidance scale (10-20), this produces significant improvements.
+- **TrpB results**: Unguided mean=0.48, Enum(scale=20,temp=3) mean=0.62, %>0.7 from 0.5% to 32.5% (N=200, 10 runs)
+- **ESMC-300m vs 600m**: essentially identical ρ on TrpB (0.38 vs 0.39). Varpos-concat pooling (4 positions × D) is better than full mean pool (0.38 vs 0.28 for MLP).
+- **No separate `guidance_scale`** — predictive model's temperature controls guidance strength (lower temp → steeper log_softmax → larger gradient/log_prob magnitude). Gen model temp controls prior flatness.
+- TAG/DEG `argmax_masked_positions` flag: when True, fills mask tokens with gen argmax before evaluating predictor. Needed when predictor wasn't trained on noisy/masked inputs.
+- DEG requires position info via `at_position()` context manager — `sample_any_order_ancestral` passes this automatically
+- `sampling.py` `any_order_ancestral_step` now takes model (not just callable) — picks positions first, then sets DEG positions via `at_position` before computing log probs
+- Cached varpos embeddings: `data/trpb_embeddings/{esmc_300m,esmc_600m}_varpos/{train,valid,test}.pt`
+- ESMC `EMB_DIM` is now dynamic (instance variable set from model weights), not a class constant
 
 ## SLURM
 
