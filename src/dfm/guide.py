@@ -62,6 +62,17 @@ class TokenizerTranslator(nn.Module):
         return x_SPSrc.to(x_SPTgt.dtype)
 
 
+def _fill_masked_with_argmax(seq_SP, logp_gen_SPT, mask_token_id, vocab_size):
+    """Replace mask tokens with gen model's argmax predictions."""
+    mask = seq_SP == mask_token_id
+    if not mask.any():
+        return seq_SP
+    gen_argmax = logp_gen_SPT[..., :vocab_size].argmax(dim=-1)
+    filled = seq_SP.clone()
+    filled[mask] = gen_argmax[mask]
+    return filled
+
+
 class TAG(TransitionModel):
     """Token-level Autoregressive Guidance.
 
@@ -78,6 +89,7 @@ class TAG(TransitionModel):
         self,
         gen_model: TransitionModel,
         pred_model: PredictiveModel,
+        argmax_masked_positions: bool = False,
     ):
         super().__init__(
             model=gen_model.model,
@@ -86,13 +98,21 @@ class TAG(TransitionModel):
         )
         self.gen_model = gen_model
         self.pred_model = pred_model
+        self.argmax_masked_positions = argmax_masked_positions
         assert gen_model.tokenizer is pred_model.tokenizer or \
             gen_model.tokenizer.vocab == pred_model.tokenizer.vocab, \
             "TAG currently requires gen and pred models to share the same tokenizer"
 
     def forward(self, seq_SP: torch.LongTensor):
         logp_xtilde_g_x_SPT = self.gen_model.get_log_probs(seq_SP)
-        grad_SPV = self.pred_model.grad_log_prob(seq_SP)
+        pred_input = seq_SP
+        if self.argmax_masked_positions:
+            pred_input = _fill_masked_with_argmax(
+                seq_SP, logp_xtilde_g_x_SPT,
+                self.gen_model.tokenizer.mask_token_id,
+                self.gen_model.tokenizer.vocab_size,
+            )
+        grad_SPV = self.pred_model.grad_log_prob(pred_input)
         # TODO[pi] handle cross-tokenizer grad dimension mismatch properly —
         # zero-padding assumes vocab tokens align at the same indices, which is
         # only true when gen and pred share the same tokenizer. For the
@@ -109,6 +129,7 @@ class DEG(TransitionModel):
         self,
         gen_model: TransitionModel,
         pred_model: PredictiveModel,
+        argmax_masked_positions: bool = False,
     ):
         super().__init__(
             model=gen_model.model,
@@ -118,6 +139,7 @@ class DEG(TransitionModel):
         # main stipulation here is that the predictive model has to take OHE as input
         self.gen_model = gen_model
         self.pred_model = pred_model
+        self.argmax_masked_positions = argmax_masked_positions
         self.positions_to_score_S = None
 
     # TODO[pi] with all these different things we have to mix in, I'm wondering if
@@ -128,11 +150,12 @@ class DEG(TransitionModel):
         positions_to_score_S is a list that gives the index at each sequence to try to sample
         If a sequence does not need to be sampled, pass None for that index in the list
         """
+        old = self.positions_to_score_S
         self.positions_to_score_S = positions_to_score_S
         try:
             yield self
         finally:
-            self.positions_to_score_S = None
+            self.positions_to_score_S = old
 
     # TODO[pi] need forward that is fully batched for predictor, sequence-wise batched, and does things one at a time
     def forward(self, seq_SP: torch.LongTensor):
@@ -143,16 +166,24 @@ class DEG(TransitionModel):
         logp_xtilde_g_x_SPT = self.gen_model.get_log_probs(seq_SP)
         logp_y_g_xtilde_SPT = torch.zeros_like(logp_xtilde_g_x_SPT)
         n_tok = self.tokenizer.vocab_size
+        mask_token_id = self.gen_model.tokenizer.mask_token_id
         for s, p in enumerate(self.positions_to_score_S):
             if p is None:
                 continue
+            base = seq_SP[s].clone()
+            if self.argmax_masked_positions:
+                base = _fill_masked_with_argmax(
+                    base.unsqueeze(0), logp_xtilde_g_x_SPT[s].unsqueeze(0),
+                    mask_token_id, n_tok,
+                ).squeeze(0)
             # for simplicity just try all possible tokens--including special ones TODO[pi] we could instead use the
             # logitformatter mask in order to only try the valid transitions here
             seq_XP = (
-                seq_SP[s].unsqueeze(0).repeat(n_tok, 1)
+                base.unsqueeze(0).repeat(n_tok, 1)
             )  # X is the index over tokens we're trying
-            seq_XP[:, p] = torch.arange(n_tok)
-            logp_y_g_xtilde_X = self.pred_model.get_log_probs_from_string(seq_XP)
+            seq_XP[:, p] = torch.arange(n_tok, device=seq_SP.device)
+            with torch.no_grad():
+                logp_y_g_xtilde_X = self.pred_model.get_log_probs(seq_XP)
             logp_y_g_xtilde_SPT[s, p, :n_tok] = logp_y_g_xtilde_X
             # Don't need to take care of making the others -inf since the logit_formatter will take care of the invalid ones (including the invalid ones we tested lol)
         return logp_y_g_xtilde_SPT + logp_xtilde_g_x_SPT

@@ -82,7 +82,7 @@ def sample_any_order_ancestral(
     t = t_st
     while t != t_end:
         x_SP = any_order_ancestral_step(
-            model.get_log_probs, x_SP, n_parallel, mask_token_id
+            model, x_SP, n_parallel, mask_token_id
         )
         len_S = x_SP.size(1) - (x_SP == pad_token_id).sum(dim=1)
         t_S = 1 - (x_SP == mask_token_id).sum(dim=1) / len_S
@@ -99,7 +99,7 @@ def sample_any_order_ancestral(
 
 
 def any_order_ancestral_step(
-    transition_log_prob_fn: TransitionFunc,  # is there any reason not to just pass the model here?
+    model: TransitionModel,
     x_SP: torch.LongTensor,
     n_parallel: int,
     mask_token_id: int,
@@ -108,8 +108,8 @@ def any_order_ancestral_step(
     # TODO[pi] actually drop sequences that are finished and then place them in their original position at the end
     # so can we actually reduce the effective batch size if we can
 
-    # If the caller doesn't specify which positions to sample next, sample a random masked index (if possible)
-    # for each sequence
+    # Pick positions to sample BEFORE calling the model — DEG needs to know
+    # which position to enumerate before computing log probs.
     if next_pos_idx_SP is None:
         next_pos_idx_SP = []  # idx tensor for the sequence and pos dimensions, doesn't actually have full SxP shape
         for s in range(x_SP.size(0)):
@@ -122,8 +122,23 @@ def any_order_ancestral_step(
     if next_pos_idx_SP.numel() == 0:
         return x_SP
 
-    # Actually get the log probs and sample the change
-    p_x_SPT = torch.exp(transition_log_prob_fn(x_SP))
+    # Get log probs — if model is DEG, pass position info via at_position
+    if hasattr(model, "at_position"):
+        B = x_SP.size(0)
+        positions_per_seq: List[Optional[int]] = [None] * B
+        if n_parallel > 1:
+            raise NotImplementedError("DEG with n_parallel>1 not implemented yet")
+        for s_idx, p_idx in next_pos_idx_SP:
+            # With n_parallel=1 this is one position per sequence.
+            # With n_parallel>1, last position wins — DEG with n_parallel>1
+            # would need extension to enumerate multiple positions per sequence.
+            positions_per_seq[s_idx.item()] = p_idx.item()
+        with model.at_position(positions_per_seq):
+            p_x_SPT = torch.exp(model.get_log_probs(x_SP))
+    else:
+        p_x_SPT = torch.exp(model.get_log_probs(x_SP))
+
+    # Actually sample from the selected positions
     p_x_ST = torch.stack(
         [p_x_SPT[i, j, :] for i, j in next_pos_idx_SP]
     )  # note that some sequences (S dimension) might be missing
