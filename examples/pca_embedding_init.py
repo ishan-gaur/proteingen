@@ -11,9 +11,11 @@ models automatically.
 """
 
 import torch
+from types import SimpleNamespace
+from torch.nn import functional as F
 from esm.models.esmc import ESMC
 from esm.tokenization.sequence_tokenizer import EsmSequenceTokenizer
-from dfm.predictive_modeling import EmbeddingMLP
+from dfm.predictive_modeling import EmbeddingMLP, binary_logits
 
 # ── 1. Define the target vocabulary (20 standard amino acids + padding) ──────
 
@@ -25,14 +27,23 @@ N_COMPONENTS = 20
 
 # ── 2. Build the model ──────────────────────────────────────────────────────
 
-model = EmbeddingMLP(
-    vocab_size=VOCAB_SIZE,
+tokenizer = SimpleNamespace(vocab_size=VOCAB_SIZE, pad_token_id=PADDING_IDX)
+
+
+class DemoEmbeddingMLP(EmbeddingMLP):
+    """Concrete subclass for demonstration — uses binary logits."""
+
+    def format_raw_to_logits(self, raw_output, ohe_seq_SPT, **kwargs):
+        return binary_logits(raw_output.reshape(-1))
+
+
+model = DemoEmbeddingMLP(
+    tokenizer=tokenizer,
     sequence_length=50,
     embed_dim=N_COMPONENTS,
     model_dim=128,
     n_layers=2,
     output_dim=1,
-    padding_idx=PADDING_IDX,
 )
 
 # ── 3. Initialize embeddings from ESMC PCA ──────────────────────────────────
@@ -54,5 +65,6 @@ print(f"  Learnable:   {model.embed.weight.requires_grad}")
 # ── 4. Verify with a dummy forward pass ─────────────────────────────────────
 
 dummy_seqs = torch.randint(0, len(STANDARD_AAS), (4, 50))
-output = model(dummy_seqs)
-print(f"\nForward pass:  input {dummy_seqs.shape} → output {output.shape}")
+ohe = F.one_hot(dummy_seqs, num_classes=VOCAB_SIZE).float()
+output = model(ohe)
+print(f"\nForward pass:  input {dummy_seqs.shape} → OHE {ohe.shape} → output {output.shape}")

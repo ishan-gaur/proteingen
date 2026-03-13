@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dfm.generative_modeling import TransitionModelWithEmbedding
@@ -116,154 +116,79 @@ class PredictiveModel(ProbabilityModel, ABC):
             return self._ohe.grad
 
 
-class CategoricalPredictiveModel(PredictiveModel, ABC):
-    """Predictive model with categorical (multi-class) output.
+# ── Binary logit conversion functions ────────────────────────────────────────
+#
+# Use these in your format_raw_to_logits implementation to convert raw model
+# output into the (B, 2) binary logits [false_logit, true_logit] that the
+# PredictiveModel pipeline expects.
 
-    Target is a class index (int). ``format_raw_to_logits`` converts
-    multi-class logits ``(B, C)`` to binary logits ``(B, 2)`` by splitting
-    the target class from the rest:
 
-    - ``true_logit = logits[:, target_class]``
-    - ``false_logit = logsumexp(logits for non-target classes)``
+def categorical_binary_logits(
+    logits_BC: torch.FloatTensor, target_class: int
+) -> torch.FloatTensor:
+    """Multi-class logits (B, C) → binary logits (B, 2) for a target class.
 
-    Subclasses implement ``forward()`` to return class logits ``(B, C)``.
-
-    Optionally pass ``class_names`` to enable setting target by string::
-
-        model = MyClassifier(tokenizer, class_names={"stable": 0, "unstable": 1})
-        model.set_target_("stable")  # equivalent to set_target_(0)
+    true_logit = logits[:, target_class]
+    false_logit = logsumexp(logits for non-target classes)
     """
-
-    def __init__(
-        self,
-        tokenizer,
-        class_names: Optional[Dict[str, int]] = None,
-    ):
-        super().__init__(tokenizer)
-        self.class_names = class_names or {}
-
-    def set_target_(self, target_spec):
-        """Set target class. Accepts int (class index) or str (class name)."""
-        if isinstance(target_spec, str):
-            assert target_spec in self.class_names, (
-                f"Unknown class name '{target_spec}'. "
-                f"Known classes: {list(self.class_names.keys())}"
-            )
-            self.target = self.class_names[target_spec]
-        else:
-            self.target = target_spec
-
-    def set_target(self, target_spec):
-        self.set_target_(target_spec)
-        return self
-
-    def format_raw_to_logits(
-        self, raw_output: torch.FloatTensor, ohe_seq_SPT: torch.FloatTensor, **kwargs
-    ) -> torch.FloatTensor:
-        logits_BC = raw_output
-        target_logit_B = logits_BC[:, self.target]
-        # logsumexp of non-target classes = logit for "not target"
-        C = logits_BC.shape[-1]
-        mask = torch.ones(C, dtype=torch.bool, device=logits_BC.device)
-        mask[self.target] = False
-        false_logit_B = torch.logsumexp(logits_BC[:, mask], dim=-1)
-        return torch.stack([false_logit_B, target_logit_B], dim=-1)  # (B, 2)
+    target_logit_B = logits_BC[:, target_class]
+    C = logits_BC.shape[-1]
+    mask = torch.ones(C, dtype=torch.bool, device=logits_BC.device)
+    mask[target_class] = False
+    false_logit_B = torch.logsumexp(logits_BC[:, mask], dim=-1)
+    return torch.stack([false_logit_B, target_logit_B], dim=-1)  # (B, 2)
 
 
-class BinaryPredictiveModel(PredictiveModel, ABC):
-    """Predictive model with a single binary logit output.
+def binary_logits(
+    logit_B: torch.FloatTensor, target: bool = True
+) -> torch.FloatTensor:
+    """Single logit → binary logits (B, 2) via sigmoid(x) = softmax([0, x])[1].
 
-    ``forward()`` returns a single logit per sequence where
-    ``sigmoid(logit) = P(positive | x)``. Uses the identity
-    ``sigmoid(x) = softmax([0, x])[1]`` to produce binary logits.
-
-    Target is a bool: ``True`` for P(positive), ``False`` for P(negative).
-    Defaults to ``True``.
+    If target is False, swaps the logits so [:, 1] gives P(negative).
     """
-
-    def __init__(self, tokenizer):
-        super().__init__(tokenizer)
-        self.target = True
-
-    def format_raw_to_logits(
-        self, raw_output: torch.FloatTensor, ohe_seq_SPT: torch.FloatTensor, **kwargs
-    ) -> torch.FloatTensor:
-        logit_B = raw_output.reshape(-1)
-        zero_B = torch.zeros_like(logit_B)
-        if self.target:
-            return torch.stack([zero_B, logit_B], dim=-1)  # (B, 2)
-        else:
-            return torch.stack([logit_B, zero_B], dim=-1)  # (B, 2)
-
-
-class PointEstimatePredictiveModel(PredictiveModel, ABC):
-    """Predictive model with a real-valued point estimate output.
-
-    ``forward()`` returns a scalar prediction per sequence ``(B,)`` or ``(B, 1)``.
-    Target is a threshold (float). Converts to binary logits using a steep
-    sigmoid approximation of the step function.
-
-    Not differentiable through the threshold — use DEG, not TAG.
-
-    The sharpness parameter ``k`` controls how steep the step is.
-    Large ``k`` → hard step (good for DEG). Smaller ``k`` → softer
-    (but still not a proper probabilistic model — use
-    ``GaussianPredictiveModel`` if you have uncertainty estimates).
-    """
-
-    def __init__(self, tokenizer, k: float = 100.0):
-        super().__init__(tokenizer)
-        self.k = k
-
-    def format_raw_to_logits(
-        self, raw_output: torch.FloatTensor, ohe_seq_SPT: torch.FloatTensor, **kwargs
-    ) -> torch.FloatTensor:
-        pred_B = raw_output.reshape(-1)
-        # steep sigmoid approximation: sigmoid(k * (pred - threshold))
-        # maps to binary logits via sigmoid(x) = softmax([0, x])[1]
-        logit_B = self.k * (pred_B - self.target)
-        zero_B = torch.zeros_like(logit_B)
+    logit_B = logit_B.reshape(-1)
+    zero_B = torch.zeros_like(logit_B)
+    if target:
         return torch.stack([zero_B, logit_B], dim=-1)  # (B, 2)
+    else:
+        return torch.stack([logit_B, zero_B], dim=-1)  # (B, 2)
 
 
-class GaussianPredictiveModel(PredictiveModel, ABC):
-    """Predictive model with Gaussian (mean, variance) output.
+def point_estimate_binary_logits(
+    pred_B: torch.FloatTensor, threshold: float, k: float = 100.0
+) -> torch.FloatTensor:
+    """Scalar prediction → binary logits (B, 2) via steep sigmoid.
 
-    ``forward()`` returns ``(B, 2)`` where column 0 is the mean and
-    column 1 is the log-variance. Target is a threshold (float).
-    Converts to binary logits via the Gaussian CDF:
-    ``P(Y > threshold) = 1 - Phi((threshold - mu) / sigma)``.
+    sigmoid(k * (pred - threshold)) approximates a step function.
+    Gradients unstable through the threshold though — use DEG, not TAG.
+    """
+    pred_B = pred_B.reshape(-1)
+    logit_B = k * (pred_B - threshold)
+    zero_B = torch.zeros_like(logit_B)
+    return torch.stack([zero_B, logit_B], dim=-1)  # (B, 2)
 
+
+def gaussian_binary_logits(
+    mu_B: torch.FloatTensor, log_var_B: torch.FloatTensor, threshold: float
+) -> torch.FloatTensor:
+    """Gaussian (mean, log_var) → binary logits (B, 2) via CDF log-odds.
+
+    P(Y > threshold) = Phi((mu - threshold) / sigma).
+    If you want P(Y < threshold) for your application, just swap the order of the logits in your
+    format_raw_to_logits implementation.
     Differentiable through both mean and variance — works with TAG.
     """
+    sigma_B = (log_var_B / 2).exp()
+    z_B = (threshold - mu_B) / sigma_B
+    log_p_above = torch.special.log_ndtr(-z_B)
+    log_p_below = torch.special.log_ndtr(z_B)
+    return torch.stack([log_p_below, log_p_above], dim=-1)  # (B, 2)
 
-    def format_raw_to_logits(
-        self, raw_output: torch.FloatTensor, ohe_seq_SPT: torch.FloatTensor, **kwargs
-    ) -> torch.FloatTensor:
-        mu_B = raw_output[:, 0]
-        log_var_B = raw_output[:, 1]
-        sigma_B = (log_var_B / 2).exp()
 
-        # P(Y > threshold) = Phi((mu - threshold) / sigma)
-        # We need unnormalized logits since the parent applies log_softmax.
-        # Use log_ndtr for numerically stable log Phi(z):
-        #   logit = log(p_above / p_below) = log_ndtr(z) - log_ndtr(-z)
-        # Then softmax([0, logit])[1] = sigmoid(logit) = p_above.
-        z_B = (mu_B - self.target) / sigma_B
-        # log_ndtr handles extreme z values without NaN
-        log_p_above = torch.special.log_ndtr(z_B)
-        log_p_below = torch.special.log_ndtr(-z_B)
-        logit_B = log_p_above - log_p_below  # log-odds
-
-        zero_B = torch.zeros_like(logit_B)
-        return torch.stack([zero_B, logit_B], dim=-1)  # (B, 2)
-# ==========================================================================================
-# ==========================================================================================
-# The following classes are templates to train your own predictive models with.
-# When creating your own predictive models, make sure that they inherit from PredictiveModel
-# and wrap around one of the template models below. See the dfm/models/ folder for examples.
-# ==========================================================================================
-# ==========================================================================================
+# ── Template predictive models ──────────────────────────────────────────────
+#
+# Subclass these and implement format_raw_to_logits using the functions above.
+# See dfm/models/ and examples/ for concrete usage.
 
 
 class LinearProbe(PredictiveModel, ABC):
@@ -303,18 +228,6 @@ class LinearProbe(PredictiveModel, ABC):
         pooled_SD = self.pooling_fn(emb_SPD, seq_SP)
         return self.w(pooled_SD)
 
-    @abstractmethod
-    def format_raw_to_logits(
-        self, y_SO: torch.FloatTensor, seq_SPT: torch.FloatTensor, **kwargs
-    ) -> torch.FloatTensor:
-        """Convert raw predictions → binary logits (B, 2): [false_logit, true_logit].
-
-        Uses ``self.target`` to determine what event is being evaluated.
-        The parent's ``get_log_probs`` applies ``log_softmax(logits / temp)``
-        on top.
-        """
-        ...
-
     @torch.no_grad()
     def precompute_embeddings(
         self,
@@ -341,47 +254,36 @@ class LinearProbe(PredictiveModel, ABC):
 
 
 
-class OneHotMLP(nn.Module):
-    """
-    MLP operating on one-hot encoded sequences.
+class OneHotMLP(PredictiveModel, ABC):
+    """MLP operating on one-hot encoded sequences.
 
-    Uses a frozen identity embedding to convert token indices to one-hot vectors,
-    flattens across all positions, then passes through an MLP.
+    Receives OHE input from PredictiveModel.get_log_probs, flattens across
+    all positions, and passes through an MLP. Subclasses implement
+    format_raw_to_logits to convert the MLP output to binary logits.
 
     Tensor Dimension Labels:
         S: batch (sample) index
         P: position in sequence
-        T: token dimension (one-hot)
+        T: token dimension (one-hot / vocab size)
         O: output dimension
     """
 
     def __init__(
         self,
-        vocab_size: int,
+        tokenizer,
         sequence_length: int,
         model_dim: int,
         n_layers: int,
         output_dim: int,
-        padding_idx: int,
         dropout: float = 0.0,
     ):
-        super().__init__()
-        self.vocab_size = vocab_size
+        super().__init__(tokenizer)
+        self.vocab_size = tokenizer.vocab_size
         self.sequence_length = sequence_length
         self.model_dim = model_dim
         self.n_layers = n_layers
         self.output_dim = output_dim
-        self.padding_idx = padding_idx
         self.dropout = dropout
-
-        # Frozen one-hot embedding: each token maps to its one-hot vector
-        self.embed = nn.Embedding(
-            self.vocab_size,
-            self.vocab_size,
-            self.padding_idx,
-            _weight=torch.eye(self.vocab_size),
-            _freeze=True,
-        )
 
         layers: list[nn.Module] = [
             nn.Linear(self.sequence_length * self.vocab_size, self.model_dim)
@@ -397,11 +299,9 @@ class OneHotMLP(nn.Module):
         layers.append(nn.Linear(self.model_dim, self.output_dim))
         self.layers = nn.Sequential(*layers)
 
-    def forward(self, x_SP: torch.LongTensor):
-        x_SPT = F.one_hot(x_SP, num_classes=self.vocab_size).float()
-        x_SPxT = x_SPT.reshape(x_SPT.size(0), -1)
-        y_hat_SO = self.layers(x_SPxT)
-        return y_hat_SO
+    def forward(self, ohe_seq_SPT: torch.FloatTensor) -> torch.FloatTensor:
+        x_SPxT = ohe_seq_SPT.reshape(ohe_seq_SPT.size(0), -1)
+        return self.layers(x_SPxT)
 
 
 def pca_embed_init(
@@ -480,13 +380,13 @@ def pca_embed_init(
     return output
 
 
-class EmbeddingMLP(nn.Module):
-    """
-    MLP operating on learned token embeddings.
+class EmbeddingMLP(PredictiveModel, ABC):
+    """MLP operating on learned token embeddings.
 
-    Each token is mapped to a learned embedding vector via ``nn.Embedding``,
-    the embeddings are flattened across all positions, then passed through an MLP.
-    This is a learned alternative to ``OneHotMLP``'s frozen identity embedding.
+    Receives OHE input from PredictiveModel.get_log_probs, multiplies through
+    a learned embedding matrix (``ohe @ embed.weight``), flattens across
+    all positions, and passes through an MLP. The matmul embedding lookup
+    is differentiable, enabling TAG gradient flow.
 
     Use :meth:`init_embed_from_pretrained_pca` to initialize the embedding
     layer from a pretrained model's embeddings (e.g. ESMC), compressed to
@@ -501,23 +401,23 @@ class EmbeddingMLP(nn.Module):
 
     def __init__(
         self,
-        vocab_size: int,
+        tokenizer,
         sequence_length: int,
         embed_dim: int,
         model_dim: int,
         n_layers: int,
         output_dim: int,
-        padding_idx: int,
+        padding_idx: Optional[int] = None,
         dropout: float = 0.0,
     ):
-        super().__init__()
-        self.vocab_size = vocab_size
+        super().__init__(tokenizer)
+        self.vocab_size = tokenizer.vocab_size
         self.sequence_length = sequence_length
         self.embed_dim = embed_dim
         self.model_dim = model_dim
         self.n_layers = n_layers
         self.output_dim = output_dim
-        self.padding_idx = padding_idx
+        self.padding_idx = padding_idx if padding_idx is not None else tokenizer.pad_token_id
         self.dropout = dropout
 
         self.embed = nn.Embedding(
@@ -568,10 +468,10 @@ class EmbeddingMLP(nn.Module):
             target_vocab_size=self.vocab_size,
         )
         self.embed.weight.data.copy_(weights)
-        self.embed.weight.data[self.padding_idx].zero_()
+        if self.padding_idx is not None:
+            self.embed.weight.data[self.padding_idx].zero_()
 
-    def forward(self, x_SP: torch.LongTensor):
-        x_SPE = self.embed(x_SP)
+    def forward(self, ohe_seq_SPT: torch.FloatTensor) -> torch.FloatTensor:
+        x_SPE = ohe_seq_SPT @ self.embed.weight  # differentiable embedding lookup
         x_SPxE = x_SPE.reshape(x_SPE.size(0), -1)
-        y_hat_SO = self.layers(x_SPxE)
-        return y_hat_SO
+        return self.layers(x_SPxE)

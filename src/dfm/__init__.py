@@ -18,11 +18,12 @@ from .probability_model import ProbabilityModel
 
 from .predictive_modeling import (
     PredictiveModel,
-    CategoricalPredictiveModel,
-    BinaryPredictiveModel,
-    PointEstimatePredictiveModel,
-    GaussianPredictiveModel,
+    categorical_binary_logits,
+    binary_logits,
+    point_estimate_binary_logits,
+    gaussian_binary_logits,
     LinearProbe,
+    OneHotMLP,
     EmbeddingMLP,
 )
 
@@ -36,7 +37,16 @@ __all__ = [
     "uniform_schedule",
     "ProbabilityModel",
     "TransitionModel",
+    "TransitionModelWithEmbedding",
     "LogitFormatter",
     "MaskedModelLogitFormatter",
+    "PredictiveModel",
+    "categorical_binary_logits",
+    "binary_logits",
+    "point_estimate_binary_logits",
+    "gaussian_binary_logits",
+    "LinearProbe",
+    "OneHotMLP",
+    "EmbeddingMLP",
     "sample_any_order_ancestral",
 ]
