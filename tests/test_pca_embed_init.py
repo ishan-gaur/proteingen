@@ -8,8 +8,10 @@ Uses synthetic embeddings for fast tests and ESMC for integration tests.
 import torch
 import pytest
 
+from types import SimpleNamespace
 from torch import nn
-from dfm.predictive_modeling import EmbeddingMLP
+from torch.nn import functional as F
+from dfm.predictive_modeling import EmbeddingMLP, binary_logits
 
 
 # ---------------------------------------------------------------------------
@@ -26,7 +28,17 @@ AA20_PADDING_IDX = 20
 SEQ_LEN = 10
 MODEL_DIM = 32
 N_LAYERS = 2
-MLP_OUTPUT_DIM = 3
+MLP_OUTPUT_DIM = 1
+
+
+# ---------------------------------------------------------------------------
+# Concrete subclass (EmbeddingMLP is ABC)
+# ---------------------------------------------------------------------------
+
+
+class ConcreteEmbeddingMLP(EmbeddingMLP):
+    def format_raw_to_logits(self, raw_output, ohe_seq_SPT, **kwargs):
+        return binary_logits(raw_output.reshape(-1))
 
 
 # ---------------------------------------------------------------------------
@@ -34,15 +46,18 @@ MLP_OUTPUT_DIM = 3
 # ---------------------------------------------------------------------------
 
 
-def make_model(embed_dim: int = 5) -> EmbeddingMLP:
-    return EmbeddingMLP(
-        vocab_size=AA20_VOCAB_SIZE,
+def make_tokenizer(vocab_size=AA20_VOCAB_SIZE, pad_token_id=AA20_PADDING_IDX):
+    return SimpleNamespace(vocab_size=vocab_size, pad_token_id=pad_token_id)
+
+
+def make_model(embed_dim: int = 5) -> ConcreteEmbeddingMLP:
+    return ConcreteEmbeddingMLP(
+        tokenizer=make_tokenizer(),
         sequence_length=SEQ_LEN,
         embed_dim=embed_dim,
         model_dim=MODEL_DIM,
         n_layers=N_LAYERS,
         output_dim=MLP_OUTPUT_DIM,
-        padding_idx=AA20_PADDING_IDX,
     )
 
 
@@ -144,7 +159,8 @@ class TestInitEmbedFromPretrainedPca:
         model = make_model(embed_dim=5)
         model.init_embed_from_pretrained_pca(source, source_vocab, AA20_VOCAB)
         x = torch.randint(0, len(STANDARD_AAS), (4, SEQ_LEN))
-        y = model(x)
+        ohe = F.one_hot(x, num_classes=AA20_VOCAB_SIZE).float()
+        y = model(ohe)
         assert y.shape == (4, MLP_OUTPUT_DIM)
         assert not torch.isnan(y).any()
 
@@ -154,7 +170,8 @@ class TestInitEmbedFromPretrainedPca:
         model.init_embed_from_pretrained_pca(source, source_vocab, AA20_VOCAB)
         assert model.embed.weight.requires_grad
         x = torch.randint(0, len(STANDARD_AAS), (4, SEQ_LEN))
-        loss = model(x).sum()
+        ohe = F.one_hot(x, num_classes=AA20_VOCAB_SIZE).float()
+        loss = model(ohe).sum()
         loss.backward()
         assert model.embed.weight.grad is not None
 
@@ -306,6 +323,7 @@ class TestInitEmbedESMC:
         model = make_model(embed_dim=20)
         model.init_embed_from_pretrained_pca(source, source_vocab, AA20_VOCAB)
         x = torch.randint(0, len(STANDARD_AAS), (8, SEQ_LEN))
-        y = model(x)
+        ohe = F.one_hot(x, num_classes=AA20_VOCAB_SIZE).float()
+        y = model(ohe)
         assert y.shape == (8, MLP_OUTPUT_DIM)
         assert not torch.isnan(y).any()

@@ -103,18 +103,14 @@
 
 ## PredictiveModel Design
 
-- `PredictiveModel(ProbabilityModel, ABC)` — adds `tokenizer`, `_target` to init. No `model` arg — user subclasses directly.
+- `PredictiveModel(ProbabilityModel, ABC)` — adds `tokenizer`, `target` to init. No `model` arg — user subclasses directly.
 - **Binary logit pattern**: `format_raw_to_logits` must return `(B, 2)` binary logits `[false_logit, true_logit]`. Parent's `get_log_probs` applies `log_softmax(logits / temp)` → `(B, 2)`. PredictiveModel's `get_log_probs` takes `[:, 1]` → scalar `log p(target | x)`.
-- **Target management**: `set_target_()` (in-place), `set_target()` (returns self), `with_target()` (context manager with revert). Asserts target is set before `get_log_probs`. `set_target`/`with_target` route through `set_target_` so subclass overrides (e.g. CategoricalPredictiveModel string resolution) are respected.
-- `CategoricalPredictiveModel(PredictiveModel, ABC)` — concrete `format_raw_to_logits`: `true_logit = logits[:, target_class]`, `false_logit = logsumexp(rest)`. Takes optional `class_names: Dict[str, int]` for string target setting. Subclasses only implement `forward`.
-- `BinaryPredictiveModel(PredictiveModel, ABC)` — for models with single logit output. Uses `sigmoid(x) = softmax([0, x])[1]`. Defaults `_target = True`. Respects `_target = False` by swapping logits.
-- `PointEstimatePredictiveModel(PredictiveModel, ABC)` — for real-valued point estimates. Target is threshold (float). Uses steep sigmoid approximation with configurable `k`. Good for DEG, not TAG.
-- `GaussianPredictiveModel(PredictiveModel, ABC)` — forward returns `(B, 2)` with `(mean, log_var)`. Uses `torch.special.log_ndtr` for numerically stable Gaussian CDF log-odds. Differentiable — works with TAG.
-- `input_dim` is now a property returning `tokenizer.vocab_size` — no manual setting
-- `get_log_probs(seq_SP)` takes token IDs, creates vocab-sized OHE internally, stashes `self._ohe`, runs forward → format_raw_to_logits → log_softmax → [:, 1]. Does NOT use parent ProbabilityModel.get_log_probs — runs its own pipeline.
+- **Binary logit functions** (replacing old subclasses): `categorical_binary_logits(logits_BC, target_class)`, `binary_logits(logit_B, target)`, `point_estimate_binary_logits(pred_B, threshold, k)`, `gaussian_binary_logits(mu_B, log_var_B, threshold)`. Users call these from their `format_raw_to_logits` implementation.
+- **Deleted classes**: `CategoricalPredictiveModel`, `BinaryPredictiveModel`, `PointEstimatePredictiveModel`, `GaussianPredictiveModel` — replaced by the standalone functions above.
+- **Target management**: `set_target_()` (in-place), `set_target()` (returns self), `with_target()` (context manager with revert). Asserts target is set before `get_log_probs`.
+- `get_log_probs(seq_SP)` takes token IDs, creates vocab-sized OHE internally, stashes `self._ohe`, calls `super().get_log_probs(ohe)` → forward → format_raw_to_logits → log_softmax → [:, 1].
 - `grad_log_prob(seq_SP)` — runs `get_log_probs`, backprops, returns `self._ohe.grad` (shape B, P, vocab_size). Uses `torch.enable_grad()` context. This is what TAG calls.
-- `forward` currently takes OHE (from get_log_probs), but IN PROGRESS switching to token IDs — see TODO[pi] on the class. When forward takes token IDs, predictors can just delegate to `self.probe(seq_SP)` and the OHE is created inside `embed_model.embed()`. The predictor must then set `self._ohe` from the embed model for `grad_log_prob` to work.
-- Template nn.Modules (`LinearProbe`, `OneHotMLP`, `EmbeddingMLP`) stay as plain `nn.Module` — get composed into a `PredictiveModel` subclass for guidance use (composition, not inheritance — multiple inheritance with nn.Module causes double-init issues)
+- `forward` takes OHE (from get_log_probs). All template models (LinearProbe, OneHotMLP, EmbeddingMLP) are now `PredictiveModel` subclasses — their forward receives OHE and must be differentiable for TAG.
 - TODO[pi] on the class: think about tokenizer mismatch — predictor's tokenizer (used for OHE) may differ from underlying model's tokenizer (ESMC's 64-wide embed table vs 33 vocab_size)
 
 ## LinearProbe Design
@@ -167,9 +163,11 @@
 - Tests in `tests/test_esm3.py` (21 tests) — construction, embed path vs forward match, gradient flow, log probs, batching, structure conditioning (8 tests), temperature
 - Same tokenizer as ESMC: `EsmSequenceTokenizer` (vocab_size=33)
 
-## EmbeddingMLP / pca_embed_init Design
+## OneHotMLP / EmbeddingMLP Design
 
-- `EmbeddingMLP` in `predictive_modeling.py` — MLP with learned `nn.Embedding` layer, alternative to `OneHotMLP`'s frozen identity embedding
+- Both are now `PredictiveModel, ABC` subclasses — user implements `format_raw_to_logits` using the binary logit functions
+- `OneHotMLP(PredictiveModel, ABC)` — takes `tokenizer` (derives `vocab_size` from it), no embedding layer. Forward receives OHE, flattens, passes through MLP.
+- `EmbeddingMLP(PredictiveModel, ABC)` — takes `tokenizer` + optional `padding_idx` (defaults to `tokenizer.pad_token_id`). Forward does `ohe @ self.embed.weight` for differentiable embedding lookup (enables TAG gradients), flattens, passes through MLP.
 - **`init_embed_from_pretrained_pca(source, source_vocab, target_vocab)`** — method on EmbeddingMLP that initializes embedding from PCA of a pretrained `nn.Embedding`. Uses `self.embed_dim` as n_components, `self.vocab_size` as target size — no redundant params. Zeroes the padding row after copy.
 - `pca_embed_init()` is now an **internal helper** (not exported from `dfm.__init__`), called by the method above
 - Token matching is by string key (e.g. `"A"`, `"C"`) — shared tokens are the intersection of `source_vocab.keys()` and `target_vocab.keys()`. Unmatched tokens (e.g. UNK `"X"` in MPNN vs `"<unk>"` in ESM) naturally get zero rows — no need to filter vocabs before passing
@@ -177,9 +175,10 @@
 - Uses `torch.linalg.svd` (NOT `np.linalg.svd`) to keep everything in torch
 - ESMC `embed` layer: `Embedding(64, 960)` — 64 tokens (33 real vocab + 31 alignment padding), 960-dim embeddings
 - First 20 PCs of ESMC's 20 AA embeddings capture ~100% variance (20 tokens in 960-d = rank 19 after centering, so 20 components is exact)
-- Exported from `dfm.__init__`: `EmbeddingMLP` (not `pca_embed_init`)
-- Tests in `tests/test_pca_embed_init.py` (21 tests): synthetic fast tests + ESMC integration tests (module-scoped fixture loads model once)
+- Exported from `dfm.__init__`: `OneHotMLP`, `EmbeddingMLP` (not `pca_embed_init`)
+- Tests in `tests/test_embedding_mlp.py` (49 tests) and `tests/test_pca_embed_init.py` (21 tests): construction, forward, gradients, predictive pipeline (get_log_probs, grad_log_prob), PCA init, ESMC integration
 - Example in `examples/pca_embedding_init.py`
+- For tests, use `SimpleNamespace(vocab_size=N, pad_token_id=M)` as a mock tokenizer
 - **Design decision**: PCA init is a post-construction method, NOT a constructor param — avoids redundant shape args and lets the model exist before deciding on initialization. Old `initial_embed_weights` constructor param was removed.
 - Consumer: `~/kortemme_tyrosine_kinase_design/train_ohe_mlp.py` uses the old API (pre-method `pca_embed_init` + `initial_embed_weights` constructor) — needs updating
 
@@ -188,19 +187,10 @@
 - `test_guidance_data.py::TestGuidanceDataset` — 3 tests fail because they construct `GuidanceDataset` without the now-required `tokenize`, `noise_schedule`, `mask_token` args
 - `tests/test_esm.py` — needs updating: ESMC now inherits `TransitionModelWithEmbedding` (not plain `TransitionModel`), `ESMCEmbedding`/`PreTrainedEmbeddingModel` deleted
 - `tests/test_sampling.py` — 31 errors (pre-existing, not from this session's changes)
-- `tests/test_embedding_mlp.py` — may need updating: LinearProbe now takes `TransitionModelWithEmbedding` (not `PreTrainedEmbeddingModel`), uses `embed()` method
 - `models/seki_tyrosine_kinase.py` — manually sets `self.input_dim` which shadows the new property; needs updating
 - `guide.py` imports from `dfm.predictive_model` (should be `dfm.predictive_modeling`), also references `ConditionalTransitionModel` which no longer exists
 - `sampling.py` now uses `model.get_log_probs` (previously `model.transition_log_probs`)
-- Core tests pass: 116 passed as of this session (logit_formatter, transition_model, embedding_mlp, pca_embed_init)
-
-## In-Progress: PredictiveModel forward(token_ids) Refactor
-
-- Currently `PredictiveModel.get_log_probs(seq_SP)` creates OHE and passes it to `forward(ohe)` — so forward receives OHE
-- Goal: switch forward to take token IDs, so predictors like TrpBFitnessPredictor can just do `return self.probe(seq_SP)` instead of manually padding OHE and calling `differentiable_embedding`
-- Blocker: `grad_log_prob` needs `self._ohe` — if forward takes token IDs, OHE is created deep inside `embed_model.embed()` and stashed on the embed model. Predictor must surface it (e.g. `self._ohe = self.probe.embed_model._ohe` in forward). One extra line per predictor.
-- `get_log_probs` would run its own pipeline directly (forward → format_raw_to_logits → log_softmax) rather than calling `super().get_log_probs(ohe)` — this is partially done already
-- Stability predictor on a separate branch — don't touch it during this refactor
+- Core tests pass: 127 passed (logit_formatter, transition_model, embedding_mlp, pca_embed_init)
 
 ## Stability Predictor (rocklin_ddg)
 

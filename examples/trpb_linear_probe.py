@@ -26,7 +26,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from dfm.guide import TAG
 from dfm.models.esm import ESMC
-from dfm.predictive_modeling import LinearProbe
+from dfm.predictive_modeling import LinearProbe, point_estimate_binary_logits
 from dfm.sampling import sample_any_order_ancestral
 
 
@@ -82,10 +82,7 @@ class TrpBFitnessPredictor(LinearProbe):
     def format_raw_to_logits(
         self, raw_output: torch.FloatTensor, ohe_seq_SPT: torch.FloatTensor, **kwargs
     ) -> torch.FloatTensor:
-        pred_B = raw_output.reshape(-1)
-        logit_B = self.k * (pred_B - self.target)
-        zero_B = torch.zeros_like(logit_B)
-        return torch.stack([zero_B, logit_B], dim=-1)  # (B, 2)
+        return point_estimate_binary_logits(raw_output, self.target, self.k)
 
 
 # ── Data loading ─────────────────────────────────────────────────────────────
@@ -271,8 +268,12 @@ def main():
     threshold = float(np.percentile(labels, 99))
     predictor.set_target_(threshold)
     predictor.cpu()
+    # Guidance strength is controlled by predictor temperature:
+    # lower temp → steeper log_softmax → larger gradient magnitude.
+    # guidance_scale of N corresponds to pred temp of 1/N.
+    predictor.set_temp_(1.0 / args.guidance_scale)
     print(f"Target threshold: {threshold:.4f} (99th percentile)")
-    print(f"Gen temp: {args.gen_temp}, Guidance scale: {args.guidance_scale}")
+    print(f"Gen temp: {args.gen_temp}, Pred temp: {predictor.temp:.4f} (guidance_scale={args.guidance_scale})")
 
     gen_model = ESMC(args.esmc_checkpoint)
     tokenizer = gen_model.tokenizer
@@ -321,17 +322,17 @@ def main():
             if actual is not None:
                 results_by_condition["unguided"].append(actual)
 
-        # 3. TAG guided, temp=1.0, guidance_scale
-        tag = TAG(gen_model, predictor, guidance_scale=args.guidance_scale)
+        # 3. TAG guided, gen temp=1.0
+        tag = TAG(gen_model, predictor)
         guided = sample_any_order_ancestral(tag, make_masked(n), return_string=True)
         guided = [s.replace(" ", "") for s in guided]
         for _, _, actual in score_sequences(guided, predictor, variable_pos, seq_to_label):
             if actual is not None:
                 results_by_condition["guided"].append(actual)
 
-        # 4. TAG guided, higher gen temp, guidance_scale
+        # 4. TAG guided, higher gen temp
         gen_model.set_temp_(args.gen_temp)
-        tag_hot = TAG(gen_model, predictor, guidance_scale=args.guidance_scale)
+        tag_hot = TAG(gen_model, predictor)
         guided_hot = sample_any_order_ancestral(tag_hot, make_masked(n), return_string=True)
         guided_hot = [s.replace(" ", "") for s in guided_hot]
         gen_model.set_temp_(1.0)
