@@ -322,7 +322,7 @@ class OneHotMLP(PredictiveModel, ABC):
         return self.layers(x_SPxT)
 
 
-class SecondOrderLinearModel(PredictiveModel, ABC):
+class PairwiseLinearModel(PredictiveModel, ABC):
     """Linear model that uses single and pairwise mutation features
     encoded as one-hot vectors.
 
