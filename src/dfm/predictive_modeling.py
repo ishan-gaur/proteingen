@@ -71,6 +71,14 @@ class PredictiveModel(ProbabilityModel, ABC):
         OHE dimension will be the tokenizer's vocab size."""
         ...
 
+    # TODO[pi] The relationship between target and format_raw_to_logits is not
+    # obvious from the interface. A user subclassing OneHotMLP has to just *know*
+    # that self.target exists, what type it should be, and that they need to use
+    # it inside format_raw_to_logits. The binary logit functions help but still
+    # require the user to pass self.target manually. Consider ways to make this
+    # more discoverable — e.g. requiring subclasses to declare expected target
+    # type, or having format_raw_to_logits receive target as an explicit argument
+    # instead of reading it off self.
     @abstractmethod
     def format_raw_to_logits(
         self, raw_output: Any, seq_SPT: torch.FloatTensor, **kwargs
@@ -302,6 +310,45 @@ class OneHotMLP(PredictiveModel, ABC):
     def forward(self, ohe_seq_SPT: torch.FloatTensor) -> torch.FloatTensor:
         x_SPxT = ohe_seq_SPT.reshape(ohe_seq_SPT.size(0), -1)
         return self.layers(x_SPxT)
+
+
+class SecondOrderLinearModel(PredictiveModel, ABC):
+    """Linear model that uses single and pairwise mutation features
+    encoded as one-hot vectors.
+
+    Receives OHE input from PredictiveModel.get_log_probs, flattens across
+    all positions, and passes through an MLP. Subclasses implement
+    format_raw_to_logits to convert the MLP output to binary logits.
+
+    Tensor Dimension Labels:
+        S: batch (sample) index
+        P: position in sequence
+        T: token dimension (one-hot / vocab size)
+        O: output dimension
+    """
+
+    def __init__(
+        self,
+        tokenizer,
+        sequence_length: int,
+        output_dim: int,
+    ):
+        super().__init__(tokenizer)
+        self.vocab_size = tokenizer.vocab_size
+        self.sequence_length = sequence_length
+        self.n_ohe_features = (self.sequence_length * self.vocab_size + 1)
+        self.n_pairwise_features = torch.triu_indices(self.n_ohe_features, self.n_ohe_features).shape[1]
+        self.linear_layer = nn.Linear(self.n_pairwise_features, output_dim)
+
+    def forward(self, ohe_seq_SPT: torch.FloatTensor) -> torch.FloatTensor:
+        x_SPxT = ohe_seq_SPT.reshape(ohe_seq_SPT.size(0), -1)
+        ones_S1 = torch.ones_like(x_SPxT[:, :1])
+        x_Sf = torch.cat([ones_S1, x_SPxT], dim=-1)
+        pairwise_features_Sff = torch.einsum('si,sj->sij', x_Sf, x_Sf)
+        idx = torch.triu_indices(self.n_ohe_features, self.n_ohe_features, device=ohe_seq_SPT.device)
+        x_SF = pairwise_features_Sff[:, idx[0], idx[1]]
+        y_SO = self.linear_layer(x_SF)
+        return y_SO
 
 
 def pca_embed_init(
