@@ -25,8 +25,9 @@ from .predictive_modeling import (
     LinearProbe,
     OneHotMLP,
     EmbeddingMLP,
+    SecondOrderLinearModel
 )
-
+    
 from .sampling import sample_any_order_ancestral
 
 
@@ -48,5 +49,6 @@ __all__ = [
     "LinearProbe",
     "OneHotMLP",
     "EmbeddingMLP",
+    "SecondOrderLinearModel",
     "sample_any_order_ancestral",
 ]

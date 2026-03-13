@@ -111,6 +111,16 @@ class PredictiveModel(ProbabilityModel, ABC):
         )
         return log_probs_B2[:, 1]  # (B,)
 
+    def predict(self, seq_SP: torch.LongTensor) -> Any:
+        """Get raw model predictions from token IDs.
+
+        Creates OHE and calls forward — returns whatever forward returns
+        (scalar predictions, class logits, etc.) without binary logit
+        conversion. Use for training (e.g. MSE loss) and scoring.
+        """
+        ohe = F.one_hot(seq_SP, self.tokenizer.vocab_size).float()
+        return self.forward(ohe)
+
     def grad_log_prob(self, seq_SP: torch.LongTensor) -> torch.FloatTensor:
         """Return gradient of log p(target | x) w.r.t. vocab-sized OHE.
 
