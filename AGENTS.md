@@ -182,6 +182,34 @@
 - **Design decision**: PCA init is a post-construction method, NOT a constructor param — avoids redundant shape args and lets the model exist before deciding on initialization. Old `initial_embed_weights` constructor param was removed.
 - Consumer: `~/kortemme_tyrosine_kinase_design/train_ohe_mlp.py` uses the old API (pre-method `pca_embed_init` + `initial_embed_weights` constructor) — needs updating
 
+## LoRA Adapter Support
+
+- `TransitionModel` has LoRA methods: `apply_lora()`, `has_lora`, `lora_target_modules()`, `save_lora()`, `load_lora()`
+- `apply_lora(target_modules, r, lora_alpha, lora_dropout, bias, **kwargs)` — named params, constructs `peft.LoraConfig` internally
+- When `target_modules=None`, auto-discovers all `nn.Linear` modules in `self.model` and targets them all
+- `lora_target_modules()` returns `dict[pattern, (in_features, out_features, count)]` — collapses block indices to `*` via regex `(?<=\.)\d+(?=\.)`
+- After `apply_lora`, `self.model` is a `PeftModel` wrapping the original — attribute access delegates through PEFT's `__getattr__`
+- `differentiable_embedding` works with PEFT: `self.model.embed.weight` delegates to base model, transformer Linear layers are LoRA-adapted automatically
+- `LinearProbe.__init__` has `freeze_embed_model: bool = True` param — set to `False` when using LoRA so PEFT's freeze/unfreeze state is preserved
+- `peft>=0.13.0` added as a regular dependency in `pyproject.toml`
+- **LoRA lr must be much lower than head lr** — lr=1e-3 causes mode collapse (constant predictions) with ESM3 LoRA; lr=1e-4 works. Consider separate param groups with different LRs for LoRA vs head.
+- **ESM3 + LoRA + structure conditioning**: after `set_condition_()` (loads VQ-VAE lazily), must re-freeze all params then re-enable LoRA params — VQ-VAE's ~30M params would otherwise be trainable
+- **ESM3 LoRA OOMs at batch_size≥32** on 48GB GPU due to geometric attention. batch_size=16 with bfloat16 AMP is optimal (~32s/epoch)
+- ESM3 LoRA param count: r=8 → ~9.8M trainable (0.69% of 1.4B), r=4 → ~4.9M, r=2 → ~2.5M
+
+## Checkpointing (save / from_checkpoint)
+
+- `ProbabilityModel` defines the protocol: `_save_args() -> dict`, `save(path)`, `from_checkpoint(path)` classmethod
+- `save(path)` writes `config.json` with constructor kwargs from `_save_args()`
+- `from_checkpoint(path)` reads `config.json`, calls `cls(**args)` to reconstruct
+- `TransitionModel.save` adds LoRA adapter to `path/lora_adapter/` if present
+- `TransitionModel.from_checkpoint` loads LoRA adapter if `path/lora_adapter/` exists
+- `LinearProbe.save` adds `head.pt` (head state dict) + delegates to `embed_model.save(path/embed_model/)`
+- `LinearProbe.from_checkpoint` reconstructs via `cls(**config)`, loads LoRA onto embed_model, loads head weights
+- Subclasses implement `_save_args()` returning JSON-serializable constructor kwargs
+- ESMC stashes `self._esmc_checkpoint`, ESM3 stashes `self._esm3_checkpoint` for `_save_args()`
+- Tests: `tests/test_lora.py` (23 tests), `tests/test_esmc_lora.py` (11 tests)
+
 ## Stale Tests / Broken Imports
 
 - `test_guidance_data.py::TestGuidanceDataset` — 3 tests fail because they construct `GuidanceDataset` without the now-required `tokenize`, `noise_schedule`, `mask_token` args

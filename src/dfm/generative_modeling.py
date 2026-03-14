@@ -6,6 +6,10 @@ to ProteinMPNN token indices.
 
 from __future__ import annotations
 
+import re
+from collections import defaultdict
+from pathlib import Path
+
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -82,6 +86,123 @@ class TransitionModel(ProbabilityModel):
         seq_SP = tokenized["input_ids"].to(device=self.device, dtype=torch.long)
         return self.get_log_probs(seq_SP)
 
+    # ── LoRA ─────────────────────────────────────────────────────────────
+
+    @property
+    def has_lora(self) -> bool:
+        """Whether a PEFT LoRA adapter is currently applied to self.model."""
+        try:
+            from peft import PeftModel
+
+            return isinstance(self.model, PeftModel)
+        except ImportError:
+            return False
+
+    def lora_target_modules(self) -> dict[str, tuple[int, int, int]]:
+        """Discover Linear modules in the wrapped model — potential LoRA targets.
+
+        Returns dict mapping name patterns to ``(in_features, out_features, count)``.
+        Block-level numeric indices are collapsed to ``*`` for readability.
+
+        Example for ESMC-300m::
+
+            {
+                'transformer.blocks.*.attn.layernorm_qkv.1': (960, 2880, 30),
+                'transformer.blocks.*.attn.out_proj':         (960, 960,  30),
+                'transformer.blocks.*.ffn.1':                 (960, 5120, 30),
+                'transformer.blocks.*.ffn.3':                 (2560, 960, 30),
+                'sequence_head.0':                            (960, 960,  1),
+                'sequence_head.2':                            (960, 64,   1),
+            }
+        """
+        groups: dict[str, list[tuple[int, int]]] = defaultdict(list)
+        for name, mod in self.model.named_modules():
+            if isinstance(mod, nn.Linear):
+                # Collapse .N. block indices to .*. but keep trailing .N
+                pattern = re.sub(r"(?<=\.)\d+(?=\.)", "*", name)
+                groups[pattern].append((mod.in_features, mod.out_features))
+        return {
+            pattern: (dims[0][0], dims[0][1], len(dims))
+            for pattern, dims in groups.items()
+        }
+
+    def apply_lora(
+        self,
+        target_modules: list[str] | None = None,
+        r: int = 8,
+        lora_alpha: int = 16,
+        lora_dropout: float = 0.0,
+        bias: str = "none",
+        **kwargs,
+    ) -> None:
+        """Apply PEFT LoRA adapters to the wrapped model.
+
+        Freezes base model parameters and injects trainable low-rank adapters
+        into the targeted Linear layers. After this call, only LoRA parameters
+        in ``self.model`` have ``requires_grad=True``.
+
+        Args:
+            target_modules: Which Linear layers to adapt (matched by name
+                substring). If ``None``, targets all Linear layers in the model.
+                Use :meth:`lora_target_modules` to discover available targets.
+            r: LoRA rank (number of low-rank dimensions).
+            lora_alpha: LoRA scaling factor.
+            lora_dropout: Dropout probability on LoRA layers.
+            bias: Bias training mode — ``"none"``, ``"all"``, or ``"lora_only"``.
+            **kwargs: Extra arguments passed to ``peft.LoraConfig``.
+        """
+        from peft import get_peft_model, LoraConfig
+
+        if target_modules is None:
+            target_modules = [
+                name
+                for name, mod in self.model.named_modules()
+                if isinstance(mod, nn.Linear)
+            ]
+            assert len(target_modules) > 0, "No Linear layers found in model"
+
+        config = LoraConfig(
+            target_modules=target_modules,
+            r=r,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            bias=bias,
+            **kwargs,
+        )
+        self.model = get_peft_model(self.model, config)
+
+    def save_lora(self, path: str | Path) -> None:
+        """Save only the LoRA adapter weights and config."""
+        assert self.has_lora, "No LoRA adapter to save"
+        self.model.save_pretrained(str(path))
+
+    def load_lora(self, path: str | Path) -> None:
+        """Load a saved LoRA adapter onto the base model."""
+        from peft import PeftModel
+
+        assert not self.has_lora, (
+            "Model already has a LoRA adapter. Use a fresh base model."
+        )
+        self.model = PeftModel.from_pretrained(self.model, str(path))
+
+    # ── Checkpointing ────────────────────────────────────────────────────
+
+    def save(self, path: str | Path) -> None:
+        """Save model to a directory. Includes LoRA adapter if applied."""
+        super().save(path)
+        if self.has_lora:
+            self.model.save_pretrained(str(Path(path) / "lora_adapter"))
+
+    @classmethod
+    def from_checkpoint(cls, path: str | Path) -> "TransitionModel":
+        """Load model from a directory. Loads LoRA adapter if present."""
+        obj = super().from_checkpoint(path)
+        lora_path = Path(path) / "lora_adapter"
+        if lora_path.exists():
+            obj.load_lora(lora_path)
+        return obj
+
+
 class TransitionModelWithEmbedding(TransitionModel, ABC):
     """TransitionModel that exposes a differentiable embedding step.
 
@@ -112,9 +233,7 @@ class TransitionModelWithEmbedding(TransitionModel, ABC):
         ...
 
     @abstractmethod
-    def embedding_to_outputs(
-        self, embedding_SPD: torch.FloatTensor
-    ) -> Any:
+    def embedding_to_outputs(self, embedding_SPD: torch.FloatTensor) -> Any:
         """Deep embeddings → regular raw model outputs. IMPORTANT, the output of this function should be of the same type as the forward function!"""
         ...
 
