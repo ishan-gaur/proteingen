@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -157,9 +159,7 @@ def categorical_binary_logits(
     return torch.stack([false_logit_B, target_logit_B], dim=-1)  # (B, 2)
 
 
-def binary_logits(
-    logit_B: torch.FloatTensor, target: bool = True
-) -> torch.FloatTensor:
+def binary_logits(logit_B: torch.FloatTensor, target: bool = True) -> torch.FloatTensor:
     """Single logit → binary logits (B, 2) via sigmoid(x) = softmax([0, x])[1].
 
     If target is False, swaps the logits so [:, 1] gives P(negative).
@@ -224,20 +224,23 @@ class LinearProbe(PredictiveModel, ABC):
         embed_model: TransitionModelWithEmbedding,
         output_dim: int,
         pooling_fn: Optional[callable] = None,
+        freeze_embed_model: bool = True,
     ):
         super().__init__(tokenizer=embed_model.tokenizer)
         self.embed_model = embed_model
         self.embedding_dim = embed_model.EMB_DIM
         self.output_dim = output_dim
         self.w = nn.Linear(self.embedding_dim, self.output_dim)
+
         def _mean_pool_non_padding(emb_SPD, seq_SP):
             mask = (seq_SP != self.tokenizer.pad_token_id).unsqueeze(-1).float()
             return (emb_SPD * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1)
 
         self.pooling_fn = pooling_fn or _mean_pool_non_padding
 
-        for p in self.embed_model.parameters():
-            p.requires_grad = False
+        if freeze_embed_model:
+            for p in self.embed_model.parameters():
+                p.requires_grad = False
 
     def forward(self, ohe_seq_SPT: torch.FloatTensor) -> torch.FloatTensor:
         """Full forward: differentiable embed → pool → linear."""
@@ -260,9 +263,9 @@ class LinearProbe(PredictiveModel, ABC):
         n = len(sequences)
         for start in range(0, n, batch_size):
             batch_seqs = sequences[start : start + batch_size]
-            token_ids = tokenizer(
-                batch_seqs, padding=True, return_tensors="pt"
-            )["input_ids"].to(device)
+            token_ids = tokenizer(batch_seqs, padding=True, return_tensors="pt")[
+                "input_ids"
+            ].to(device)
             emb_SPD = self.embed_model.embed(token_ids)
             pooled = self.pooling_fn(emb_SPD, token_ids)
             all_embeddings.append(pooled.cpu())
@@ -270,6 +273,34 @@ class LinearProbe(PredictiveModel, ABC):
                 print(f"  Embedded {min(start + batch_size, n):>6d} / {n}")
         return torch.cat(all_embeddings, dim=0)
 
+    # ── Checkpointing ────────────────────────────────────────────────────
+
+    def save(self, path: str | Path) -> None:
+        """Save probe to a directory: config.json, head.pt, and embed_model/.
+
+        Subclasses must implement ``_save_args()`` returning constructor kwargs.
+        The embed_model is saved to a subdirectory via its own ``save()`` method.
+        """
+        path = Path(path)
+        super().save(path)
+        torch.save(self.w.state_dict(), path / "head.pt")
+        self.embed_model.save(path / "embed_model")
+
+    @classmethod
+    def from_checkpoint(cls, path: str | Path) -> "LinearProbe":
+        """Load probe from a directory.
+
+        Reconstructs the object from config.json (calls ``cls(**args)``),
+        loads the LoRA adapter onto the embed_model if present, and loads
+        the head weights.
+        """
+        path = Path(path)
+        obj = super().from_checkpoint(path)
+        embed_path = path / "embed_model"
+        if (embed_path / "lora_adapter").exists():
+            obj.embed_model.load_lora(embed_path / "lora_adapter")
+        obj.w.load_state_dict(torch.load(path / "head.pt", weights_only=True))
+        return obj
 
 
 class OneHotMLP(PredictiveModel, ABC):
@@ -346,16 +377,20 @@ class PairwiseLinearModel(PredictiveModel, ABC):
         super().__init__(tokenizer)
         self.vocab_size = tokenizer.vocab_size
         self.sequence_length = sequence_length
-        self.n_ohe_features = (self.sequence_length * self.vocab_size + 1)
-        self.n_pairwise_features = torch.triu_indices(self.n_ohe_features, self.n_ohe_features).shape[1]
+        self.n_ohe_features = self.sequence_length * self.vocab_size + 1
+        self.n_pairwise_features = torch.triu_indices(
+            self.n_ohe_features, self.n_ohe_features
+        ).shape[1]
         self.linear_layer = nn.Linear(self.n_pairwise_features, output_dim)
 
     def forward(self, ohe_seq_SPT: torch.FloatTensor) -> torch.FloatTensor:
         x_SPxT = ohe_seq_SPT.reshape(ohe_seq_SPT.size(0), -1)
         ones_S1 = torch.ones_like(x_SPxT[:, :1])
         x_Sf = torch.cat([ones_S1, x_SPxT], dim=-1)
-        pairwise_features_Sff = torch.einsum('si,sj->sij', x_Sf, x_Sf)
-        idx = torch.triu_indices(self.n_ohe_features, self.n_ohe_features, device=ohe_seq_SPT.device)
+        pairwise_features_Sff = torch.einsum("si,sj->sij", x_Sf, x_Sf)
+        idx = torch.triu_indices(
+            self.n_ohe_features, self.n_ohe_features, device=ohe_seq_SPT.device
+        )
         x_SF = pairwise_features_Sff[:, idx[0], idx[1]]
         y_SO = self.linear_layer(x_SF)
         return y_SO
@@ -398,9 +433,7 @@ def pca_embed_init(
     """
     shared_tokens = sorted(set(pretrained_vocab.keys()) & set(target_vocab.keys()))
     if len(shared_tokens) == 0:
-        raise ValueError(
-            "No shared tokens between pretrained and target vocabularies"
-        )
+        raise ValueError("No shared tokens between pretrained and target vocabularies")
     if n_components > len(shared_tokens):
         raise ValueError(
             f"n_components ({n_components}) exceeds number of shared tokens ({len(shared_tokens)})"
@@ -474,7 +507,9 @@ class EmbeddingMLP(PredictiveModel, ABC):
         self.model_dim = model_dim
         self.n_layers = n_layers
         self.output_dim = output_dim
-        self.padding_idx = padding_idx if padding_idx is not None else tokenizer.pad_token_id
+        self.padding_idx = (
+            padding_idx if padding_idx is not None else tokenizer.pad_token_id
+        )
         self.dropout = dropout
 
         self.embed = nn.Embedding(

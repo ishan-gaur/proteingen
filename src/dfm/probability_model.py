@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -26,6 +29,14 @@ class ProbabilityModel(nn.Module, ABC):
     The default ``get_log_probs`` applies ``log_softmax`` along the last
     dimension, which is appropriate for class-valued models. Models with
     other output types (real-valued, ensemble, etc.) should override it.
+
+    Checkpointing:
+        Subclasses that support save/load implement ``_save_args()`` returning
+        a JSON-serializable dict of constructor kwargs. The base class provides
+        ``save(path)`` and ``from_checkpoint(path)`` that serialize/deserialize
+        the constructor args and rebuild the object. Subclasses add their own
+        state (weights, adapters, etc.) on top by overriding save/from_checkpoint
+        and calling super().
     """
 
     def __init__(self):
@@ -128,3 +139,38 @@ class ProbabilityModel(nn.Module, ABC):
             raw_output = self.forward(x_B)
             log_probs = self.format_raw_to_logits(raw_output, x_B)
         return F.log_softmax(log_probs / self.temp, dim=-1)
+
+    # ── Checkpointing ────────────────────────────────────────────────────
+
+    def _save_args(self) -> dict:
+        """Return constructor kwargs as a JSON-serializable dict.
+
+        Override in subclasses that support checkpointing. The dict must
+        contain everything needed to reconstruct the object via ``cls(**args)``.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} must implement _save_args() for checkpointing"
+        )
+
+    def save(self, path: str | Path) -> None:
+        """Save model to a directory. Writes config.json with constructor args.
+
+        Subclasses override to add their own state (weights, adapters, etc.)
+        and should call ``super().save(path)`` first.
+        """
+        path = Path(path)
+        path.mkdir(parents=True, exist_ok=True)
+        with open(path / "config.json", "w") as f:
+            json.dump(self._save_args(), f, indent=2)
+
+    @classmethod
+    def from_checkpoint(cls, path: str | Path) -> "ProbabilityModel":
+        """Load model from a directory. Reads config.json and calls ``cls(**args)``.
+
+        Subclasses override to load additional state (weights, adapters, etc.)
+        and should call ``super().from_checkpoint(path)`` to get the base object.
+        """
+        path = Path(path)
+        with open(path / "config.json") as f:
+            config = json.load(f)
+        return cls(**config)
