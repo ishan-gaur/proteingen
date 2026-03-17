@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint
-from dfm.predictive_modeling import PredictiveModel
+from dfm.predictive_modeling import PredictiveModel, binary_logits
 from typing import TypedDict
 
 
@@ -422,20 +422,47 @@ class PMPNNStructureEncoding(TypedDict):
 
 
 class PreTrainedStabilityPredictor(PredictiveModel):
+    """Binary stability predictor wrapping a StabilityPMPNN.
+
+    The model outputs a single logit per sequence where sigmoid(logit) = P(stable).
+    Uses ``binary_logits`` for the binary logit conversion via
+    ``sigmoid(x) = softmax([0, x])[1]``.
+
+    Target defaults to ``True`` (P(stable)). Set to ``False`` for P(not stable).
+    """
+
     def __init__(
         self, ckpt_path, vocab_size=21, device="cuda", one_hot_encode_input=False
     ):
         from dfm.generative_modeling import MPNNTokenizer
 
-        model = StabilityPMPNN.init(num_letters=vocab_size, vocab=vocab_size)
-        model.load_state_dict(torch.load(ckpt_path, weights_only=False))
+        tokenizer = MPNNTokenizer(include_mask_token=True)
+        super().__init__(tokenizer=tokenizer)
+        self.target = True
+        self.stability_model = StabilityPMPNN.init(num_letters=vocab_size, vocab=vocab_size)
+        self.stability_model.load_state_dict(torch.load(ckpt_path, weights_only=False))
         if one_hot_encode_input:
             layer = nn.Linear(vocab_size, 128, bias=False)
-            layer.weight.data = model.fm_mpnn.W_s.weight.data.T.clone()
-            model.fm_mpnn.W_s = layer
-        tokenizer = MPNNTokenizer()
-        super().__init__(model=model, tokenizer=tokenizer)
+            layer.weight.data = self.stability_model.fm_mpnn.W_s.weight.data.T.clone()
+            self.stability_model.fm_mpnn.W_s = layer
         self.input_dim = vocab_size
+
+        if self.tokenizer.vocab_size != self.input_dim + 1:
+            raise ValueError(
+                "Expected stability tokenizer vocab_size to be input_dim + 1 (extra <mask> token)"
+            )
+        token_ohe_basis = torch.zeros(self.tokenizer.vocab_size, self.input_dim)
+        token_ohe_basis[: self.input_dim, : self.input_dim] = torch.eye(self.input_dim)
+        self.register_buffer("_token_ohe_basis_TK", token_ohe_basis)
+
+    def token_ohe_basis(self) -> torch.FloatTensor:
+        """Map PMPNN token IDs to predictor OHE features.
+
+        The extra tokenizer-level <mask> token maps to the all-zero vector, so
+        TAG can pass explicit masks while preserving the legacy stability model's
+        masking semantics.
+        """
+        return self._token_ohe_basis_TK
 
     @staticmethod
     def prepare_conditioning(pdb_path, device="cpu") -> StabilityPredictorConditioning:
@@ -463,7 +490,7 @@ class PreTrainedStabilityPredictor(PredictiveModel):
             for k, v in observations.items()
         }
         with torch.no_grad():
-            h_V, h_E, E_idx, mask_attend = self.model.encode_structure(
+            h_V, h_E, E_idx, mask_attend = self.stability_model.encode_structure(
                 obs["X"],
                 obs["mask"],
                 obs["chain_M"],
@@ -493,35 +520,8 @@ class PreTrainedStabilityPredictor(PredictiveModel):
         )
 
     def forward(self, x_B, *, h_V, h_E, E_idx, mask_attend, mask, chain_M):
-        logit = self.model.decode(h_V, h_E, E_idx, x_B, mask_attend, mask, chain_M)
+        logit = self.stability_model.decode(h_V, h_E, E_idx, x_B, mask_attend, mask, chain_M)
         return logit
 
-    def format_raw_to_logits(self, logit, x_B, **kwargs):
-        return torch.log(F.sigmoid(logit.reshape(-1)))
-
-    def get_log_probs(self, x_B: torch.Tensor) -> torch.Tensor:
-        """Return temperature-scaled log p(stable | x). Scalar per sequence.
-
-        Lower temp → stronger guidance signal (gradient scales as 1/temp).
-        """
-        if self.observations is not None:
-            obs = self.collate_observations(x_B, self.observations)
-            raw_output = self.forward(x_B, **obs)
-            log_probs = self.format_raw_to_logits(raw_output, x_B, **obs)
-            return log_probs / self.temp
-        else:
-            raise ValueError(
-                "StabilityPredictor requires structure conditioning. "
-                "Call set_condition_() first."
-            )
-
-    def target_log_probs_given_ohe(self, ohe_SPV: torch.FloatTensor) -> torch.Tensor:
-        """Return log p(stable | sequence) for TAG guidance.
-
-        Args:
-            ohe_SPV: One-hot encoded sequences in PMPNN space (B, L, V).
-
-        Returns:
-            Log probability of stability, shape (B,).
-        """
-        return self.get_log_probs(ohe_SPV)
+    def format_raw_to_logits(self, raw_output, x_B, **kwargs):
+        return binary_logits(raw_output, self.target)

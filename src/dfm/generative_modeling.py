@@ -333,11 +333,15 @@ class MaskedModelLogitFormatter(nn.Module, LogitFormatter):
         T:  token/vocab dimension in logits (same axis as To)
     """
 
+    # Standard amino acid one-letter codes (canonical 20).
+    STANDARD_AAS = set("ACDEFGHIKLMNPQRSTVWY")
+
     # TODO[pi] move the init to be a "from_hf_tokenizer" method and make the actual init general like we discussed
     def __init__(
         self,
         tokenizer: PreTrainedTokenizerBase,
         output_dim: Optional[int] = None,
+        canonical_only: bool = True,
     ):
 
         # nn.Module.__init__(self)
@@ -366,9 +370,23 @@ class MaskedModelLogitFormatter(nn.Module, LogitFormatter):
 
         # Except for mask which maps to any non-special token
         valid_output_mask_TiTo[mask_token_idx, mask_token_idx] = BLOCK_OUT
-        valid_mask_outputs = set(range(self.tokenizer.vocab_size))
-        for idx in self.tokenizer.added_tokens_decoder.keys():
-            valid_mask_outputs.discard(idx)
+        special_ids = set(self.tokenizer.added_tokens_decoder.keys())
+        if canonical_only:
+            # Only allow mask → standard amino acid transitions
+            idx_to_tok = {idx: tok for tok, idx in self.tokenizer.vocab.items()}
+            canonical_ids = {
+                idx
+                for idx in range(self.tokenizer.vocab_size)
+                if idx not in special_ids
+                and idx_to_tok.get(idx, "") in self.STANDARD_AAS
+            }
+            # Fall back to all non-special if vocab has no standard AAs
+            # (e.g. BERT word-piece tokenizer)
+            valid_mask_outputs = canonical_ids if canonical_ids else (
+                set(range(self.tokenizer.vocab_size)) - special_ids
+            )
+        else:
+            valid_mask_outputs = set(range(self.tokenizer.vocab_size)) - special_ids
         for idx in valid_mask_outputs:
             valid_output_mask_TiTo[mask_token_idx, idx] = PASS_THROUGH
 
@@ -397,7 +415,9 @@ class MPNNTokenizer:
     """Tokenizer using ProteinMPNN's amino acid vocabulary.
 
     Maps single-letter amino acid sequences to/from PMPNN token indices.
-    Vocabulary: 20 standard amino acids + UNK (X), indexed 0-20.
+    Default vocabulary: 20 standard amino acids + UNK (X), indexed 0-20.
+    Optionally appends a ``<mask>`` token as an extra ID for guidance setups
+    that need explicit mask semantics at the tokenizer level.
 
     Follows HuggingFace tokenizer conventions:
         - encode(sequence) -> list[int]
@@ -406,7 +426,11 @@ class MPNNTokenizer:
         - vocab_size property
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        include_mask_token: bool = False,
+        mask_token: str = "<mask>",
+    ):
         from atomworks.constants import DICT_THREE_TO_ONE, UNKNOWN_AA
         from mpnn.transforms.feature_aggregation.token_encodings import (
             MPNN_TOKEN_ENCODING,
@@ -428,8 +452,20 @@ class MPNNTokenizer:
         self.unk_token_id = self._one_to_idx[self.unk_token]
         self._vocab_size = len(three_to_idx)
 
-        # HF-compatible attributes for interop with TokenizerTranslator etc.
+        self.mask_token = None
         self.mask_token_id = None
+        if include_mask_token:
+            if mask_token in self._one_to_idx:
+                raise ValueError(
+                    f"mask_token {mask_token!r} already exists in PMPNN vocabulary"
+                )
+            self.mask_token = mask_token
+            self.mask_token_id = self._vocab_size
+            self._one_to_idx[mask_token] = self.mask_token_id
+            self._idx_to_one[self.mask_token_id] = mask_token
+            self._vocab_size += 1
+
+        # HF-compatible attributes for interop with guidance/tokenizer utilities.
         self.cls_token_id = None
         self.eos_token_id = None
         self.pad_token_id = None

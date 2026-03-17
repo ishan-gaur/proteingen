@@ -56,11 +56,25 @@ def _mask_token_id(tokenizer, mask_token: str) -> int:
     return tokenizer.vocab[mask_token]
 
 
+STANDARD_AAS = set("ACDEFGHIKLMNPQRSTVWY")
+
+
 def _non_special_ids(tokenizer) -> set[int]:
     """Return the set of token ids that are NOT special tokens."""
     all_ids = set(tokenizer.vocab.values())
     special_ids = set(tokenizer.added_tokens_decoder.keys())
     return all_ids - special_ids
+
+
+def _canonical_aa_ids(tokenizer) -> set[int]:
+    """Return token ids corresponding to canonical amino acids."""
+    special_ids = set(tokenizer.added_tokens_decoder.keys())
+    idx_to_tok = {idx: tok for tok, idx in tokenizer.vocab.items()}
+    return {
+        idx
+        for idx in range(tokenizer.vocab_size)
+        if idx not in special_ids and idx_to_tok.get(idx, "") in STANDARD_AAS
+    }
 
 
 def _special_ids(tokenizer) -> set[int]:
@@ -122,14 +136,31 @@ class TestMaskMatrix:
             finite_positions = torch.isfinite(row).nonzero(as_tuple=True)[0].tolist()
             assert finite_positions == [idx]
 
-    def test_mask_token_maps_to_non_special(self, esm_formatter, esm_tokenizer):
-        """Mask row should have 0.0 at all non-special columns, -inf at special columns."""
+    def test_mask_token_maps_to_canonical_aas(self, esm_formatter, esm_tokenizer):
+        """Mask row should allow only canonical AAs (default canonical_only=True)."""
         matrix = esm_formatter.valid_output_mask_TiTo
         mask_id = _mask_token_id(esm_tokenizer, ESM_MASK_TOKEN)
         row = matrix[mask_id]
+        canonical = _canonical_aa_ids(esm_tokenizer)
 
         for idx in _special_ids(esm_tokenizer):
             assert row[idx] == float("-inf"), f"special token {idx} should be blocked"
+
+        for idx in canonical:
+            assert row[idx] == 0.0, f"canonical AA {idx} should be allowed"
+
+        non_canonical_non_special = _non_special_ids(esm_tokenizer) - canonical
+        for idx in non_canonical_non_special:
+            assert row[idx] == float("-inf"), f"non-canonical token {idx} should be blocked"
+
+    def test_mask_token_maps_to_all_non_special_when_canonical_off(
+        self, esm_tokenizer
+    ):
+        """With canonical_only=False, mask allows all non-special tokens."""
+        formatter = MaskedModelLogitFormatter(esm_tokenizer, canonical_only=False)
+        matrix = formatter.valid_output_mask_TiTo
+        mask_id = _mask_token_id(esm_tokenizer, ESM_MASK_TOKEN)
+        row = matrix[mask_id]
 
         for idx in _non_special_ids(esm_tokenizer):
             assert row[idx] == 0.0, f"non-special token {idx} should be allowed"
@@ -148,7 +179,7 @@ class TestMaskMatrix:
             assert finite_positions == [idx]
 
     def test_bert_mask_token_maps_to_non_special(self, bert_formatter, bert_tokenizer):
-        """Same mask-row constraint holds for BERT tokenizer."""
+        """BERT has no standard AAs, so canonical_only falls back to all non-special."""
         matrix = bert_formatter.valid_output_mask_TiTo
         mask_id = _mask_token_id(bert_tokenizer, BERT_MASK_TOKEN)
         row = matrix[mask_id]
@@ -228,15 +259,19 @@ class TestForward:
         for s_id in _special_ids(esm_tokenizer):
             assert out[0, 1, s_id] == float("-inf")
 
-    def test_mask_position_allows_non_special(self, esm_formatter, esm_tokenizer):
-        """At a <mask> position, all non-special outputs should be finite."""
+    def test_mask_position_allows_canonical_aas(self, esm_formatter, esm_tokenizer):
+        """At a <mask> position, canonical AA outputs should be finite."""
         mask_id = _mask_token_id(esm_tokenizer, ESM_MASK_TOKEN)
         seq = torch.tensor([[0, mask_id, 2]])
         logits = torch.randn(1, 3, esm_tokenizer.vocab_size)
         out = esm_formatter(logits, seq)
 
-        for ns_id in _non_special_ids(esm_tokenizer):
-            assert torch.isfinite(out[0, 1, ns_id])
+        for aa_id in _canonical_aa_ids(esm_tokenizer):
+            assert torch.isfinite(out[0, 1, aa_id])
+
+        non_canonical = _non_special_ids(esm_tokenizer) - _canonical_aa_ids(esm_tokenizer)
+        for nc_id in non_canonical:
+            assert out[0, 1, nc_id] == float("-inf")
 
     def test_regular_token_preserves_own_logit(self, esm_formatter, esm_tokenizer):
         """A regular token position should pass through its own logit unchanged."""

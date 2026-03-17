@@ -1,69 +1,217 @@
 import torch
 from torch import nn
-from torch.nn import functional as F
 from dfm.generative_modeling import TransitionModel
 from dfm.predictive_modeling import PredictiveModel
 from transformers import PreTrainedTokenizerBase
 from contextlib import contextmanager
 from typing import Optional, List
-import warnings
+from dataclasses import dataclass
+from abc import ABC, abstractmethod
 
 
-class TokenizerTranslator(nn.Module):
+@dataclass
+class PreparedGuidanceInput:
+    """Inputs needed to convert predictor-space gradients into gen-logit deltas."""
+
+    seq_pred_SP: torch.LongTensor
+    pred_pos_to_gen_pos_P: torch.LongTensor
+    baseline_gen_SP: torch.LongTensor
+    gen_length: int
+
+
+class GuidanceProjection(nn.Module, ABC):
+    """Maps between generator token space and predictor OHE-gradient space."""
+
+    @abstractmethod
+    def prepare(
+        self,
+        seq_gen_SP: torch.LongTensor,
+        logp_gen_SPT: torch.FloatTensor,
+        *,
+        use_clean_classifier: bool,
+    ) -> PreparedGuidanceInput:
+        """Build predictor input tokens and Taylor baseline in gen token space."""
+        ...
+
+    @abstractmethod
+    def grad_to_gen_delta(
+        self,
+        grad_pred_SPK: torch.FloatTensor,
+        prepared: PreparedGuidanceInput,
+        *,
+        gen_output_dim: int,
+    ) -> torch.FloatTensor:
+        """Project predictor-space gradients into generator logit space."""
+        ...
+
+
+class LinearGuidanceProjection(GuidanceProjection):
+    """Linear token-space projection for TAG.
+
+    Uses a fixed map ``M[T_gen, K_pred]`` where each gen token's row is the
+    predictor-OHE representation of that token. Given predictor gradient ``g``,
+    TAG's first-order term at each position is:
+
+        ``delta(t) = g · (M[t] - M[baseline])``
+
+    where ``baseline`` is the current token (or argmax-filled token when using
+    clean-classifier mode).
+    """
+
     def __init__(
         self,
-        tokenizer_src: PreTrainedTokenizerBase,
-        tokenizer_tgt: PreTrainedTokenizerBase,
-        target_output_dim: Optional[int] = None,
+        tokenizer_gen: PreTrainedTokenizerBase,
+        tokenizer_pred: PreTrainedTokenizerBase,
+        pred_token_ohe_basis_TK: torch.FloatTensor,
+        fallback_pred_token_id: Optional[int] = None,
+        strip_prefix: Optional[int] = None,
+        strip_suffix: Optional[int] = None,
     ):
         super().__init__()
-        if target_output_dim is None:
-            target_output_dim = tokenizer_tgt.vocab_size
-        convert_SrcTgt = torch.zeros(tokenizer_src.vocab_size, target_output_dim)
-        src_vocab = set(tokenizer_src.vocab.keys())
-        tgt_vocab = set(tokenizer_tgt.vocab.keys())
-        shared_vocab = src_vocab & tgt_vocab
-        if not shared_vocab:
+        self.tokenizer_gen = tokenizer_gen
+        self.tokenizer_pred = tokenizer_pred
+
+        if pred_token_ohe_basis_TK.ndim != 2:
             raise ValueError(
-                f"Source and target tokenizer vocabs have no tokens in common"
+                "pred_token_ohe_basis_TK must have shape (pred_vocab_size, pred_ohe_dim)"
             )
-        self.vocab_eq = tgt_vocab.issubset(src_vocab)
-
-        for tok in shared_vocab:
-            i = tokenizer_src.vocab[tok]
-            j = tokenizer_tgt.vocab[tok]
-            convert_SrcTgt[i, j] = 1.0
-        self.register_buffer("convert_SrcTgt", convert_SrcTgt)
-
-        # Detect whether src tokenizer adds CLS/EOS that tgt tokenizer doesn't
-        src_has_cls = getattr(tokenizer_src, "cls_token_id", None) is not None
-        src_has_eos = getattr(tokenizer_src, "eos_token_id", None) is not None
-        tgt_has_cls = getattr(tokenizer_tgt, "cls_token_id", None) is not None
-        tgt_has_eos = getattr(tokenizer_tgt, "eos_token_id", None) is not None
-        self._strip_prefix = 1 if (src_has_cls and not tgt_has_cls) else 0
-        self._strip_suffix = 1 if (src_has_eos and not tgt_has_eos) else 0
-
-    def forward(self, x_SPSrc: torch.Tensor) -> torch.Tensor:
-        # Strip CLS/EOS positions if src tokenizer adds them but tgt doesn't
-        if self._strip_suffix > 0:
-            x_SPSrc = x_SPSrc[:, self._strip_prefix : -self._strip_suffix, :]
-        elif self._strip_prefix > 0:
-            x_SPSrc = x_SPSrc[:, self._strip_prefix :, :]
-        x_SPTgt = torch.matmul(x_SPSrc, self.convert_SrcTgt[None, ...])
-        return x_SPTgt.to(x_SPSrc.dtype)
-
-    def reverse(self, x_SPTgt: torch.Tensor) -> torch.Tensor:
-        if not self.vocab_eq:
-            warnings.warn(
-                "Tokens are being converted to a target vocab that does not include the src as a subset",
-                UserWarning,
+        if pred_token_ohe_basis_TK.shape[0] != tokenizer_pred.vocab_size:
+            raise ValueError(
+                "pred_token_ohe_basis_TK first dimension must match predictor tokenizer vocab_size"
             )
-        x_SPSrc = torch.matmul(x_SPTgt, self.convert_SrcTgt.T[None, ...])
-        return x_SPSrc.to(x_SPTgt.dtype)
+
+        fallback_id = fallback_pred_token_id
+        if fallback_id is None:
+            fallback_id = getattr(tokenizer_pred, "mask_token_id", None)
+        if fallback_id is None:
+            fallback_id = getattr(tokenizer_pred, "unk_token_id", None)
+
+        src_vocab = tokenizer_gen.vocab
+        tgt_vocab = tokenizer_pred.vocab
+        gen_to_pred_idx_T = torch.full(
+            (tokenizer_gen.vocab_size,),
+            fill_value=-1,
+            dtype=torch.long,
+        )
+        for tok, i_gen in src_vocab.items():
+            if tok in tgt_vocab:
+                gen_to_pred_idx_T[i_gen] = tgt_vocab[tok]
+
+        unmapped_mask = gen_to_pred_idx_T < 0
+        if unmapped_mask.any():
+            if fallback_id is None:
+                idx_to_tok = {idx: tok for tok, idx in src_vocab.items()}
+                missing = [
+                    idx_to_tok.get(i, f"<idx:{i}>")
+                    for i in torch.where(unmapped_mask)[0].tolist()[:10]
+                ]
+                raise ValueError(
+                    "No fallback predictor token available for unmapped generator tokens. "
+                    f"Example unmapped tokens: {missing}"
+                )
+            gen_to_pred_idx_T[unmapped_mask] = int(fallback_id)
+
+        self.register_buffer("gen_to_pred_idx_T", gen_to_pred_idx_T)
+        self.register_buffer("pred_token_ohe_basis_TK", pred_token_ohe_basis_TK.float())
+        self.register_buffer(
+            "gen_to_pred_ohe_TK",
+            self.pred_token_ohe_basis_TK[self.gen_to_pred_idx_T],
+        )
+
+        if strip_prefix is None:
+            src_has_cls = getattr(tokenizer_gen, "cls_token_id", None) is not None
+            tgt_has_cls = getattr(tokenizer_pred, "cls_token_id", None) is not None
+            strip_prefix = 1 if (src_has_cls and not tgt_has_cls) else 0
+        if strip_suffix is None:
+            src_has_eos = getattr(tokenizer_gen, "eos_token_id", None) is not None
+            tgt_has_eos = getattr(tokenizer_pred, "eos_token_id", None) is not None
+            strip_suffix = 1 if (src_has_eos and not tgt_has_eos) else 0
+
+        self._strip_prefix = int(strip_prefix)
+        self._strip_suffix = int(strip_suffix)
+
+    def _pred_window(self, seq_gen_SP: torch.LongTensor) -> tuple[int, int]:
+        start = self._strip_prefix
+        end = seq_gen_SP.size(1) - self._strip_suffix
+        if end < start:
+            raise ValueError(
+                f"Invalid strip configuration: start={start}, end={end}, sequence_length={seq_gen_SP.size(1)}"
+            )
+        return start, end
+
+    def prepare(
+        self,
+        seq_gen_SP: torch.LongTensor,
+        logp_gen_SPT: torch.FloatTensor,
+        *,
+        use_clean_classifier: bool,
+    ) -> PreparedGuidanceInput:
+        seq_for_grad_SP = seq_gen_SP
+        if use_clean_classifier:
+            seq_for_grad_SP = _fill_masked_with_argmax(
+                seq_gen_SP,
+                logp_gen_SPT,
+                getattr(self.tokenizer_gen, "mask_token_id", None),
+                self.tokenizer_gen.vocab_size,
+            )
+
+        start, end = self._pred_window(seq_gen_SP)
+        seq_for_pred_SP = seq_for_grad_SP[:, start:end]
+        seq_pred_SP = self.gen_to_pred_idx_T[seq_for_pred_SP]
+        pred_pos_to_gen_pos_P = torch.arange(
+            start, end, device=seq_gen_SP.device, dtype=torch.long
+        )
+        return PreparedGuidanceInput(
+            seq_pred_SP=seq_pred_SP,
+            pred_pos_to_gen_pos_P=pred_pos_to_gen_pos_P,
+            baseline_gen_SP=seq_for_pred_SP,
+            gen_length=seq_gen_SP.size(1),
+        )
+
+    def grad_to_gen_delta(
+        self,
+        grad_pred_SPK: torch.FloatTensor,
+        prepared: PreparedGuidanceInput,
+        *,
+        gen_output_dim: int,
+    ) -> torch.FloatTensor:
+        pred_ohe_dim = self.gen_to_pred_ohe_TK.shape[1]
+        if grad_pred_SPK.shape[-1] != pred_ohe_dim:
+            raise ValueError(
+                f"Predictor grad dim ({grad_pred_SPK.shape[-1]}) does not match projection pred_ohe_dim ({pred_ohe_dim})"
+            )
+
+        gen_vocab_size = self.tokenizer_gen.vocab_size
+        if gen_output_dim < gen_vocab_size:
+            raise ValueError(
+                f"gen_output_dim ({gen_output_dim}) must be >= generator vocab_size ({gen_vocab_size})"
+            )
+
+        # score_gen[s, p, t] = g[s, p, :] · M[t, :]
+        score_gen_vocab_SPT = torch.einsum(
+            "spk,tk->spt", grad_pred_SPK, self.gen_to_pred_ohe_TK
+        )
+
+        # TAG Taylor delta: g · (M_t - M_baseline)
+        baseline_score_SP = score_gen_vocab_SPT.gather(
+            dim=-1, index=prepared.baseline_gen_SP.unsqueeze(-1)
+        ).squeeze(-1)
+        delta_vocab_SPT = score_gen_vocab_SPT - baseline_score_SP.unsqueeze(-1)
+
+        S = grad_pred_SPK.size(0)
+        delta_gen_SPT = grad_pred_SPK.new_zeros(
+            (S, prepared.gen_length, gen_output_dim)
+        )
+        delta_gen_SPT[
+            :, prepared.pred_pos_to_gen_pos_P, :gen_vocab_size
+        ] = delta_vocab_SPT
+        return delta_gen_SPT
 
 
 def _fill_masked_with_argmax(seq_SP, logp_gen_SPT, mask_token_id, vocab_size):
     """Replace mask tokens with gen model's argmax predictions."""
+    if mask_token_id is None:
+        return seq_SP
     mask = seq_SP == mask_token_id
     if not mask.any():
         return seq_SP
@@ -79,17 +227,16 @@ class TAG(TransitionModel):
     Combines a generative transition model with a predictive model via Bayes' rule.
     Uses gradients through the predictive model's OHE to shift transition logits.
 
-    Currently requires gen and pred models to share the same tokenizer.
+    Guidance projection is handled by a ``GuidanceProjection`` object, keeping
+    TAG's core update rule focused on Bayes composition in gen-logit space.
     """
-    # TODO[pi] cross-tokenizer support: when gen and pred tokenizers differ,
-    # need to convert token IDs discretely, get grad in pred space, then
-    # TokenizerTranslator.reverse() back to gen space.
 
     def __init__(
         self,
         gen_model: TransitionModel,
         pred_model: PredictiveModel,
-        argmax_masked_positions: bool = False,
+        use_clean_classifier: bool = False,
+        projection: Optional[GuidanceProjection] = None,
     ):
         super().__init__(
             model=gen_model.model,
@@ -98,28 +245,39 @@ class TAG(TransitionModel):
         )
         self.gen_model = gen_model
         self.pred_model = pred_model
-        self.argmax_masked_positions = argmax_masked_positions
-        assert gen_model.tokenizer is pred_model.tokenizer or \
-            gen_model.tokenizer.vocab == pred_model.tokenizer.vocab, \
-            "TAG currently requires gen and pred models to share the same tokenizer"
+        self.argmax_masked_positions = use_clean_classifier
+        if projection is None:
+            projection = LinearGuidanceProjection(
+                tokenizer_gen=gen_model.tokenizer,
+                tokenizer_pred=pred_model.tokenizer,
+                pred_token_ohe_basis_TK=pred_model.token_ohe_basis().detach(),
+            )
+        self.projection = projection.to(self.gen_model.device)
 
     def forward(self, seq_SP: torch.LongTensor):
-        logp_xtilde_g_x_SPT = self.gen_model.get_log_probs(seq_SP)
-        pred_input = seq_SP
-        if self.argmax_masked_positions:
-            pred_input = _fill_masked_with_argmax(
-                seq_SP, logp_xtilde_g_x_SPT,
-                self.gen_model.tokenizer.mask_token_id,
-                self.gen_model.tokenizer.vocab_size,
+        if self.gen_model.device != self.pred_model.device:
+            raise ValueError(
+                "TAG requires gen_model and pred_model to be on the same device"
             )
-        grad_SPV = self.pred_model.grad_log_prob(pred_input)
-        # TODO[pi] handle cross-tokenizer grad dimension mismatch properly —
-        # zero-padding assumes vocab tokens align at the same indices, which is
-        # only true when gen and pred share the same tokenizer. For the
-        # cross-tokenizer case, need TokenizerTranslator.reverse() on the grad.
-        if grad_SPV.shape[-1] < logp_xtilde_g_x_SPT.shape[-1]:
-            grad_SPV = F.pad(grad_SPV, (0, logp_xtilde_g_x_SPT.shape[-1] - grad_SPV.shape[-1]))
-        return grad_SPV + logp_xtilde_g_x_SPT
+        logp_xtilde_g_x_SPT = self.gen_model.get_log_probs(seq_SP)
+        prepared = self.projection.prepare(
+            seq_SP,
+            logp_xtilde_g_x_SPT,
+            use_clean_classifier=self.argmax_masked_positions,
+        )
+        # Compute gradient at temp=1 for natural gradient shape (no sigmoid
+        # saturation), then use the predictor's temperature purely as a linear
+        # guidance strength multiplier on the Taylor delta.
+        guidance_temp = self.pred_model.temp
+        self.pred_model.set_temp_(1.0)
+        grad_pred_SPK = self.pred_model.grad_log_prob(prepared.seq_pred_SP)
+        self.pred_model.set_temp_(guidance_temp)
+        delta_gen_SPT = self.projection.grad_to_gen_delta(
+            grad_pred_SPK,
+            prepared,
+            gen_output_dim=logp_xtilde_g_x_SPT.shape[-1],
+        )
+        return logp_xtilde_g_x_SPT + delta_gen_SPT / guidance_temp
 
 
 class DEG(TransitionModel):
@@ -173,13 +331,15 @@ class DEG(TransitionModel):
             base = seq_SP[s].clone()
             if self.argmax_masked_positions:
                 base = _fill_masked_with_argmax(
-                    base.unsqueeze(0), logp_xtilde_g_x_SPT[s].unsqueeze(0),
-                    mask_token_id, n_tok,
+                    base.unsqueeze(0),
+                    logp_xtilde_g_x_SPT[s].unsqueeze(0),
+                    mask_token_id,
+                    n_tok,
                 ).squeeze(0)
             # for simplicity just try all possible tokens--including special ones TODO[pi] we could instead use the
             # logitformatter mask in order to only try the valid transitions here
-            seq_XP = (
-                base.unsqueeze(0).repeat(n_tok, 1)
+            seq_XP = base.unsqueeze(0).repeat(
+                n_tok, 1
             )  # X is the index over tokens we're trying
             seq_XP[:, p] = torch.arange(n_tok, device=seq_SP.device)
             with torch.no_grad():
