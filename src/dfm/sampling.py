@@ -25,7 +25,7 @@ def tensor_to_string(x_SP, tokenizer):
     return seq_SP
 
 
-def sample_euler(
+def sample_linear_interpolation(
     model: TransitionModel,
     x_SP: torch.LongTensor | List[str],
     n_steps: int,

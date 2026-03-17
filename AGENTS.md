@@ -36,7 +36,7 @@
   - `probability_model.py` — `ProbabilityModel` ABC (shared base: temp, conditioning, abstract forward/format_raw_to_logits/preprocess_observations/collate_observations, concrete get_log_probs)
   - `generative_modeling.py` — `TransitionModel` (concrete), `TransitionModelWithEmbedding` (ABC, adds differentiable embedding), `LogitFormatter` protocol, `MaskedModelLogitFormatter`, `PassThroughLogitFormatter`, `MPNNTokenizer`
   - `predictive_modeling.py` — `PredictiveModel`, `CategoricalPredictiveModel`, `BinaryPredictiveModel`, `PointEstimatePredictiveModel`, `GaussianPredictiveModel`, `LinearProbe`, `OneHotMLP`, `EmbeddingMLP`, `pca_embed_init`
-  - `guide.py` — `TAG`, `DEG`, `TokenizerTranslator` (guidance algorithms)
+  - `guide.py` — `TAG`, `DEG`, `GuidanceProjection`/`LinearGuidanceProjection` (guidance algorithms)
   - `sampling.py` — `sample_any_order_ancestral` (uses `model.get_log_probs`)
   - `data.py` — `GuidanceDataset` base class, `NoiseSchedule` type alias, schedule functions
   - `models/esm.py` — `ESMC(TransitionModelWithEmbedding)` — ESMC as masked LM + embedding extractor via differentiable embedding
@@ -112,6 +112,9 @@
 - `grad_log_prob(seq_SP)` — runs `get_log_probs`, backprops, returns `self._ohe.grad` (shape B, P, vocab_size). Uses `torch.enable_grad()` context. This is what TAG calls.
 - `forward` takes OHE (from get_log_probs). All template models (LinearProbe, OneHotMLP, EmbeddingMLP) are now `PredictiveModel` subclasses — their forward receives OHE and must be differentiable for TAG.
 - TODO[pi] on the class: think about tokenizer mismatch — predictor's tokenizer (used for OHE) may differ from underlying model's tokenizer (ESMC's 64-wide embed table vs 33 vocab_size)
+- `PredictiveModel` now exposes `token_ohe_basis() -> (T,K)` and `tokens_to_ohe(seq_SP)`.
+- Default `token_ohe_basis` is identity (`K=T`), but subclasses can define reduced/structured OHE features (`K!=T`).
+- `get_log_probs`/`predict` now go through `tokens_to_ohe`; `grad_log_prob` returns gradients in feature space `(B,P,K)` (not always `(B,P,vocab_size)`).
 
 ## LinearProbe Design
 
@@ -225,6 +228,8 @@
 - `StabilityPMPNN` in `models/rocklin_ddg/stability_predictor.py` — PMPNN-based stability predictor with encode/decode split
 - `encode_structure()` is expensive (runs once per structure), `decode()` is cheap (runs per sample) — this is the conditioning pattern formalized by ProbabilityModel's `preprocess_observations`
 - `PreTrainedStabilityPredictor(PredictiveModel)` wraps StabilityPMPNN — uses binary logit pattern `[0, logit]`, sets `_target = True` by default, no longer overrides `get_log_probs`
+- `PreTrainedStabilityPredictor` now uses `MPNNTokenizer(include_mask_token=True)` so TAG can pass an explicit predictor-side `<mask>` token.
+- Stability predictor overrides `token_ohe_basis()` so predictor `<mask>` maps to an all-zero OHE row; this preserves original PMPNN masking semantics while making mask behavior explicit in the interface.
 - The old working example (`models/rocklin_ddg/example_usage.py`) uses local `data_utils.py` and `guidance_utils.py` — these do NOT use dfm abstractions
 - `data_utils.py` has ~300 lines of PMPNN-specific featurization (featurize, prepare_conditioning_inputs, token conversion, PDB loading via biotite)
 - `guidance_utils.py` has flow matching Euler sampling + TAG guidance + ESM3 inverse folding wrappers — most of this is replicated by `guide.py` (TAG/DEG) and `sampling.py`
@@ -245,6 +250,17 @@
 - `sampling.py` `any_order_ancestral_step` now takes model (not just callable) — picks positions first, then sets DEG positions via `at_position` before computing log probs
 - Cached varpos embeddings: `data/trpb_embeddings/{esmc_300m,esmc_600m}_varpos/{train,valid,test}.pt`
 - ESMC `EMB_DIM` is now dynamic (instance variable set from model weights), not a class constant
+- TAG architecture now keeps tokenizer/OHE mismatch logic in a TAG-owned projection layer (`GuidanceProjection`) rather than inside predictive models.
+- Default TAG path uses `LinearGuidanceProjection` with explicit first-order math: `delta(t) = g · (M[t] - M[baseline])`, where `M` maps gen tokens to predictor OHE features.
+- `LinearGuidanceProjection` handles token mapping, optional fallback token for unmapped symbols, and CLS/EOS window stripping when predictor does not model those positions.
+- New focused tests in `tests/test_tag_projection.py` validate prepare-step token/position mapping and the Taylor delta math.
+
+## Stability Demo Reimplementation Notes
+
+- `examples/stability_guidance/main.py` now mirrors `examples/original_stability_guidance/example_usage.py` sampling settings more closely.
+- Reimplementation uses flow-matching Euler sampling (`dt=0.01`, `x1_temp=0.1`, `num_samples=100`, `batch_size=50`) rather than `sample_euler`.
+- Denoising logits in the reimplementation apply original-style token constraints: fixed CLS/EOS behavior and inner-position restriction to canonical 20 AAs.
+- Guided run uses DFM `TAG` with the projection-based cross-tokenizer path, so behavior is closer to the original demo while staying inside DFM abstractions.
 
 ## SLURM
 

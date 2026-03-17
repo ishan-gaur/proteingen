@@ -4,6 +4,11 @@ Example: Stability-guided ESM3 inverse folding on Rocklin cluster 146 (5KPH).
 Runs unguided vs. guided ESM3 sampling and evaluates with a stability oracle.
 Produces a ddG histogram comparing the two approaches.
 
+Uses DFM's sample_euler sampler with:
+- gen model temp=0.1 (sharpens denoising distribution, equivalent to x1_temp)
+- classifier temp=0.005 (guidance strength — lower = stronger)
+- n_steps=100 (matching original dt=0.01)
+
 Requirements:
     - ESM3 (pip install esm)
     - GPU with enough memory for ESM3 + classifier
@@ -14,6 +19,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import matplotlib
+from scipy.stats import gaussian_kde
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -23,22 +29,20 @@ from dfm.models.rocklin_ddg.stability_predictor import (
     PreTrainedStabilityPredictor,
     StabilityPMPNN,
 )
-from dfm.models.rocklin_ddg.data_utils import (
-    load_pdb_to_graph_dict,
-    featurize,
-    compute_seq_id,
-)
+from dfm.models.rocklin_ddg.data_utils import compute_seq_id
 from dfm.models.utils import pdb_to_atom37_and_seq
-from dfm.sampling import sample_euler
+from dfm.sampling import sample_linear_interpolation
 from dfm.guide import TAG
 
 # -------------------------------------------------------------------------
 # Configuration
 # -------------------------------------------------------------------------
 device = "cuda"
-num_samples = 10
+num_samples = 100
+batch_size = 50
 n_steps = 100
-guide_temp = 0.01  # lower = stronger guidance
+gen_temp = 1.0
+guide_temp = 0.03  # lower = stronger guidance
 
 base_dir = Path(__file__).resolve().parent
 pdb_path = base_dir / "data" / "structures" / "5KPH.pdb"
@@ -74,11 +78,26 @@ def predict_stability_raw(oracle_model, sequences, cond, device):
         )
 
 
+def sample_batched(model, init_tokens, *, num_samples, batch_size, n_steps):
+    """Run sample_euler in batches, return list of sequence strings."""
+    all_seqs = []
+    remaining = num_samples
+    while remaining > 0:
+        bs = min(batch_size, remaining)
+        batch_init = init_tokens.expand(bs, -1).clone()
+        seqs = sample_linear_interpolation(model, batch_init, n_steps=n_steps, return_string=True)
+        all_seqs.extend(seqs)
+        remaining -= bs
+        print(f"  {len(all_seqs)} / {num_samples} generated")
+    return all_seqs[:num_samples]
+
+
 # -------------------------------------------------------------------------
 # 1. Load ESM3 model
 # -------------------------------------------------------------------------
 print("Loading ESM3 model...")
 esm_model = ESM3IF().to(device)
+esm_model.set_temp_(gen_temp)
 
 # -------------------------------------------------------------------------
 # 2. Load stability models
@@ -112,14 +131,25 @@ stability_cond = PreTrainedStabilityPredictor.prepare_conditioning(
 classifier.set_condition_(stability_cond)
 classifier.set_temp_(guide_temp)
 
+# Initial all-mask tokens
+tokenizer = esm_model.tokenizer
+init_tokens = tokenizer(
+    ["<mask>" * len(wt_seq)], return_tensors="pt",
+)["input_ids"].to(device)
+
 # -------------------------------------------------------------------------
 # 4. Run UNGUIDED ESM3 inverse folding
 # -------------------------------------------------------------------------
 print(f"\n{'=' * 60}")
 print("Running UNGUIDED ESM3 inverse folding...")
 print(f"{'=' * 60}")
-masked_sequences = ["<mask>" * len(wt_seq)] * num_samples
-unguided_seqs = sample_euler(esm_model, masked_sequences, n_steps)
+unguided_seqs = sample_batched(
+    esm_model,
+    init_tokens,
+    num_samples=num_samples,
+    batch_size=batch_size,
+    n_steps=n_steps,
+)
 print(f"Unguided: {len(unguided_seqs)} sequences generated")
 for i, s in enumerate(unguided_seqs[:3]):
     print(f"  {i}: {s}")
@@ -130,8 +160,19 @@ for i, s in enumerate(unguided_seqs[:3]):
 print(f"\n{'=' * 60}")
 print("Running GUIDED ESM3 inverse folding (TAG)...")
 print(f"{'=' * 60}")
-guided_model = TAG(esm_model, classifier).to(device)
-guided_seqs = sample_euler(guided_model, masked_sequences, n_steps)
+guided_model = TAG(
+    esm_model,
+    classifier,
+    use_clean_classifier=False,
+).to(device)
+
+guided_seqs = sample_batched(
+    guided_model,
+    init_tokens,
+    num_samples=num_samples,
+    batch_size=batch_size,
+    n_steps=n_steps,
+)
 print(f"Guided: {len(guided_seqs)} sequences generated")
 for i, s in enumerate(guided_seqs[:3]):
     print(f"  {i}: {s}")
@@ -173,8 +214,6 @@ print(
 # -------------------------------------------------------------------------
 # 8. Plot ddG histogram with KDE
 # -------------------------------------------------------------------------
-from scipy.stats import gaussian_kde
-
 fig, ax = plt.subplots(1, 1, figsize=(8, 5))
 
 bins = np.linspace(

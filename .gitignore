@@ -14,3 +14,4 @@ wandb/
 
 scripts/stability_guidance_demo/weights/ scripts/stability_guidance_demo/data/
 data/**/*.pt
+logs

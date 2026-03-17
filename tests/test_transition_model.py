@@ -318,20 +318,28 @@ class TestFormatLogitsIntegration:
         aa_probs = log_probs[0, 1].exp()
         assert torch.isclose(aa_probs[aa_id], torch.tensor(1.0), atol=1e-5)
 
-    def test_mask_position_allows_all_non_special(self, esm_like_model, tokenizer):
-        """Mask position should have nonzero probability for every non-special token."""
+    def test_mask_position_allows_canonical_aas(self, esm_like_model, tokenizer):
+        """Mask position should have nonzero probability for canonical AAs only."""
         mask_id = tokenizer.vocab["<mask>"]
         seq = torch.tensor([[tokenizer.cls_token_id, mask_id, tokenizer.eos_token_id]])
         log_probs = esm_like_model.get_log_probs(seq)
         mask_probs = log_probs[0, 1].exp()
 
-        non_special = set(range(tokenizer.vocab_size)) - set(
-            tokenizer.added_tokens_decoder
-        )
-        for idx in non_special:
-            assert mask_probs[idx] > 0, (
-                f"Non-special token {idx} should have nonzero prob"
-            )
+        canonical_aas = set("ACDEFGHIKLMNPQRSTVWY")
+        idx_to_tok = {idx: tok for tok, idx in tokenizer.vocab.items()}
+        special = set(tokenizer.added_tokens_decoder)
+        for idx in range(tokenizer.vocab_size):
+            if idx in special:
+                continue
+            tok = idx_to_tok.get(idx, "")
+            if tok in canonical_aas:
+                assert mask_probs[idx] > 0, (
+                    f"Canonical AA {tok} ({idx}) should have nonzero prob"
+                )
+            else:
+                assert mask_probs[idx] == 0, (
+                    f"Non-canonical token {tok} ({idx}) should have zero prob"
+                )
 
     def test_logit_formatter_is_accessible(self, esm_like_model):
         assert isinstance(esm_like_model.logit_formatter, LogitFormatter)

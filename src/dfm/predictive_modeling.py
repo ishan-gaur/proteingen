@@ -2,7 +2,6 @@ from pathlib import Path
 
 import torch
 from torch import nn
-from torch.nn import functional as F
 from typing import Any, Optional
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
@@ -40,7 +39,7 @@ class PredictiveModel(ProbabilityModel, ABC):
         PredictiveModel.get_log_probs: [:, 1] → (B,) log p(target | x)
 
     For TAG guidance, use ``grad_log_prob(seq_SP)`` which runs the pipeline,
-    backprops, and returns gradients w.r.t. the vocab-sized OHE.
+    backprops, and returns gradients w.r.t. the model's OHE feature space.
     """
 
     def __init__(self, tokenizer: PreTrainedTokenizerBase):
@@ -70,8 +69,23 @@ class PredictiveModel(ProbabilityModel, ABC):
 
     def forward(self, ohe_seq_SPT: torch.FloatTensor, **kwargs) -> Any:
         """Forward pass to produce raw predictions. To be implemented by subclasses. Must take OHE as input.
-        OHE dimension will be the tokenizer's vocab size."""
+        OHE dimension is defined by ``tokens_to_ohe`` / ``token_ohe_basis``."""
         ...
+
+    def token_ohe_basis(self) -> torch.FloatTensor:
+        """Return token-id → OHE feature matrix (T, K).
+
+        Default is identity: each token id maps to its one-hot basis vector.
+        Override when token ids should map to a reduced OHE space (e.g. an
+        explicit mask token represented as an all-zero feature vector).
+        """
+        vocab_size = self.tokenizer.vocab_size
+        return torch.eye(vocab_size, dtype=torch.float32)
+
+    def tokens_to_ohe(self, seq_SP: torch.LongTensor) -> torch.FloatTensor:
+        """Map token IDs to model OHE features using ``token_ohe_basis``."""
+        basis_TK = self.token_ohe_basis().to(seq_SP.device)
+        return basis_TK[seq_SP.long()]
 
     # TODO[pi] The relationship between target and format_raw_to_logits is not
     # obvious from the interface. A user subclassing OneHotMLP has to just *know*
@@ -96,7 +110,7 @@ class PredictiveModel(ProbabilityModel, ABC):
     def get_log_probs(self, seq_SP: torch.LongTensor) -> torch.FloatTensor:
         """Return log p(target=True | x), scalar per sequence.
 
-        Creates a vocab-sized OHE from token IDs, stashes it as ``self._ohe``
+        Creates model OHE features from token IDs, stashes them as ``self._ohe``
         (for gradient access via ``grad_log_prob``), then runs the parent
         pipeline (forward → format_raw_to_logits → log_softmax) to get
         (B, 2) and returns [:, 1].
@@ -104,7 +118,7 @@ class PredictiveModel(ProbabilityModel, ABC):
         assert self.target is not None, (
             "Target not set. Call set_target_() or use with_target() context manager."
         )
-        ohe_seq_SPT = F.one_hot(seq_SP, self.tokenizer.vocab_size).float()
+        ohe_seq_SPT = self.tokens_to_ohe(seq_SP).float()
         ohe_seq_SPT.requires_grad_(True)
         self._ohe = ohe_seq_SPT
         log_probs_B2 = super().get_log_probs(ohe_seq_SPT)  # (B, 2)
@@ -120,14 +134,14 @@ class PredictiveModel(ProbabilityModel, ABC):
         (scalar predictions, class logits, etc.) without binary logit
         conversion. Use for training (e.g. MSE loss) and scoring.
         """
-        ohe = F.one_hot(seq_SP, self.tokenizer.vocab_size).float()
+        ohe = self.tokens_to_ohe(seq_SP).float()
         return self.forward(ohe)
 
     def grad_log_prob(self, seq_SP: torch.LongTensor) -> torch.FloatTensor:
-        """Return gradient of log p(target | x) w.r.t. vocab-sized OHE.
+        """Return gradient of log p(target | x) w.r.t. model OHE features.
 
         Runs ``get_log_probs`` (which creates and stashes the OHE),
-        backprops, and returns ``self._ohe.grad`` of shape (B, P, vocab_size).
+        backprops, and returns ``self._ohe.grad`` of shape (B, P, K).
         This is the gradient signal TAG adds to transition model logits.
         """
         with torch.enable_grad():
