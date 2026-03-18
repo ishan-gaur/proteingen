@@ -15,3 +15,6 @@ wandb/
 scripts/stability_guidance_demo/weights/ scripts/stability_guidance_demo/data/
 data/**/*.pt
 logs
+
+# Local agent session symlink; breaks GitHub Pages/Jekyll on runners
+.pi-sessions
