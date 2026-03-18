@@ -36,8 +36,6 @@ def sample_linear_interpolation(
     x_device = x_SP.device
     x_SP = x_SP.to(model.device)
 
-    t_st, t_end = 0.0, 1.0
-    dt = (t_end - t_st) / n_steps
     for step in tqdm(range(n_steps)):
         logp_x_SPT = model.get_log_probs(
             x_SP
