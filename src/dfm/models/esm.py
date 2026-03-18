@@ -299,9 +299,14 @@ class ESM3IF(TransitionModel):
     def __init__(self, esm3_checkpoint: str = "esm3-open"):
         tokenizer = EsmSequenceTokenizer()
         logit_formatter = MaskedModelLogitFormatter(tokenizer, ESM3IF.OUTPUT_DIM)
-        esmc = _ESM3.from_pretrained(esm3_checkpoint).eval()
+        # Load on CPU first to avoid accidental CUDA OOM at construction time.
+        esm3 = (
+            _ESM3.from_pretrained(esm3_checkpoint, device=torch.device("cpu"))
+            .float()
+            .eval()
+        )
         super().__init__(
-            model=esmc, tokenizer=tokenizer, logit_formatter=logit_formatter
+            model=esm3, tokenizer=tokenizer, logit_formatter=logit_formatter
         )
 
     def preprocess_observations(self, observations: StructureCondition) -> dict:
