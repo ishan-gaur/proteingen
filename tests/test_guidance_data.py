@@ -4,7 +4,7 @@ import torch
 import numpy as np
 import pytest
 
-from dfm import GuidanceDataset, unmasked_only, uniform_schedule
+from proteingen import GuidanceDataset, unmasked_only, uniform_schedule
 
 
 class TestNoiseSchedules:

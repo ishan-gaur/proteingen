@@ -16,8 +16,8 @@ import argparse
 
 import torch
 
-from dfm.models.esm import ESM3
-from dfm.sampling import sample_any_order_ancestral
+from proteingen.models.esm import ESM3
+from proteingen.sampling import sample_any_order_ancestral
 
 
 def main():
@@ -36,7 +36,7 @@ def main():
 
     # ── Structure conditioning ───────────────────────────────────────────
     if args.pdb:
-        from dfm.models.utils import pdb_to_atom37_and_seq
+        from proteingen.models.utils import pdb_to_atom37_and_seq
 
         coords_RAX, wt_seq = pdb_to_atom37_and_seq(args.pdb, backbone_only=True)
         seq_len = len(wt_seq)

@@ -11,7 +11,7 @@ import pytest
 from types import SimpleNamespace
 from torch import nn
 from torch.nn import functional as F
-from dfm.predictive_modeling import EmbeddingMLP, binary_logits
+from proteingen.predictive_modeling import EmbeddingMLP, binary_logits
 
 
 # ---------------------------------------------------------------------------

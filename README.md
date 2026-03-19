@@ -1,4 +1,4 @@
-# dfm
+# proteingen
 
 A library for guided protein sequence generation using discrete generative models.
 
@@ -23,7 +23,7 @@ uv run foundry install proteinmpnn
 ## Project Structure
 
 ```
-src/dfm/
+src/proteingen/
 ├── probability_model.py    # ProbabilityModel — shared ABC for all models
 ├── generative_modeling.py  # TransitionModel, TransitionModelWithEmbedding, LogitFormatter,
 │                           #   MaskedModelLogitFormatter, PassThroughLogitFormatter, MPNNTokenizer
