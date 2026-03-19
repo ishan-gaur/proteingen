@@ -1,0 +1,3 @@
+# sampling
+
+::: dfm.sampling
