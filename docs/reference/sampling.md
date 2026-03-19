@@ -1,0 +1,3 @@
+# sampling
+
+::: proteingen.sampling

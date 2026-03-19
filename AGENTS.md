@@ -275,6 +275,26 @@
 - `MPNNTokenizer` in `generative_model.py` wraps PMPNN's `MPNN_TOKEN_ENCODING` (21 tokens: 20 standard AAs + UNK at idx 20)
 - Importing from `atomworks` prints env var warnings (CCD_MIRROR_PATH, PDB_MIRROR_PATH) — these are harmless
 
+## MkDocs Documentation
+
+- MkDocs Material theme with `pymdownx.tabbed` (alternate_style), `pymdownx.highlight` (anchor_linenums), `pymdownx.superfences`, `admonition`, `attr_list`
+- Content tabs: `=== "Tab Name"` syntax — content must be indented 4 spaces under the tab header
+- Code block line highlighting: `` ```python hl_lines="2 3 11" `` — works inside tabs (indented code fences)
+- Build: `uv run mkdocs build` — site output in `site/`
+- Serve locally: `uv run mkdocs serve` — site is served at `/proteingen/` prefix (from `site_url`), not root `/`
+- True side-by-side columns (CSS grid) not feasible in MkDocs Markdown — content tabs are the idiomatic alternative
+- Known warning: `index.md` link `ishangaur.com` flagged as broken (missing `https://` prefix)
+- **Repo renamed to `proteingen`** — display name is **ProteinGen** (capitalized in all prose), but URLs/paths/package-slug stay lowercase `proteingen`
+- Git remote updated: `git@github.com:ishan-gaur/proteingen.git`
+- Python package is still `dfm` internally — TODO[pi] to rename to `proteingen` in pyproject.toml/src/imports/tests
+- `mkdocstrings[python]` configured with `paths: [src]` so it resolves `dfm.*` modules from `src/dfm/`
+- API reference pages are thin stubs with `::: dfm.<module>` directives — mkdocstrings auto-generates from docstrings
+- griffe warnings about missing type annotations in `generative_modeling.py` (line 152 `**kwargs`, line 408 return) — harmless, fix by adding annotations
+- `PLAN.md` at repo root documents the full docs roadmap and what's implemented vs TODO
+- Nav structure: Home | Setup | Examples | Models | Workflows (Overview, ProteinGuide) | Contributing | Reference (Design Philosophy, API Reference per-module)
+- Workflow sub-pages are all stubs with "Coming soon" admonitions and TODO[pi] markers
+- `site/` is in `.gitignore`
+
 ## Tokenization
 
 - PMPNN vocabulary: 20 standard amino acids + UNK (X), indexed 0–20

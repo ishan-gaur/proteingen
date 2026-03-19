@@ -1,0 +1,3 @@
+# guide
+
+::: proteingen.guide

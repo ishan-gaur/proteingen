@@ -9,11 +9,11 @@ import pytest
 from torch import nn
 from torch.nn import functional as F
 
-from dfm.generative_modeling import (
+from proteingen.generative_modeling import (
     TransitionModel,
     PassThroughLogitFormatter,
 )
-from dfm.sampling import any_order_ancestral_step, sample_any_order_ancestral
+from proteingen.sampling import any_order_ancestral_step, sample_any_order_ancestral
 
 
 # ---------------------------------------------------------------------------
@@ -78,7 +78,7 @@ class DeterministicModel(TransitionModel):
         super().__init__(
             model=nn.Linear(1, 1),  # dummy, gives us a parameter
             tokenizer=tok,
-            logit_formatter=PassThroughLogitFormatter(tok),
+            logit_formatter=PassThroughLogitFormatter(),
         )
         self._vocab_size = tok.VOCAB_SIZE
 
@@ -100,7 +100,7 @@ class UniformModel(TransitionModel):
         super().__init__(
             model=nn.Linear(1, 1),
             tokenizer=tok,
-            logit_formatter=PassThroughLogitFormatter(tok),
+            logit_formatter=PassThroughLogitFormatter(),
         )
         self._vocab_size = tok.VOCAB_SIZE
 
@@ -147,7 +147,7 @@ class TestAnyOrderAncestralStepBasic:
         # sequence: [cls, mask, mask, mask, eos]
         x = torch.tensor([[6, 8, 8, 8, 7]])
         result = any_order_ancestral_step(
-            det_model.get_log_probs, x, n_parallel=1, mask_token_id=mask_id
+            det_model, x, n_parallel=1, mask_token_id=mask_id
         )
         n_masks_remaining = (result == mask_id).sum().item()
         assert n_masks_remaining == 2  # started with 3, unmasked 1
@@ -156,7 +156,7 @@ class TestAnyOrderAncestralStepBasic:
         """If no positions are masked, step should return input unchanged."""
         x = torch.tensor([[6, 0, 1, 2, 7]])
         result = any_order_ancestral_step(
-            det_model.get_log_probs, x, n_parallel=3, mask_token_id=mask_id
+            det_model, x, n_parallel=3, mask_token_id=mask_id
         )
         assert torch.equal(result, x)
 
@@ -164,7 +164,7 @@ class TestAnyOrderAncestralStepBasic:
         """DeterministicModel always predicts token 0."""
         x = torch.tensor([[6, 8, 8, 7]])
         result = any_order_ancestral_step(
-            det_model.get_log_probs, x, n_parallel=2, mask_token_id=mask_id
+            det_model, x, n_parallel=2, mask_token_id=mask_id
         )
         # Both mask positions should be filled with 0
         assert (result == mask_id).sum().item() == 0
@@ -176,7 +176,7 @@ class TestAnyOrderAncestralStepBasic:
         x = torch.tensor([[6, 3, 8, 4, 7]])  # only position 2 is masked
         original = x.clone()
         result = any_order_ancestral_step(
-            det_model.get_log_probs, x, n_parallel=1, mask_token_id=mask_id
+            det_model, x, n_parallel=1, mask_token_id=mask_id
         )
         # positions 0,1,3,4 should be unchanged
         assert result[0, 0].item() == original[0, 0].item()
@@ -199,7 +199,7 @@ class TestNParallel:
         """n_parallel=3 on a sequence with 5 masks should unmask 3."""
         x = torch.tensor([[6, 8, 8, 8, 8, 8, 7]])
         result = any_order_ancestral_step(
-            det_model.get_log_probs, x, n_parallel=3, mask_token_id=mask_id
+            det_model, x, n_parallel=3, mask_token_id=mask_id
         )
         n_masks_remaining = (result == mask_id).sum().item()
         assert n_masks_remaining == 2  # 5 - 3 = 2
@@ -208,7 +208,7 @@ class TestNParallel:
         """If n_parallel > number of masks, unmask all of them (don't crash)."""
         x = torch.tensor([[6, 8, 8, 7]])  # 2 mask positions
         result = any_order_ancestral_step(
-            det_model.get_log_probs, x, n_parallel=10, mask_token_id=mask_id
+            det_model, x, n_parallel=10, mask_token_id=mask_id
         )
         n_masks_remaining = (result == mask_id).sum().item()
         assert n_masks_remaining == 0  # all 2 unmasked
@@ -217,7 +217,7 @@ class TestNParallel:
         """n_parallel=1 should be equivalent to the original behavior."""
         x = torch.tensor([[6, 8, 8, 8, 7]])
         result = any_order_ancestral_step(
-            det_model.get_log_probs, x, n_parallel=1, mask_token_id=mask_id
+            det_model, x, n_parallel=1, mask_token_id=mask_id
         )
         n_masks_remaining = (result == mask_id).sum().item()
         assert n_masks_remaining == 2  # 3 - 1 = 2
@@ -226,7 +226,7 @@ class TestNParallel:
         """n_parallel == number of masks should unmask all in one step."""
         x = torch.tensor([[6, 8, 8, 8, 7]])  # 3 masks
         result = any_order_ancestral_step(
-            det_model.get_log_probs, x, n_parallel=3, mask_token_id=mask_id
+            det_model, x, n_parallel=3, mask_token_id=mask_id
         )
         n_masks_remaining = (result == mask_id).sum().item()
         assert n_masks_remaining == 0
@@ -249,7 +249,7 @@ class TestBatchedNParallel:
             ]
         )
         result = any_order_ancestral_step(
-            det_model.get_log_probs, x, n_parallel=2, mask_token_id=mask_id
+            det_model, x, n_parallel=2, mask_token_id=mask_id
         )
         # seq 0: 4 masks - 2 = 2 remaining
         assert (result[0] == mask_id).sum().item() == 2
@@ -265,7 +265,7 @@ class TestBatchedNParallel:
             ]
         )
         result = any_order_ancestral_step(
-            det_model.get_log_probs, x, n_parallel=2, mask_token_id=mask_id
+            det_model, x, n_parallel=2, mask_token_id=mask_id
         )
         # seq 0 unchanged
         assert torch.equal(result[0], x[0])
@@ -281,7 +281,7 @@ class TestBatchedNParallel:
             ]
         )
         result = any_order_ancestral_step(
-            det_model.get_log_probs, x, n_parallel=3, mask_token_id=mask_id
+            det_model, x, n_parallel=3, mask_token_id=mask_id
         )
         # seq 0: 4 - 3 = 1 remaining
         assert (result[0] == mask_id).sum().item() == 1
@@ -301,7 +301,7 @@ class TestExplicitPositionSelection:
         x = torch.tensor([[6, 8, 8, 8, 7]])
         pos_idx = torch.LongTensor([[0, 2]])  # unmask position 2 only
         result = any_order_ancestral_step(
-            det_model.get_log_probs,
+            det_model,
             x,
             n_parallel=1,
             mask_token_id=mask_id,
@@ -315,7 +315,7 @@ class TestExplicitPositionSelection:
         x = torch.tensor([[6, 8, 8, 8, 7]])
         pos_idx = torch.LongTensor([[0, 1], [0, 3]])  # unmask positions 1 and 3
         result = any_order_ancestral_step(
-            det_model.get_log_probs,
+            det_model,
             x,
             n_parallel=2,
             mask_token_id=mask_id,
@@ -330,7 +330,7 @@ class TestExplicitPositionSelection:
         pos_idx = torch.LongTensor([]).reshape(0, 2)
         original = x.clone()
         result = any_order_ancestral_step(
-            det_model.get_log_probs,
+            det_model,
             x,
             n_parallel=1,
             mask_token_id=mask_id,

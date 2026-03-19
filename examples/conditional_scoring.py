@@ -1,5 +1,5 @@
-from dfm.models import ESM3IF, ExprStabilityProbePredictor
-from dfm.datasets.seki_tyrosine_kinase import WT_LABELS
+from proteingen.models import ESM3IF, ExprStabilityProbePredictor
+from proteingen.datasets.seki_tyrosine_kinase import WT_LABELS
 import atomworks.io as aio
 
 # In this script, we use ESM3 unconditionally and with a pretrained predictor

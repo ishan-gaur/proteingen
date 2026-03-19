@@ -6,12 +6,12 @@ import pytest
 from torch import nn
 from peft import PeftModel
 
-from dfm.generative_modeling import (
+from proteingen.generative_modeling import (
     TransitionModel,
     TransitionModelWithEmbedding,
     PassThroughLogitFormatter,
 )
-from dfm.probability_model import ProbabilityModel
+from proteingen.probability_model import ProbabilityModel
 from esm.tokenization.sequence_tokenizer import EsmSequenceTokenizer
 
 
