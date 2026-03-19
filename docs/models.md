@@ -4,10 +4,10 @@
 
 | Model | Class | Source | Weights | Conditioning | Output |
 |-------|-------|--------|---------|-------------|--------|
-| ESMC (300m/600m) | `dfm.models.ESMC` | [EvolutionaryScale/esm](https://github.com/evolutionaryscale/esm) | HuggingFace: `esmc_300m`, `esmc_600m` | None (masked LM) | `(B, L, 64)` logits |
-| ESM3 | `dfm.models.ESM3` | [EvolutionaryScale/esm](https://github.com/evolutionaryscale/esm) | HuggingFace: `esm3-open` | Structure (atom37 coords) | `(B, L, 64)` logits |
-| ESM3IF | `dfm.models.ESM3IF` | [EvolutionaryScale/esm](https://github.com/evolutionaryscale/esm) | HuggingFace: `esm3-open` | Structure (atom37 coords, **required**) | `(B, L, 64)` logits |
-| StabilityPMPNN | `dfm.models.rocklin_ddg.PreTrainedStabilityPredictor` | In-repo (ProteinMPNN-based) | Manual download | Structure (PDB → featurize) | Scalar stability logit |
+| ESMC (300m/600m) | `proteingen.models.ESMC` | [EvolutionaryScale/esm](https://github.com/evolutionaryscale/esm) | HuggingFace: `esmc_300m`, `esmc_600m` | None (masked LM) | `(B, L, 64)` logits |
+| ESM3 | `proteingen.models.ESM3` | [EvolutionaryScale/esm](https://github.com/evolutionaryscale/esm) | HuggingFace: `esm3-open` | Structure (atom37 coords) | `(B, L, 64)` logits |
+| ESM3IF | `proteingen.models.ESM3IF` | [EvolutionaryScale/esm](https://github.com/evolutionaryscale/esm) | HuggingFace: `esm3-open` | Structure (atom37 coords, **required**) | `(B, L, 64)` logits |
+| StabilityPMPNN | `proteingen.models.rocklin_ddg.PreTrainedStabilityPredictor` | In-repo (ProteinMPNN-based) | Manual download | Structure (PDB → featurize) | Scalar stability logit |
 
 ### ESMC
 

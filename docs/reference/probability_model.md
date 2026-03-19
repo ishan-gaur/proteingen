@@ -1,3 +1,3 @@
 # probability_model
 
-::: dfm.probability_model
+::: proteingen.probability_model

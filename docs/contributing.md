@@ -48,7 +48,7 @@ ESMC was migrated from the ESM library as follows:
 
 ## Code standards
 
-- Follow the patterns in existing models — look at `src/dfm/models/esm.py` as the reference implementation
+- Follow the patterns in existing models — look at `src/proteingen/models/esm.py` as the reference implementation
 - Use type hints on all function signatures
 - Keep docstrings concise — don't restate what the code already says
 - Run `uv run ruff check` and `uv run ruff format` before submitting

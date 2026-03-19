@@ -1,3 +1,3 @@
 # data
 
-::: dfm.data
+::: proteingen.data
