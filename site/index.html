@@ -485,10 +485,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#trying-new-models-is-dead-simple-now" class="md-nav__link">
+  <a href="#trying-new-models-is-dead-simple" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Trying new models is dead simple now
+        Trying new models is dead simple
       
     </span>
   </a>
@@ -1103,7 +1103,7 @@
   <h1>Home</h1>
 
 <p>ProteinGen centralizes common models and computational workflows for sequence-based protein design in one place. We provide a unified interface that makes models from different organizations--ESM, Evodiff, DPLM, ProteinMPNN--letting us implement training, sampling, and guidance algorithms on top of them as part of a single ecosystem. Our goal is to accelerate the development of new methods for drylab practitioners and to make modern statistical and deep learning methods for protein design more accessible for the wetlab community as well.</p>
-<p>ProteinGen was developed by <a href="ishangaur.com">Ishan Gaur</a> and is maintained by the <a href="http://www.jennifer.listgarten.com/group.html">Listgarten Lab</a> at UC Berkeley.</p>
+<p>ProteinGen was developed by <a href="https://ishangaur.com">Ishan Gaur</a> and is maintained by the <a href="http://www.jennifer.listgarten.com/group.html">Listgarten Lab</a> at UC Berkeley.</p>
 <h2 id="why-proteingen">Why ProteinGen<a class="headerlink" href="#why-proteingen" title="Permanent link">&para;</a></h2>
 <p>Today, every time you need to try a different model, training, or sampling algorithm, you basically have to rewrite your existing code from scratch. Even worse to use the latest sampling and design techniques you might have to wade through hundreds of lines of company library code to figure out that ESM only uses 33 of their 64 output logits or how exactly you're supposed to format the inputs for ProteinMPNN. Pipelines written with ProteinGen make it trivial to swap in and out models, training techniques, and inference time algorithms whenever you want. Implementation costs should never stop you from trying the latest and greatest technique for protein design.</p>
 <h3 id="use-coding-agents-with-confidence">Use coding agents with confidence<a class="headerlink" href="#use-coding-agents-with-confidence" title="Permanent link">&para;</a></h3>
@@ -1120,14 +1120,14 @@
 <p><a href="contributing/">Contributing</a>: we want to make it easy for people to use cutting edge models and design algorithms. A key part of this is making it easy for you to get your own work out there. We include SKILLS.md files that help your coding agents make your research code ProteinGen compatible and submit pull requests to add your work to the next release. We want to make this possible even if you've never contributed to open source before.</p>
 </li>
 </ol>
-<h3 id="trying-new-models-is-dead-simple-now">Trying new models is dead simple now<a class="headerlink" href="#trying-new-models-is-dead-simple-now" title="Permanent link">&para;</a></h3>
+<h3 id="trying-new-models-is-dead-simple">Trying new models is dead simple<a class="headerlink" href="#trying-new-models-is-dead-simple" title="Permanent link">&para;</a></h3>
 <p>For example, this is all the machine learning code you need to replicate the stability optimization experiments from our recent <a href="https://arxiv.org/abs/2505.04823">ProteinGuide preprint</a>. In that paper we present two guidance algorithms: TAG (fast, gradient-based) and DEG (exact, enumeration-based). With ProteinGen, switching between algorithms or swapping in a completely different generative model is as easy as changing the imports:</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">TAG + ESM3</label><label for="__tabbed_1_2">DEG + ESM3</label><label for="__tabbed_1_3">DEG + PMPNN</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">dfm.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ESM3</span><span class="p">,</span> <span class="n">StabilityPredictor</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="hll"><span class="kn">from</span><span class="w"> </span><span class="nn">dfm.guide</span><span class="w"> </span><span class="kn">import</span> <span class="n">TAG</span>
-</span><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="hll"><span class="kn">from</span><span class="w"> </span><span class="nn">dfm.sampling</span><span class="w"> </span><span class="kn">import</span> <span class="n">sample_euler</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">proteingen.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ESM3</span><span class="p">,</span> <span class="n">StabilityPredictor</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="hll"><span class="kn">from</span><span class="w"> </span><span class="nn">proteingen.guide</span><span class="w"> </span><span class="kn">import</span> <span class="n">TAG</span>
+</span><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="hll"><span class="kn">from</span><span class="w"> </span><span class="nn">proteingen.sampling</span><span class="w"> </span><span class="kn">import</span> <span class="n">sample_euler</span>
 </span><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># Load the models</span>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">coords</span> <span class="o">=</span> <span class="o">...</span> <span class="c1"># load backbone structure from pdb file</span>
@@ -1143,9 +1143,9 @@
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">dfm.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ESM3</span><span class="p">,</span> <span class="n">StabilityPredictor</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="hll"><span class="kn">from</span><span class="w"> </span><span class="nn">dfm.guide</span><span class="w"> </span><span class="kn">import</span> <span class="n">DEG</span>
-</span><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="hll"><span class="kn">from</span><span class="w"> </span><span class="nn">dfm.sampling</span><span class="w"> </span><span class="kn">import</span> <span class="n">sample_ancestral</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">proteingen.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ESM3</span><span class="p">,</span> <span class="n">StabilityPredictor</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="hll"><span class="kn">from</span><span class="w"> </span><span class="nn">proteingen.guide</span><span class="w"> </span><span class="kn">import</span> <span class="n">DEG</span>
+</span><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="hll"><span class="kn">from</span><span class="w"> </span><span class="nn">proteingen.sampling</span><span class="w"> </span><span class="kn">import</span> <span class="n">sample_ancestral</span>
 </span><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># Load the models</span>
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">coords</span> <span class="o">=</span> <span class="o">...</span> <span class="c1"># load backbone structure from pdb file</span>
@@ -1161,22 +1161,22 @@
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="hll"><span class="kn">from</span><span class="w"> </span><span class="nn">dfm.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">PMPNN</span><span class="p">,</span> <span class="n">StabilityPredictor</span>
-</span><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="hll"><span class="kn">from</span><span class="w"> </span><span class="nn">dfm.guide</span><span class="w"> </span><span class="kn">import</span> <span class="n">DEG</span>
-</span><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="hll"><span class="kn">from</span><span class="w"> </span><span class="nn">dfm.sampling</span><span class="w"> </span><span class="kn">import</span> <span class="n">sample_ancestral</span>
-</span><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="hll"><span class="kn">from</span><span class="w"> </span><span class="nn">proteingen.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">PMPNN</span><span class="p">,</span> <span class="n">StabilityPredictor</span>
+</span><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">proteingen.guide</span><span class="w"> </span><span class="kn">import</span> <span class="n">DEG</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">proteingen.sampling</span><span class="w"> </span><span class="kn">import</span> <span class="n">sample_ancestral</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="c1"># Load the models</span>
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">coords</span> <span class="o">=</span> <span class="o">...</span> <span class="c1"># load backbone structure from pdb file</span>
 <a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="hll"><span class="n">gen_model</span> <span class="o">=</span> <span class="n">PMPNN</span><span class="o">.</span><span class="n">conditioned_on</span><span class="p">({</span><span class="s2">&quot;structure&quot;</span><span class="p">:</span> <span class="n">coords</span><span class="p">})</span>
 </span><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">predictor</span> <span class="o">=</span> <span class="n">StabilityPredictor</span><span class="p">()</span>
 <a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
 <a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="c1"># Get the stability guided models</span>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="hll"><span class="n">tag</span> <span class="o">=</span> <span class="n">DEG</span><span class="p">(</span><span class="n">gen_model</span><span class="p">,</span> <span class="n">predictor</span><span class="p">)</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span>
-</span><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="n">tag</span> <span class="o">=</span> <span class="n">DEG</span><span class="p">(</span><span class="n">gen_model</span><span class="p">,</span> <span class="n">predictor</span><span class="p">)</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
 <a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="c1"># Have it generate 8 stability-optimized sequences of length 100.</span>
 <a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="n">masked_seqs</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;&lt;mask&gt;&quot;</span> <span class="o">*</span> <span class="mi">100</span><span class="p">]</span> <span class="o">*</span> <span class="mi">8</span>
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="hll"><span class="n">seqs</span> <span class="o">=</span> <span class="n">sample_ancestral</span><span class="p">(</span><span class="n">tag</span><span class="p">,</span> <span class="n">masked_seqs</span><span class="p">)</span>
-</span></code></pre></div>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="n">seqs</span> <span class="o">=</span> <span class="n">sample_ancestral</span><span class="p">(</span><span class="n">tag</span><span class="p">,</span> <span class="n">masked_seqs</span><span class="p">)</span>
+</code></pre></div>
 </div>
 </div>
 </div>

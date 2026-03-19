@@ -1,3 +1,3 @@
 # sampling
 
-::: dfm.sampling
+::: proteingen.sampling

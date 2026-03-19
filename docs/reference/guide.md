@@ -1,3 +1,3 @@
 # guide
 
-::: dfm.guide
+::: proteingen.guide

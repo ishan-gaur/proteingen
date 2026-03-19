@@ -1,3 +1,3 @@
 # predictive_modeling
 
-::: dfm.predictive_modeling
+::: proteingen.predictive_modeling

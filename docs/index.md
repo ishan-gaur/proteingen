@@ -1,6 +1,6 @@
 ProteinGen centralizes common models and computational workflows for sequence-based protein design in one place. We provide a unified interface that makes models from different organizations--ESM, Evodiff, DPLM, ProteinMPNN--letting us implement training, sampling, and guidance algorithms on top of them as part of a single ecosystem. Our goal is to accelerate the development of new methods for drylab practitioners and to make modern statistical and deep learning methods for protein design more accessible for the wetlab community as well.
 
-ProteinGen was developed by [Ishan Gaur](ishangaur.com) and is maintained by the [Listgarten Lab](http://www.jennifer.listgarten.com/group.html) at UC Berkeley.
+ProteinGen was developed by [Ishan Gaur](https://ishangaur.com) and is maintained by the [Listgarten Lab](http://www.jennifer.listgarten.com/group.html) at UC Berkeley.
 
 ## Why ProteinGen
 

@@ -61,7 +61,7 @@ Subclasses implement `_save_args()` to return JSON-serializable constructor kwar
 A **concrete** `ProbabilityModel` subclass that wraps any `nn.Module` generative model via composition:
 
 ```python
-from dfm import TransitionModel, MaskedModelLogitFormatter
+from proteingen import TransitionModel, MaskedModelLogitFormatter
 
 model = TransitionModel(
     model=my_nn_module,
@@ -146,8 +146,8 @@ Both are `TransitionModel` subclasses — they produce guided log-probs that can
 `sample_any_order_ancestral` generates sequences by unmasking one position at a time in random order, using `model.get_log_probs` at each step:
 
 ```python
-from dfm import sample_any_order_ancestral
-from dfm.models import ESMC
+from proteingen import sample_any_order_ancestral
+from proteingen.models import ESMC
 
 model = ESMC().cuda()
 sequences = sample_any_order_ancestral(model, ["<mask>" * 100] * 8)

@@ -62,7 +62,7 @@ Before writing code, read the [Design Philosophy](reference/design-philosophy.md
 These classes share a common interface for temperature and conditioning:
 
 ```python
-from dfm.models import ESMC
+from proteingen.models import ESMC
 
 model = ESMC()
 

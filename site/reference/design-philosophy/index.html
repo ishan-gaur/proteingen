@@ -1292,7 +1292,7 @@
 <hr />
 <h3 id="transitionmodel">TransitionModel<a class="headerlink" href="#transitionmodel" title="Permanent link">&para;</a></h3>
 <p>A <strong>concrete</strong> <code>ProbabilityModel</code> subclass that wraps any <code>nn.Module</code> generative model via composition:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">dfm</span><span class="w"> </span><span class="kn">import</span> <span class="n">TransitionModel</span><span class="p">,</span> <span class="n">MaskedModelLogitFormatter</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">proteingen</span><span class="w"> </span><span class="kn">import</span> <span class="n">TransitionModel</span><span class="p">,</span> <span class="n">MaskedModelLogitFormatter</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">model</span> <span class="o">=</span> <span class="n">TransitionModel</span><span class="p">(</span>
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">model</span><span class="o">=</span><span class="n">my_nn_module</span><span class="p">,</span>
@@ -1353,8 +1353,8 @@ $$</p>
 <hr />
 <h2 id="sampling">Sampling<a class="headerlink" href="#sampling" title="Permanent link">&para;</a></h2>
 <p><code>sample_any_order_ancestral</code> generates sequences by unmasking one position at a time in random order, using <code>model.get_log_probs</code> at each step:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">dfm</span><span class="w"> </span><span class="kn">import</span> <span class="n">sample_any_order_ancestral</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">dfm.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ESMC</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">proteingen</span><span class="w"> </span><span class="kn">import</span> <span class="n">sample_any_order_ancestral</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">proteingen.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ESMC</span>
 <a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
 <a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="n">model</span> <span class="o">=</span> <span class="n">ESMC</span><span class="p">()</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span>
 <a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="n">sequences</span> <span class="o">=</span> <span class="n">sample_any_order_ancestral</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;&lt;mask&gt;&quot;</span> <span class="o">*</span> <span class="mi">100</span><span class="p">]</span> <span class="o">*</span> <span class="mi">8</span><span class="p">)</span>

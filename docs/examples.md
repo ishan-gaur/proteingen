@@ -7,8 +7,8 @@ All examples live in the `examples/` directory. Run them with `uv run python exa
 The simplest example — generate protein sequences from scratch using ESMC as a masked language model.
 
 ```python
-from dfm.models import ESMC
-from dfm import sample_any_order_ancestral
+from proteingen.models import ESMC
+from proteingen import sample_any_order_ancestral
 
 model = ESMC().cuda()
 initial_x = ["<mask>" * 256 for _ in range(5)]

@@ -1,3 +1,3 @@
 # models
 
-::: dfm.models
+::: proteingen.models
