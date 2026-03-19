@@ -19,64 +19,69 @@ We have structured our codebase and documentation to empower you to develop new 
 3. [Contributing](contributing.md): we want to make it easy for people to use cutting edge models and design algorithms. A key part of this is making it easy for you to get your own work out there. We include SKILLS.md files that help your coding agents make your research code ProteinGen compatible and submit pull requests to add your work to the next release. We want to make this possible even if you've never contributed to open source before.
 
 
-### Trying new models is dead simple now
+### Trying new models is dead simple
 
-For example, this is all the machine learning code you need to replicate the stability optimization experiments from our recent [ProteinGuide preprint](https://arxiv.org/abs/2505.04823).
-```python
-from dfm.models import ESM3, StabilityPredictor
-from dfm.guide import TAG
-from dfm.sampling import sample_euler
+For example, this is all the machine learning code you need to replicate the stability optimization experiments from our recent [ProteinGuide preprint](https://arxiv.org/abs/2505.04823). In that paper we present two guidance algorithms: TAG (fast, gradient-based) and DEG (exact, enumeration-based). With ProteinGen, switching between algorithms or swapping in a completely different generative model is as easy as changing the imports:
 
-# Load the models
-coords = ... # load backbone structure from pdb file
-gen_model = ESM3("esm3-small").conditioned_on({"structure": coords})
-predictor = StabilityPredictor()
+=== "TAG + ESM3"
 
-# Get the stability guided models
-tag = TAG(gen_model, predictor).cuda()
+    ```python hl_lines="2 3 11 15"
+    from proteingen.models import ESM3, StabilityPredictor
+    from proteingen.guide import TAG
+    from proteingen.sampling import sample_euler
 
-# Have it generate 8 stability-optimized sequences of length 100.
-masked_seqs = ["<mask>" * 100] * 8
-seqs = sample_euler_integration(tag, masked_seqs)
-```
+    # Load the models
+    coords = ... # load backbone structure from pdb file
+    gen_model = ESM3("esm3-small").conditioned_on({"structure": coords})
+    predictor = StabilityPredictor()
 
-In that paper we present two different algorithms to sample stability-guided sequences. The first, TAG, was used above and is a fast, but approximate method. If we wanted to, we could try DEG instead. DEG is a more expensive, exact sampling that can sometimes be helpful for harder design problem or when the predictive model is not differentiable. With ProteinGen, this is as easy as changing the imports and the variable constructors.
-```python
-from dfm.models import ESM3, StabilityPredictor
-from dfm.guide import DEG
-from dfm.sampling import sample_ancestral
+    # Get the stability guided models
+    tag = TAG(gen_model, predictor).cuda()
 
-# Load the models
-coords = ... # load backbone structure from pdb file
-gen_model = ESM3("esm3-small").conditioned_on({"structure": coords})
-predictor = StabilityPredictor()
+    # Have it generate 8 stability-optimized sequences of length 100.
+    masked_seqs = ["<mask>" * 100] * 8
+    seqs = sample_euler_integration(tag, masked_seqs)
+    ```
 
-# Get the stability guided models
-tag = DEG(gen_model, predictor).cuda()
+=== "DEG + ESM3"
 
-# Have it generate 8 stability-optimized sequences of length 100.
-masked_seqs = ["<mask>" * 100] * 8
-seqs = sample_ancestral(tag, masked_seqs)
-```
+    ```python hl_lines="2 3 11 15"
+    from proteingen.models import ESM3, StabilityPredictor
+    from proteingen.guide import DEG
+    from proteingen.sampling import sample_ancestral
 
-Finally, let's say we want to try PMPNN instead of ESM3
-```python
-from dfm.models import PMPNN, StabilityPredictor
-from dfm.guide import DEG
-from dfm.sampling import sample_ancestral
+    # Load the models
+    coords = ... # load backbone structure from pdb file
+    gen_model = ESM3("esm3-small").conditioned_on({"structure": coords})
+    predictor = StabilityPredictor()
 
-# Load the models
-coords = ... # load backbone structure from pdb file
-gen_model = PMPNN.conditioned_on({"structure": coords})
-predictor = StabilityPredictor()
+    # Get the stability guided models
+    tag = DEG(gen_model, predictor).cuda()
 
-# Get the stability guided models
-tag = DEG(gen_model, predictor).cuda()
+    # Have it generate 8 stability-optimized sequences of length 100.
+    masked_seqs = ["<mask>" * 100] * 8
+    seqs = sample_ancestral(tag, masked_seqs)
+    ```
 
-# Have it generate 8 stability-optimized sequences of length 100.
-masked_seqs = ["<mask>" * 100] * 8
-seqs = sample_ancestral(tag, masked_seqs)
-```
+=== "DEG + PMPNN"
+
+    ```python hl_lines="1 7"
+    from proteingen.models import PMPNN, StabilityPredictor
+    from proteingen.guide import DEG
+    from proteingen.sampling import sample_ancestral
+
+    # Load the models
+    coords = ... # load backbone structure from pdb file
+    gen_model = PMPNN.conditioned_on({"structure": coords})
+    predictor = StabilityPredictor()
+
+    # Get the stability guided models
+    tag = DEG(gen_model, predictor).cuda()
+
+    # Have it generate 8 stability-optimized sequences of length 100.
+    masked_seqs = ["<mask>" * 100] * 8
+    seqs = sample_ancestral(tag, masked_seqs)
+    ```
 
 <!-- TODO[pi]: flesh out home page with a diagram showing the generative + predictive model combination via Bayes' rule -->
 <!-- TODO[pi]: add a quick "5-line example" code block showing unconditional sampling -->
