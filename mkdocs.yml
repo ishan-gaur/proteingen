@@ -1,7 +1,76 @@
 site_name: ProteinGen
 site_url: https://ishan-gaur.github.io/proteingen/
+repo_url: https://github.com/ishan-gaur/proteingen
+repo_name: ishan-gaur/proteingen
+
 theme:
   name: material
   palette:
-    scheme: default
-    primary: amber
+    - scheme: default
+      primary: amber
+      accent: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: amber
+      accent: deep orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - content.code.copy
+    - toc.integrate
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - attr_list
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: true
+            show_root_heading: true
+            show_symbol_type_heading: true
+            heading_level: 3
+            members_order: source
+            docstring_style: google
+            show_signature_annotations: true
+            separate_signature: true
+
+nav:
+  - Home: index.md
+  - Setup: setup.md
+  - Examples: examples.md
+  - Models: models.md
+  - Workflows:
+    - Overview: workflows/index.md
+    - ProteinGuide: workflows/protein-guide.md
+  - Contributing: contributing.md
+  - Reference:
+    - Design Philosophy: reference/design-philosophy.md
+    - API Reference:
+      - probability_model: reference/probability_model.md
+      - generative_modeling: reference/generative_modeling.md
+      - predictive_modeling: reference/predictive_modeling.md
+      - guide: reference/guide.md
+      - sampling: reference/sampling.md
+      - data: reference/data.md
+      - models: reference/models.md
