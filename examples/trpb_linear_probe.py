@@ -24,10 +24,10 @@ from huggingface_hub import hf_hub_download
 from scipy.stats import spearmanr
 from torch.utils.data import DataLoader, TensorDataset
 
-from dfm.guide import TAG
-from dfm.models.esm import ESMC
-from dfm.predictive_modeling import LinearProbe, point_estimate_binary_logits
-from dfm.sampling import sample_any_order_ancestral
+from proteingen.guide import TAG
+from proteingen.models.esm import ESMC
+from proteingen.predictive_modeling import LinearProbe, point_estimate_binary_logits
+from proteingen.sampling import sample_any_order_ancestral
 
 
 DATASET_ID = "SaProtHub/Dataset-TrpB_fitness_landsacpe"

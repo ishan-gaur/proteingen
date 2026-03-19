@@ -5,9 +5,9 @@ from types import SimpleNamespace
 import torch
 from torch import nn
 
-from dfm.generative_modeling import TransitionModel, PassThroughLogitFormatter
-from dfm.predictive_modeling import PredictiveModel, binary_logits
-from dfm.guide import TAG, LinearGuidanceProjection
+from proteingen.generative_modeling import TransitionModel, PassThroughLogitFormatter
+from proteingen.predictive_modeling import PredictiveModel, binary_logits
+from proteingen.guide import TAG, LinearGuidanceProjection
 
 
 def make_tokenizer(

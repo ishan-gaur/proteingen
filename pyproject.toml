@@ -1,5 +1,5 @@
 [project]
-name = "dfm"
+name = "proteingen"
 version = "0.1.0"
 description = "Everything you need for training, sampling from, and guiding discrete sequence models in research. We support using them as part of discrete flow matching, discrete diffusion, any-order autoregressive, or masked language models. You can also do basic training and sampling for both conditional and unconditional models."
 readme = "README.md"

@@ -1,5 +1,5 @@
-from dfm.models import ESMC
-from dfm import sample_any_order_ancestral
+from proteingen.models import ESMC
+from proteingen import sample_any_order_ancestral
 
 n_samples = 5
 len_sample = 256
