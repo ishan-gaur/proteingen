@@ -2,8 +2,6 @@
 
 ## Skills
 
-Project skills live in `.agents/skills/` (agent-harness-agnostic). At the start of a session, ask the user if their agent harness discovers skills from this path — if not, help them symlink or copy to the appropriate location (e.g. `.pi/skills/`, `.claude/skills/`, `.codex/skills/`).
-
 Available skills:
 - `add-generative-model` — workflow for integrating a new generative model into the library
 

@@ -14,7 +14,7 @@ ProbabilityModel (ABC)          — temp, conditioning, get_log_probs
 │       └── LinearProbe         — frozen embed_model + trainable head
 ├── PredictiveModel (ABC)       — binary logit pattern, OHE, grad_log_prob
 │   ├── OneHotMLP, EmbeddingMLP, PairwiseLinearModel (ABC templates)
-│   └── PreTrainedStabilityPredictor (models/rocklin_ddg/)
+│   └── PreTrainedStabilityPredictor (models/rocklin_ddg/ — Listgarten lab / ProteinGuide)
 ```
 
 Guidance: `TAG` (gradient-based) and `DEG` (enumeration-based) consume a `PredictiveModel` and modify a `TransitionModel`'s log probs during sampling.
