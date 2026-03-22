@@ -890,6 +890,157 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#transitionmodel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TransitionModel
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TransitionModel">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#overriding-for-non-tensor-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overriding for non-tensor outputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transitionmodelwithembedding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TransitionModelWithEmbedding
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TransitionModelWithEmbedding">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#subclass-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Subclass requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-ohe-flows-through" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How OHE flows through
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logitformatter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LogitFormatter
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="LogitFormatter">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#maskedmodellogitformatter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MaskedModelLogitFormatter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#passthroughlogitformatter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PassThroughLogitFormatter
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mpnntokenizer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MPNNTokenizer
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lora-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LoRA support
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#proteingen.generative_modeling" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1160,6 +1311,11 @@
     </nav>
   
 </li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
     </ul>
   
@@ -1346,6 +1502,102 @@
 
 
 <h1 id="generative_modeling">generative_modeling<a class="headerlink" href="#generative_modeling" title="Permanent link">&para;</a></h1>
+<p>This module contains the <code>TransitionModel</code> class hierarchy, <code>LogitFormatter</code> protocol, <code>MPNNTokenizer</code>, and LoRA support. These are the building blocks for wrapping any generative model (masked LMs, flow-matching models, ProteinMPNN) into ProteinGen's interface.</p>
+<h2 id="transitionmodel">TransitionModel<a class="headerlink" href="#transitionmodel" title="Permanent link">&para;</a></h2>
+<p>A <strong>concrete</strong> <code>ProbabilityModel</code> subclass that wraps any <code>nn.Module</code> via composition:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">TransitionModel</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">tokenizer</span><span class="p">,</span> <span class="n">logit_formatter</span><span class="p">:</span> <span class="n">LogitFormatter</span><span class="p">)</span>
+</code></pre></div>
+<ul>
+<li><code>forward(seq_SP, **kwargs)</code> delegates to <code>self.model(seq_SP, **kwargs)</code></li>
+<li><code>format_raw_to_logits</code> applies <code>self.logit_formatter(raw, seq_SP)</code></li>
+<li><code>get_log_probs_from_string(sequences)</code> tokenizes input strings, then calls <code>get_log_probs</code></li>
+</ul>
+<h3 id="overriding-for-non-tensor-outputs">Overriding for non-tensor outputs<a class="headerlink" href="#overriding-for-non-tensor-outputs" title="Permanent link">&para;</a></h3>
+<p>When the wrapped model returns a dataclass (not a raw tensor), override <code>format_raw_to_logits</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">format_raw_to_logits</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw_output</span><span class="p">,</span> <span class="n">seq_SP</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="n">logits</span> <span class="o">=</span> <span class="n">raw_output</span><span class="o">.</span><span class="n">sequence_logits</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">logit_formatter</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">seq_SP</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="transitionmodelwithembedding">TransitionModelWithEmbedding<a class="headerlink" href="#transitionmodelwithembedding" title="Permanent link">&para;</a></h2>
+<p>An <strong>ABC</strong> extending <code>TransitionModel</code> for models that expose a differentiable embedding path. This is needed for two features:</p>
+<ol>
+<li><strong>TAG gradients</strong> — backpropagation from predictive model through generative model embeddings</li>
+<li><strong>LinearProbe</strong> — extracting and caching deep embeddings for probe training</li>
+</ol>
+<h3 id="abstract-methods">Abstract methods<a class="headerlink" href="#abstract-methods" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Signature</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>differentiable_embedding</code></td>
+<td><code>(ohe_seq_SPT: FloatTensor) → FloatTensor</code></td>
+<td>OHE → deep embeddings (through embedding layer + transformer body)</td>
+</tr>
+<tr>
+<td><code>embedding_to_outputs</code></td>
+<td><code>(embedding_SPD: FloatTensor) → Any</code></td>
+<td>Deep embeddings → raw model output (same type as <code>forward</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="subclass-requirements">Subclass requirements<a class="headerlink" href="#subclass-requirements" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Set <code>EMB_DIM: int</code> — embedding dimensionality (e.g. 960 for ESMC, 1536 for ESM3)</li>
+<li>The output of <code>embed()</code> must be shape <code>(S, P, EMB_DIM)</code></li>
+</ul>
+<h3 id="how-ohe-flows-through">How OHE flows through<a class="headerlink" href="#how-ohe-flows-through" title="Permanent link">&para;</a></h3>
+<p><code>embed()</code> creates a one-hot encoding at <code>tokenizer.vocab_size</code> (e.g. 33 for ESM). If the model's actual embedding table is wider (e.g. 64 for ESM's alignment padding), <code>differentiable_embedding</code> handles the mismatch internally via <code>ohe @ embed.weight</code>. Gradients flow back through the matmul to the vocab-sized OHE — TAG only sees vocab-sized gradients.</p>
+<h2 id="logitformatter">LogitFormatter<a class="headerlink" href="#logitformatter" title="Permanent link">&para;</a></h2>
+<p>A <code>@runtime_checkable Protocol</code> defining <code>__call__(logits, input_ids) → FloatTensor</code>.</p>
+<h3 id="maskedmodellogitformatter">MaskedModelLogitFormatter<a class="headerlink" href="#maskedmodellogitformatter" title="Permanent link">&para;</a></h3>
+<p>The standard formatter for masked language models. Key design decisions:</p>
+<ul>
+<li><strong>Direct indexing</strong> (<code>mask_matrix[token_ids]</code>) instead of one-hot matmul — because <code>0.0 × (-inf) = NaN</code> (IEEE float)</li>
+<li><strong>Additive masking</strong> (<code>0.0</code> pass-through, <code>-inf</code> block) instead of multiplicative — multiplying logits by <code>-inf</code> gives wrong signs for negative logits</li>
+<li>Uses <code>register_buffer</code> for the mask matrix (automatic device tracking, no gradients)</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title"><code>output_dim</code> vs <code>vocab_size</code></p>
+<p><code>output_dim</code> can exceed <code>vocab_size</code> for alignment. For example, ESM models output 64 logits but only 33 are real vocabulary tokens. The extra columns are valid mask output positions.</p>
+</div>
+<h3 id="passthroughlogitformatter">PassThroughLogitFormatter<a class="headerlink" href="#passthroughlogitformatter" title="Permanent link">&para;</a></h3>
+<p>Returns <code>logits.float()</code> unchanged. For models that don't need output masking.</p>
+<h2 id="mpnntokenizer">MPNNTokenizer<a class="headerlink" href="#mpnntokenizer" title="Permanent link">&para;</a></h2>
+<p>Wraps ProteinMPNN's amino acid vocabulary with an HF-compatible interface.</p>
+<ul>
+<li>Default: 20 standard AAs + UNK(X), indexed 0–20</li>
+<li><code>include_mask_token=True</code> appends <code>&lt;mask&gt;</code> at idx 21 (needed when TAG guidance requires an explicit predictor-side mask token)</li>
+<li><code>.vocab</code> returns <code>dict[str, int]</code> — same interface as HF tokenizers, used by <code>pca_embed_init</code> for cross-tokenizer vocabulary mapping</li>
+<li>No <code>cls_token_id</code>, <code>eos_token_id</code>, or <code>pad_token_id</code> (all <code>None</code>)</li>
+</ul>
+<h2 id="lora-support">LoRA support<a class="headerlink" href="#lora-support" title="Permanent link">&para;</a></h2>
+<p>LoRA adapter support lives on <code>TransitionModel</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">model</span><span class="o">.</span><span class="n">apply_lora</span><span class="p">(</span><span class="n">target_modules</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">lora_alpha</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">model</span><span class="o">.</span><span class="n">save_lora</span><span class="p">(</span><span class="s2">&quot;adapters/my_adapter&quot;</span><span class="p">)</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">model</span><span class="o">.</span><span class="n">load_lora</span><span class="p">(</span><span class="s2">&quot;adapters/my_adapter&quot;</span><span class="p">)</span>
+</code></pre></div>
+<ul>
+<li><code>target_modules=None</code> auto-discovers all <code>nn.Linear</code> modules via <code>lora_target_modules()</code></li>
+<li>After <code>apply_lora</code>, <code>self.model</code> becomes a <code>PeftModel</code> — attribute access delegates through PEFT</li>
+<li><code>has_lora</code> property checks <code>isinstance(self.model, PeftModel)</code></li>
+<li>Checkpointing is automatic: <code>save()</code> writes <code>lora_adapter/</code> if present, <code>from_checkpoint()</code> loads it</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">LoRA learning rate</p>
+<p>LoRA-adapted large models (e.g. ESM3 1.4B) can collapse to constant predictions with lr=1e-3. Use lr=1e-4 or lower. Consider separate optimizer param groups for LoRA parameters vs. the prediction head.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Lazy module loading</p>
+<p>If a model loads submodules lazily (e.g. ESM3's VQ-VAE encoder loaded on first <code>set_condition_()</code> call), those parameters won't be frozen by <code>apply_lora()</code>. After triggering lazy load, re-freeze all base params then re-enable <code>lora_</code> params.</p>
+</div>
+<hr />
+<h2 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h2>
 
 
 <div class="doc doc-object doc-module">

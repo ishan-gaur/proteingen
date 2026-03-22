@@ -1002,6 +1002,40 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#noiseschedule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NoiseSchedule
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#guidancedataset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GuidanceDataset
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#proteingen.data" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1060,6 +1094,11 @@
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -1141,6 +1180,48 @@
 
 
 <h1 id="data">data<a class="headerlink" href="#data" title="Permanent link">&para;</a></h1>
+<p>Dataset utilities and noise schedules for training noisy classifiers — predictive models that work well during the iterative denoising/sampling process.</p>
+<h2 id="noiseschedule">NoiseSchedule<a class="headerlink" href="#noiseschedule" title="Permanent link">&para;</a></h2>
+<p>A callable that returns a timestep <code>t ∈ [0, 1]</code> where <code>t=0</code> is fully masked and <code>t=1</code> is fully unmasked.</p>
+<p>Built-in schedules:</p>
+<table>
+<thead>
+<tr>
+<th>Schedule</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>unmasked_only()</code></td>
+<td>Always returns 1.0 (no masking)</td>
+</tr>
+<tr>
+<td><code>uniform_schedule()</code></td>
+<td>Samples t uniformly from [0, 1]</td>
+</tr>
+</tbody>
+</table>
+<h2 id="guidancedataset">GuidanceDataset<a class="headerlink" href="#guidancedataset" title="Permanent link">&para;</a></h2>
+<p>A <code>torch.utils.data.Dataset</code> for training noisy classifiers.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">GuidanceDataset</span><span class="p">(</span><span class="n">sequences</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">tokenize</span><span class="p">,</span> <span class="n">noise_schedule</span><span class="p">,</span> <span class="n">mask_token</span><span class="p">,</span> <span class="n">sequence_metadata</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+<ul>
+<li><code>tokenize</code> — callable converting (sequence, optional metadata) → model input dict</li>
+<li><code>noise_schedule</code> — <code>NoiseSchedule</code> callable for sampling masking timesteps</li>
+<li><code>mask_token</code> — token string used for masking positions (e.g. <code>"&lt;mask&gt;"</code>)</li>
+<li><code>sequence_metadata</code> — optional per-sequence side info (e.g. structures) passed to <code>tokenize</code></li>
+</ul>
+<p>Each <code>__getitem__</code> returns:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span><span class="s2">&quot;input&quot;</span><span class="p">:</span> <span class="n">tokenized</span><span class="p">,</span> <span class="s2">&quot;labels&quot;</span><span class="p">:</span> <span class="n">labels</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="s2">&quot;timestep&quot;</span><span class="p">:</span> <span class="n">t</span><span class="p">,</span> <span class="s2">&quot;mask&quot;</span><span class="p">:</span> <span class="n">mask</span><span class="p">}</span>
+</code></pre></div>
+<p>Where <code>mask</code> is a boolean tensor of positions masked at the sampled timestep.</p>
+<div class="admonition note">
+<p class="admonition-title">Status</p>
+<p>This module is partially implemented. TODOs remain for the noising implementation in <code>__getitem__</code> (currently masks the string directly) and train/dev/test split support with reproducible seeding.</p>
+</div>
+<hr />
+<h2 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h2>
 
 
 <div class="doc doc-object doc-module">
