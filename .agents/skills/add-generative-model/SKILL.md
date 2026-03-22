@@ -7,9 +7,22 @@ description: Step-by-step workflow for integrating a new generative (transition)
 
 Workflow for wrapping a new pretrained generative model (e.g. a protein language model) into proteingen's `TransitionModel` hierarchy. This skill covers `TransitionModel` (composition) and `TransitionModelWithEmbedding` (ABC with differentiable embeddings). It does **not** cover `PredictiveModel` subclasses — those are a separate concern.
 
-## Phase 1: Understand the New Model
+## Phase 1: Get Access & Align on Scope
 
-Before writing any code, gather:
+Before writing any code:
+
+1. **Clone or access the original model repo** — get the upstream source code so you can read the actual implementation (forward pass, tokenizer, embedding layers, etc.). If it's a HuggingFace model, pull the relevant modeling files. If it's a private repo, ask the user for access.
+2. **Get an example script** — ask the user for a specific script or notebook they want to replicate using the proteingen abstractions. This is the acceptance criterion: the example should work end-to-end with the new wrapper.
+3. **Clarify integration details** with the user before proceeding:
+   - Which inputs are **conditioning variables** (e.g. structure, chain info) vs. sequence inputs?
+   - How should **weights be stored and loaded**? (HuggingFace hub, local checkpoint path, bundled with the package?)
+   - Are there **multiple model variants/sizes** to support?
+   - Any **licensing or access restrictions** on weights?
+4. **Get user approval** — present a summary of what you'll build (which base class, what the interface will look like, what the example script will do) and get explicit sign-off before starting implementation.
+
+## Phase 2: Understand the Model Internals
+
+With access to the source code, gather:
 
 1. **Model architecture** — what does its forward pass return? (raw logits tensor, a dataclass, multiple heads?)
 2. **Tokenizer** — does it use a HuggingFace tokenizer? What's the vocab size? Are there special tokens (CLS, EOS, PAD, MASK)?
@@ -20,7 +33,7 @@ Before writing any code, gather:
 
 Present your findings and confirm with the user before proceeding.
 
-## Phase 2: Create the Directory Structure
+## Phase 3: Create the Directory Structure
 
 ```bash
 mkdir -p src/proteingen/models/<name>/
@@ -33,7 +46,7 @@ Files to create:
 Update `src/proteingen/models/__init__.py` to export the new class.
 Update `src/proteingen/models/AGENTS.md` to add the model to the registry.
 
-## Phase 3: Implement
+## Phase 4: Implement
 
 ### Step 1: Choose between TransitionModel and TransitionModelWithEmbedding
 
@@ -57,6 +70,15 @@ or any workflow requiring gradients through the embedding step?
 ```
 
 Most protein language models should use `TransitionModelWithEmbedding` — TAG guidance and embedding-based probes are core use cases.
+
+### TypedDicts for structured inputs/outputs
+
+Define `TypedDict`s for:
+
+- **Conditioning input** — if the model accepts conditioning variables (structure coords, chain IDs, etc.), define a `TypedDict` for the conditioning dict so the interface is self-documenting and type-checkable. E.g. `class ESM3Conditioning(TypedDict): structure_coords: Tensor; ...`
+- **Raw forward output** — if `forward` or `embedding_to_outputs` returns something richer than a plain tensor (e.g. a dataclass with multiple heads), define a `TypedDict` for the raw output so downstream code can access fields by name. This replaces opaque `Any` return types.
+
+Place these in the model's `__init__.py` alongside the model class. Export them from `models/__init__.py`.
 
 ### Step 2a: TransitionModelWithEmbedding (most common path)
 
@@ -126,7 +148,7 @@ tm = TransitionModel(model, tokenizer, formatter)
 
 Override `format_raw_to_logits` if the model's forward returns something other than a logit tensor.
 
-## Phase 4: Write Tests
+## Phase 5: Write Tests
 
 Create `tests/test_<name>.py`. Required test categories:
 
@@ -163,7 +185,7 @@ Create `tests/test_<name>.py`. Required test categories:
 - `save()` + `from_checkpoint()` round-trips
 - Loaded model produces same outputs as original
 
-## Phase 5: Write the Design Doc
+## Phase 6: Write the Design Doc
 
 Create `src/proteingen/models/<name>/<name>.md` following the pattern in `models/esm/esm.md`:
 
@@ -172,6 +194,19 @@ Create `src/proteingen/models/<name>/<name>.md` following the pattern in `models
 - **Architecture** — internals (what are the sub-modules, how does forward work)
 - **Checkpointing** — what gets saved, any stashed args
 - **Gotchas** — model-specific traps (device args, lazy loading, dtype issues, OOM thresholds)
+
+## Phase 7: Add Documentation
+
+After the model is implemented and tests pass, add documentation:
+
+1. **MkDocs page** — add a page for the model in `docs/` following the existing pattern (see `docs/AGENTS.md` for structure). Include:
+   - What the model does and where it comes from (paper, repo link)
+   - How to load and use it with proteingen
+   - Code snippets for common workflows (forward pass, sampling, conditioning, guidance)
+   - Any model-specific configuration (variants, checkpoint sizes, device requirements)
+2. **Update `mkdocs.yml`** — add the new page to the nav.
+3. **Update `models/AGENTS.md`** — add the model to the registry with a link to its design doc.
+4. **Update `src/proteingen/models/__init__.py`** — ensure the model class and any TypedDicts are exported.
 
 ## Common Gotchas Checklist
 

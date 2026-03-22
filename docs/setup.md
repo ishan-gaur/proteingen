@@ -107,6 +107,26 @@ cat >> AGENTS.md << 'EOF'
 EOF
 ```
 
+### Add agent skills
+
+ProteinGen ships with agent skills in `proteingen/.agents/skills/` — step-by-step workflows your coding agent can follow for common tasks (e.g. adding a new generative model). Copy or symlink them to wherever your agent harness expects skills:
+
+=== "Claude Code"
+
+    ```bash
+    cp -r ./proteingen/.agents/skills/ .claude/skills/
+    ```
+
+=== "Pi"
+
+    ```bash
+    cp -r ./proteingen/.agents/skills/ .pi/skills/
+    ```
+
+=== "Other agents"
+
+    Check your agent's docs for where it discovers skills, then copy the `proteingen/.agents/skills/` directory there.
+
 <!-- TODO[pi]: finalize the recommended project setup flow — should we provide a `proteingen init` CLI command? -->
 
 ## 4. Learn the design

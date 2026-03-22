@@ -1,6 +1,6 @@
 # Stability Predictor (rocklin_ddg) — Design Notes
 
-PMPNN-based stability predictor for protein design guidance.
+PMPNN-based stability predictor for protein design guidance. Developed by the **Listgarten lab** for use in [ProteinGuide](https://github.com/Listgarten-lab/proteinguide), trained on the **Megascale dataset** from the Rocklin lab. The directory name `rocklin_ddg` reflects the training data origin, not the model's authorship.
 
 ## Dependencies
 

@@ -6,7 +6,7 @@ New here? Start with:
 
 ---
 
-## Why ProteinGen
+## What is ProteinGen?
 
 Today, every time you need to try a different model, training, or sampling algorithm, you basically have to rewrite your existing code from scratch. Even worse to use the latest sampling and design techniques you might have to wade through hundreds of lines of library code to figure out, for example, that ESM only uses 33 of their 64 output logits or exactly how you were supposed to format conditioning inputs for ProteinMPNN. 
 
