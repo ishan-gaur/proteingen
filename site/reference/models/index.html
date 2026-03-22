@@ -1028,6 +1028,29 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#tokenization-landscape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tokenization landscape
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#proteingen.models" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1035,6 +1058,11 @@
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1083,6 +1111,41 @@
 
 
 <h1 id="models">models<a class="headerlink" href="#models" title="Permanent link">&para;</a></h1>
+<p>Concrete model implementations that subclass the core abstractions. Each model wraps an external library (ESM, ProteinMPNN) into ProteinGen's unified interface.</p>
+<h2 id="tokenization-landscape">Tokenization landscape<a class="headerlink" href="#tokenization-landscape" title="Permanent link">&para;</a></h2>
+<p>Three tokenizer ecosystems coexist in the library — cross-tokenizer mapping is handled by <code>GuidanceProjection</code> (see <a href="../guide/">guide</a>):</p>
+<table>
+<thead>
+<tr>
+<th>Tokenizer</th>
+<th>Vocab size</th>
+<th>Special tokens</th>
+<th>Used by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ESM (<code>EsmSequenceTokenizer</code>)</td>
+<td>33</td>
+<td><code>&lt;cls&gt;=0, &lt;pad&gt;=1, &lt;eos&gt;=2, &lt;unk&gt;=3, &lt;mask&gt;=32</code></td>
+<td>ESMC, ESM3, ESM3IF</td>
+</tr>
+<tr>
+<td>MPNN (<code>MPNNTokenizer</code>)</td>
+<td>21 (or 22 with mask)</td>
+<td><code>UNK(X)=20</code>, optional <code>&lt;mask&gt;=21</code></td>
+<td>StabilityPMPNN</td>
+</tr>
+<tr>
+<td>Simple 20-AA</td>
+<td>21</td>
+<td><code>pad=20</code></td>
+<td>Custom predictors</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h2>
 
 
 <div class="doc doc-object doc-module">

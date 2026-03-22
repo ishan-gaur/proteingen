@@ -580,6 +580,45 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="ESM3">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#structure-conditioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Structure conditioning
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory considerations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lora-specifics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LoRA specifics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -601,6 +640,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="StabilityPMPNN">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cross-tokenizer-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-tokenizer behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -1136,7 +1192,6 @@
 <th>Model</th>
 <th>Class</th>
 <th>Source</th>
-<th>Weights</th>
 <th>Conditioning</th>
 <th>Output</th>
 </tr>
@@ -1146,7 +1201,6 @@
 <td>ESMC (300m/600m)</td>
 <td><code>proteingen.models.ESMC</code></td>
 <td><a href="https://github.com/evolutionaryscale/esm">EvolutionaryScale/esm</a></td>
-<td>HuggingFace: <code>esmc_300m</code>, <code>esmc_600m</code></td>
 <td>None (masked LM)</td>
 <td><code>(B, L, 64)</code> logits</td>
 </tr>
@@ -1154,7 +1208,6 @@
 <td>ESM3</td>
 <td><code>proteingen.models.ESM3</code></td>
 <td><a href="https://github.com/evolutionaryscale/esm">EvolutionaryScale/esm</a></td>
-<td>HuggingFace: <code>esm3-open</code></td>
 <td>Structure (atom37 coords)</td>
 <td><code>(B, L, 64)</code> logits</td>
 </tr>
@@ -1162,7 +1215,6 @@
 <td>ESM3IF</td>
 <td><code>proteingen.models.ESM3IF</code></td>
 <td><a href="https://github.com/evolutionaryscale/esm">EvolutionaryScale/esm</a></td>
-<td>HuggingFace: <code>esm3-open</code></td>
 <td>Structure (atom37 coords, <strong>required</strong>)</td>
 <td><code>(B, L, 64)</code> logits</td>
 </tr>
@@ -1170,35 +1222,99 @@
 <td>StabilityPMPNN</td>
 <td><code>proteingen.models.rocklin_ddg.PreTrainedStabilityPredictor</code></td>
 <td>In-repo (ProteinMPNN-based)</td>
-<td>Manual download</td>
 <td>Structure (PDB → featurize)</td>
 <td>Scalar stability logit</td>
 </tr>
 </tbody>
 </table>
+<hr />
 <h3 id="esmc">ESMC<a class="headerlink" href="#esmc" title="Permanent link">&para;</a></h3>
-<p>ESM-C masked language model, available in 300m and 600m parameter variants. Wraps the ESM model as a <code>TransitionModelWithEmbedding</code>, providing both generative sampling and differentiable embedding extraction (used by <code>LinearProbe</code>).</p>
+<p>ESM-C masked language model, available in 300m and 600m parameter variants. Wraps the ESM model as a <code>TransitionModelWithEmbedding</code>, providing both generative sampling and differentiable embedding extraction (used by <code>LinearProbe</code> and TAG).</p>
 <ul>
-<li><strong>Output dim</strong>: 64 (33 real vocab + 31 alignment padding)</li>
+<li><strong>Output dim</strong>: 64 (33 real vocab + 31 alignment padding — handled automatically by <code>MaskedModelLogitFormatter</code>)</li>
 <li><strong>Embedding dim</strong>: 960 (300m) — set dynamically from model weights</li>
 <li><strong>LoRA support</strong>: yes, via <code>apply_lora()</code></li>
 </ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">proteingen.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ESMC</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">model</span> <span class="o">=</span> <span class="n">ESMC</span><span class="p">(</span><span class="s2">&quot;esmc_300m&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span>  <span class="c1"># or &quot;esmc_600m&quot;</span>
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">300m vs 600m</p>
+<p>ESMC-300m and ESMC-600m produce essentially identical correlation on the TrpB benchmark (ρ = 0.38 vs 0.39). The 300m variant is recommended for development and prototyping.</p>
+</div>
 <h3 id="esm3">ESM3<a class="headerlink" href="#esm3" title="Permanent link">&para;</a></h3>
 <p>ESM3-open (1.4B parameters). Supports optional structure conditioning via atom37 coordinates.</p>
 <ul>
 <li><strong>Output dim</strong>: 64</li>
 <li><strong>Embedding dim</strong>: 1536</li>
-<li><strong>Structure conditioning</strong>: pass <code>coords_RAX</code> (atom37 format, shape <code>(L, 37, 3)</code>) via <code>set_condition_()</code> or <code>conditioned_on()</code>. Runs VQ-VAE encoder once, caches structure tokens.</li>
-<li><strong>LoRA support</strong>: yes, via <code>apply_lora()</code> — use <code>lr ≤ 1e-4</code> to avoid mode collapse; <code>batch_size ≤ 16</code> with bfloat16 AMP to avoid OOM from geometric attention.</li>
+<li><strong>LoRA support</strong>: yes — use <code>lr ≤ 1e-4</code> to avoid mode collapse</li>
 </ul>
+<h4 id="structure-conditioning">Structure conditioning<a class="headerlink" href="#structure-conditioning" title="Permanent link">&para;</a></h4>
+<p>ESM3 accepts atom37-format coordinates as conditioning input. The <code>set_condition_()</code> method runs the VQ-VAE structure encoder once (expensive), then all subsequent calls use cached structure tokens:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">proteingen.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ESM3</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">model</span> <span class="o">=</span> <span class="n">ESM3</span><span class="p">(</span><span class="s2">&quot;esm3-open&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">coords</span> <span class="o">=</span> <span class="o">...</span>  <span class="c1"># atom37 format, shape (L, 37, 3)</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c1"># Context manager (reverts conditioning on exit)</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="k">with</span> <span class="n">model</span><span class="o">.</span><span class="n">conditioned_on</span><span class="p">({</span><span class="s2">&quot;coords_RAX&quot;</span><span class="p">:</span> <span class="n">coords</span><span class="p">}):</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">log_probs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get_log_probs</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Or persistent conditioning</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="n">model</span><span class="o">.</span><span class="n">set_condition_</span><span class="p">({</span><span class="s2">&quot;coords_RAX&quot;</span><span class="p">:</span> <span class="n">coords</span><span class="p">})</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Structure conditioning is length-locked</p>
+<p><code>set_condition_()</code> preprocesses coordinates to fixed-length structure tokens (L+2 with BOS/EOS). All subsequent calls must use sequences of exactly that length, or you get a shape mismatch.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Lazy VQ-VAE loading and parameter freezing</p>
+<p>ESM3's structure encoder (<code>_structure_encoder</code>) is loaded lazily on first <code>set_condition_()</code> call. If you froze parameters before conditioning (e.g. via <code>apply_lora()</code>), the encoder's ~30M parameters won't be frozen. <strong>Always set up conditioning before freezing</strong>, or re-freeze after.</p>
+</div>
+<h4 id="memory-considerations">Memory considerations<a class="headerlink" href="#memory-considerations" title="Permanent link">&para;</a></h4>
+<p>ESM3's geometric attention computes pairwise (L×L) tensors. For a sequence of length 297:</p>
+<ul>
+<li><code>batch_size ≥ 32</code> OOMs on 48GB GPU</li>
+<li><code>batch_size = 16</code> with bfloat16 AMP is optimal (~32s/epoch for LoRA training)</li>
+</ul>
+<h4 id="lora-specifics">LoRA specifics<a class="headerlink" href="#lora-specifics" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Rank (r)</th>
+<th>Trainable params</th>
+<th>% of 1.4B</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>8</td>
+<td>~9.8M</td>
+<td>0.69%</td>
+</tr>
+<tr>
+<td>4</td>
+<td>~4.9M</td>
+<td>0.35%</td>
+</tr>
+<tr>
+<td>2</td>
+<td>~2.5M</td>
+<td>0.18%</td>
+</tr>
+</tbody>
+</table>
 <h3 id="esm3if">ESM3IF<a class="headerlink" href="#esm3if" title="Permanent link">&para;</a></h3>
 <p>ESM3 configured for inverse folding (structure-conditioned sequence generation). Structure conditioning is <strong>required</strong> — the model predicts sequences given a backbone.</p>
 <h3 id="stabilitypmpnn">StabilityPMPNN<a class="headerlink" href="#stabilitypmpnn" title="Permanent link">&para;</a></h3>
 <p>ProteinMPNN-based stability predictor from the Rocklin lab. Predicts thermodynamic stability (ΔΔG) from structure + sequence.</p>
 <ul>
-<li><strong>Encode/decode split</strong>: <code>encode_structure()</code> is expensive (run once per structure), <code>decode()</code> is cheap (run per sequence sample). This maps to ProbabilityModel's <code>preprocess_observations</code> / <code>forward</code> pattern.</li>
-<li><strong>Tokenizer</strong>: <code>MPNNTokenizer</code> (21 tokens: 20 standard AAs + UNK)</li>
+<li><strong>Encode/decode split</strong>: <code>encode_structure()</code> runs once per structure (expensive), <code>decode()</code> runs per sequence sample (cheap). This maps naturally to ProbabilityModel's <code>preprocess_observations</code> / <code>forward</code> pattern.</li>
+<li><strong>Tokenizer</strong>: <code>MPNNTokenizer</code> with 21 tokens (20 standard AAs + UNK). When used with TAG, <code>include_mask_token=True</code> adds <code>&lt;mask&gt;</code> at idx 21.</li>
 </ul>
+<h4 id="cross-tokenizer-behavior">Cross-tokenizer behavior<a class="headerlink" href="#cross-tokenizer-behavior" title="Permanent link">&para;</a></h4>
+<p>The stability predictor overrides <code>token_ohe_basis()</code> so that the <code>&lt;mask&gt;</code> token maps to an all-zero OHE row — preserving original PMPNN masking semantics while making mask behavior explicit in the interface. This is a key integration point with TAG's <code>GuidanceProjection</code>.</p>
 <!-- TODO[pi]: figure out model storage strategy — should we convert all models to HuggingFace format? Use torch hub cache as default (like evodiff loads from zenodo)? Or extend the save/from_checkpoint interface to support both HF and custom loading? This affects how contributed models are distributed. -->
 
 <!-- TODO[pi]: add models from TODO.md — Progen, Dayhoff, Evodiff, METL, SaProt -->

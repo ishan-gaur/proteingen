@@ -918,6 +918,173 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#predictivemodel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PredictiveModel
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PredictiveModel">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abstract-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-get_log_probs-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The get_log_probs pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#target-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Target management
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#gradient-access-for-tag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gradient access (for TAG)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#token-ohe-basis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Token OHE basis
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#binary-logit-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Binary logit functions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#template-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Template models
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Template models">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#linearprobe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LinearProbe
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#embeddingmlp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EmbeddingMLP
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#onehotmlp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OneHotMLP
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pairwiselinearmodel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PairwiseLinearModel
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pca-embedding-initialization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PCA embedding initialization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#proteingen.predictive_modeling" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1226,6 +1393,11 @@
     </nav>
   
 </li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
     </ul>
   
@@ -1384,6 +1556,141 @@
 
 
 <h1 id="predictive_modeling">predictive_modeling<a class="headerlink" href="#predictive_modeling" title="Permanent link">&para;</a></h1>
+<p>This module contains the <code>PredictiveModel</code> ABC, template model classes (<code>LinearProbe</code>, <code>OneHotMLP</code>, <code>EmbeddingMLP</code>, <code>PairwiseLinearModel</code>), binary logit helper functions, and PCA embedding initialization.</p>
+<h2 id="predictivemodel">PredictiveModel<a class="headerlink" href="#predictivemodel" title="Permanent link">&para;</a></h2>
+<p>An ABC extending <code>ProbabilityModel</code> for models that answer "what is log p(target | sequence)?". Uses a <strong>binary logit pattern</strong>: <code>format_raw_to_logits</code> must return <code>(B, 2)</code> logits <code>[false_logit, true_logit]</code>, and <code>get_log_probs</code> extracts the true_logit after log-softmax.</p>
+<h3 id="abstract-methods">Abstract methods<a class="headerlink" href="#abstract-methods" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Signature</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>forward</code></td>
+<td><code>(ohe_seq_SPT, **kwargs) → Any</code></td>
+<td>Takes OHE features (not token IDs). Must be differentiable for TAG.</td>
+</tr>
+<tr>
+<td><code>format_raw_to_logits</code></td>
+<td><code>(raw_output, seq_SPT, **kwargs) → FloatTensor(B, 2)</code></td>
+<td>Must return binary logits. Use the binary logit helper functions below.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-get_log_probs-pipeline">The <code>get_log_probs</code> pipeline<a class="headerlink" href="#the-get_log_probs-pipeline" title="Permanent link">&para;</a></h3>
+<p><code>PredictiveModel</code> overrides the base pipeline to add OHE creation and binary extraction:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>get_log_probs(seq_SP)
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    → tokens_to_ohe(seq_SP) → ohe_SPK (requires_grad=True, stashed as self._ohe)
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    → forward(ohe) → raw output
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    → format_raw_to_logits(raw, ohe) → (B, 2) binary logits
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    → log_softmax(logits / temp) → (B, 2)
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    → [:, 1] → (B,) log p(target | x)
+</code></pre></div>
+<h3 id="target-management">Target management<a class="headerlink" href="#target-management" title="Permanent link">&para;</a></h3>
+<p>A target must be set before calling <code>get_log_probs</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">model</span><span class="o">.</span><span class="n">set_target_</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>               <span class="c1"># in-place</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">set_target</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>         <span class="c1"># chainable</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="k">with</span> <span class="n">model</span><span class="o">.</span><span class="n">with_target</span><span class="p">(</span><span class="kc">True</span><span class="p">):</span>          <span class="c1"># context manager</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">log_prob</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get_log_probs</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="gradient-access-for-tag">Gradient access (for TAG)<a class="headerlink" href="#gradient-access-for-tag" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">grad</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">grad_log_prob</span><span class="p">(</span><span class="n">seq_SP</span><span class="p">)</span>  <span class="c1"># ∂log p(target|x) / ∂OHE, shape (B, P, K)</span>
+</code></pre></div>
+<p>This runs <code>get_log_probs</code> with gradient tracking, backprops through the binary logits, and returns <code>self._ohe.grad</code>. This is the core computation that TAG uses to compute guidance deltas.</p>
+<h3 id="token-ohe-basis">Token OHE basis<a class="headerlink" href="#token-ohe-basis" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Default <code>token_ohe_basis()</code> returns <code>torch.eye(vocab_size)</code> — each token maps to its own one-hot vector (<code>K = T</code>)</li>
+<li>Override when tokens should map to a reduced space (e.g. the stability predictor maps <code>&lt;mask&gt;</code> to an all-zero OHE row to preserve original PMPNN masking semantics)</li>
+<li><code>grad_log_prob</code> returns gradients in feature space <code>(B, P, K)</code>, which is not always <code>(B, P, vocab_size)</code></li>
+</ul>
+<h2 id="binary-logit-functions">Binary logit functions<a class="headerlink" href="#binary-logit-functions" title="Permanent link">&para;</a></h2>
+<p>Standalone functions for converting raw predictions to <code>(B, 2)</code> binary logits. Call these from your <code>format_raw_to_logits</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Input</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>categorical_binary_logits(logits_BC, target_class)</code></td>
+<td>Multi-class logits</td>
+<td>Classification (target class vs rest)</td>
+</tr>
+<tr>
+<td><code>binary_logits(logit_B, target)</code></td>
+<td>Single logit</td>
+<td>Binary classification</td>
+</tr>
+<tr>
+<td><code>point_estimate_binary_logits(pred_B, threshold, k)</code></td>
+<td>Scalar prediction</td>
+<td>Thresholding a regression output</td>
+</tr>
+<tr>
+<td><code>gaussian_binary_logits(mu_B, log_var_B, threshold)</code></td>
+<td>Gaussian params</td>
+<td>P(Y &gt; threshold) via CDF</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Steep sigmoid saturates gradients</p>
+<p><code>point_estimate_binary_logits</code> uses a sigmoid with steepness parameter <code>k</code>. Large values (k=100) make <code>sigmoid(k*(pred - threshold)) ≈ 1</code>, driving gradients to zero. Use k=5–10, or prefer DEG over TAG when gradients are unreliable.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Gaussian logits are TAG-friendly</p>
+<p><code>gaussian_binary_logits</code> computes P(Y &gt; threshold) via the CDF and is differentiable through both the mean and variance. This makes it naturally compatible with TAG gradient-based guidance.</p>
+</div>
+<h2 id="template-models">Template models<a class="headerlink" href="#template-models" title="Permanent link">&para;</a></h2>
+<p>All template classes are ABCs — you implement <code>format_raw_to_logits</code> using the binary logit functions above.</p>
+<h3 id="linearprobe">LinearProbe<a class="headerlink" href="#linearprobe" title="Permanent link">&para;</a></h3>
+<p>Frozen <code>TransitionModelWithEmbedding</code> + trainable <code>nn.Linear</code> head.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">LinearProbe</span><span class="p">(</span><span class="n">embed_model</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">,</span> <span class="n">pooling_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">freeze_embed_model</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+<ul>
+<li>Default pooling: mean over non-padding positions</li>
+<li><code>pooling_fn</code> takes <strong>two args</strong>: <code>(embeddings_SPD, seq_SP)</code> — the token IDs are needed for masking special tokens during pooling</li>
+<li>Set <code>freeze_embed_model=False</code> when using LoRA on the embed_model so PEFT's freeze/unfreeze state is preserved</li>
+<li><code>precompute_embeddings(sequences, batch_size, device)</code> caches pooled embeddings for fast training</li>
+</ul>
+<h3 id="embeddingmlp">EmbeddingMLP<a class="headerlink" href="#embeddingmlp" title="Permanent link">&para;</a></h3>
+<p>Learnable embeddings + MLP. The embedding lookup uses <code>ohe @ self.embed.weight</code>, which is differentiable for TAG gradient flow.</p>
+<ul>
+<li><code>padding_idx</code> defaults to <code>tokenizer.pad_token_id</code></li>
+<li>Supports PCA initialization from pretrained models (see below)</li>
+</ul>
+<h3 id="onehotmlp">OneHotMLP<a class="headerlink" href="#onehotmlp" title="Permanent link">&para;</a></h3>
+<p>Flattened one-hot encoding → MLP. Takes <code>sequence_length</code> as a required constructor argument.</p>
+<h3 id="pairwiselinearmodel">PairwiseLinearModel<a class="headerlink" href="#pairwiselinearmodel" title="Permanent link">&para;</a></h3>
+<p>Linear model on single + pairwise OHE features. Computes pairwise outer products and takes the upper triangle. Quadratic in <code>sequence_length × vocab_size</code>.</p>
+<h2 id="pca-embedding-initialization">PCA embedding initialization<a class="headerlink" href="#pca-embedding-initialization" title="Permanent link">&para;</a></h2>
+<p><code>EmbeddingMLP</code> supports post-construction initialization from PCA of pretrained embeddings:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">model</span><span class="o">.</span><span class="n">init_embed_from_pretrained_pca</span><span class="p">(</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="n">source</span><span class="o">=</span><span class="n">esmc_model</span><span class="p">,</span>           <span class="c1"># TransitionModelWithEmbedding</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="n">source_vocab</span><span class="o">=</span><span class="n">esmc_tokenizer</span><span class="o">.</span><span class="n">vocab</span><span class="p">,</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">target_vocab</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">vocab</span><span class="p">,</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="p">)</span>
+</code></pre></div>
+<p>Key details:</p>
+<ul>
+<li>Token matching by string key — shared tokens are the intersection of vocabulary keys</li>
+<li>PCA is computed only over shared tokens (special tokens excluded from centering/SVD)</li>
+<li>Automatically zeroes the padding row after copy</li>
+<li>This is a post-construction method (not a constructor parameter) to avoid redundant shape arguments</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Variance capture</p>
+<p>ESMC's 960-dim embeddings for 20 amino acids have effective rank 19 (after centering). The first 20 PCs capture ~100% of the variance. Small embedding dims (8–32) still capture the most important AA similarity structure.</p>
+</div>
+<hr />
+<h2 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h2>
 
 
 <div class="doc doc-object doc-module">
