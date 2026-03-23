@@ -1,6 +1,36 @@
 # Setup
 
-## 1. Install Claude Code
+## 1. Install uv
+
+[uv](https://docs.astral.sh/uv/) is a fast Python package manager. We use it for all dependency management and running scripts.
+
+=== "macOS / Linux"
+
+    ```bash
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    ```
+
+=== "Windows"
+
+    ```powershell
+    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+    ```
+
+=== "Homebrew"
+
+    ```bash
+    brew install uv
+    ```
+
+See the [uv installation docs](https://docs.astral.sh/uv/getting-started/installation/) for additional options (pip, conda, Docker, etc.).
+
+After installing, restart your terminal and verify:
+
+```bash
+uv --version
+```
+
+## 2. Install Claude Code
 
 ProteinGen is designed to be used with an AI coding agent. We recommend [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview):
 
@@ -8,19 +38,36 @@ ProteinGen is designed to be used with an AI coding agent. We recommend [Claude 
 npm install -g @anthropic-ai/claude-code
 ```
 
-<!-- TODO[pi]: add brief note on alternative agents once we test compatibility -->
+This requires Node.js ≥ 18. If you don't have Node.js installed:
 
-## 2. Install uv
+=== "macOS / Linux (nvm)"
 
-We use [uv](https://docs.astral.sh/uv/) for Python package management:
+    ```bash
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+    nvm install node
+    ```
+
+=== "Homebrew"
+
+    ```bash
+    brew install node
+    ```
+
+Then verify:
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
+claude --version
 ```
+
+See the [Claude Code quickstart](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview) for authentication setup and first-run instructions.
+
+<!-- TODO[pi]: add brief note on alternative agents once we test compatibility -->
 
 ## 3. Set up your project
 
-Create a repo for your protein design project, then have Claude clone ProteinGen and wire it up:
+ProteinGen is meant to be **cloned into your own project and modified**. It's a library you own — adapt models, add new ones, tweak sampling algorithms, and change whatever you need to match your use case. Your coding agent can read the codebase, understand the design, and help you make changes confidently.
+
+### Create your project and clone ProteinGen
 
 ```bash
 # Create your project
@@ -28,15 +75,26 @@ mkdir my-protein-project && cd my-protein-project
 git init
 uv init
 
-# Clone ProteinGen as a dependency
+# Clone ProteinGen into your project
 git clone https://github.com/ishan-gaur/proteingen.git
-cd proteingen && uv sync && uv pip install -e . && uv run foundry install proteinmpnn && cd ..
+```
 
-# Add ProteinGen to your project's dependencies
+### Install ProteinGen and its dependencies
+
+```bash
+cd proteingen
+uv sync
+uv pip install -e .
+uv run foundry install proteinmpnn
+cd ..
+
+# Add ProteinGen as an editable dependency of your project
 uv add --editable ./proteingen
 ```
 
-Then add ProteinGen's location to your project's `AGENTS.md` so that Claude (or any agent) knows where to find the library and its documentation:
+### Point your agent at ProteinGen
+
+Add ProteinGen's location to your project's `AGENTS.md` (or `CLAUDE.md`, or whatever your agent reads) so it knows where to find the library and its docs:
 
 ```bash
 cat >> AGENTS.md << 'EOF'
@@ -48,6 +106,26 @@ cat >> AGENTS.md << 'EOF'
 - Documentation: `./proteingen/docs/` or https://ishan-gaur.github.io/proteingen/
 EOF
 ```
+
+### Add agent skills
+
+ProteinGen ships with agent skills in `proteingen/.agents/skills/` — step-by-step workflows your coding agent can follow for common tasks (e.g. adding a new generative model). Copy or symlink them to wherever your agent harness expects skills:
+
+=== "Claude Code"
+
+    ```bash
+    cp -r ./proteingen/.agents/skills/ .claude/skills/
+    ```
+
+=== "Pi"
+
+    ```bash
+    cp -r ./proteingen/.agents/skills/ .pi/skills/
+    ```
+
+=== "Other agents"
+
+    Check your agent's docs for where it discovers skills, then copy the `proteingen/.agents/skills/` directory there.
 
 <!-- TODO[pi]: finalize the recommended project setup flow — should we provide a `proteingen init` CLI command? -->
 

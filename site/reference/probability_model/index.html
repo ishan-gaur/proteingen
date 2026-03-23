@@ -862,6 +862,84 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#the-get_log_probs-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The get_log_probs pipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#abstract-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Abstract methods
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overridable-defaults" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overridable defaults
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conditioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conditioning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#checkpointing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checkpointing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gotchas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gotchas
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#proteingen.probability_model" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1003,6 +1081,11 @@
       
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -1229,6 +1312,92 @@
 
 
 <h1 id="probability_model">probability_model<a class="headerlink" href="#probability_model" title="Permanent link">&para;</a></h1>
+<p><code>ProbabilityModel</code> is the root of the entire class hierarchy — both generative and predictive models inherit from it. It's an <code>nn.Module</code> + <code>ABC</code> that provides temperature scaling, observation conditioning, log-probability computation, and checkpointing.</p>
+<h2 id="the-get_log_probs-pipeline">The <code>get_log_probs</code> pipeline<a class="headerlink" href="#the-get_log_probs-pipeline" title="Permanent link">&para;</a></h2>
+<p>Every call to <code>get_log_probs</code> follows the same chain:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>collate_observations(x_B, self.observations)
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    → forward(x_B, **obs)
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>        → format_raw_to_logits(raw, x_B, **obs)
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>            → log_softmax(logits / temp)
+</code></pre></div>
+<p>When no observations are set, <code>forward</code> and <code>format_raw_to_logits</code> are called without keyword arguments.</p>
+<h2 id="abstract-methods">Abstract methods<a class="headerlink" href="#abstract-methods" title="Permanent link">&para;</a></h2>
+<p>Subclasses <strong>must</strong> implement two methods:</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Signature</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>forward</code></td>
+<td><code>(x_B, **kwargs) → Any</code></td>
+<td>Returns raw output — can be a non-tensor type (e.g. ESM returns a dataclass).</td>
+</tr>
+<tr>
+<td><code>format_raw_to_logits</code></td>
+<td><code>(raw_output, x_B, **kwargs) → FloatTensor</code></td>
+<td>Extracts a logit tensor suitable for <code>log_softmax</code>. Receives the full context via <code>**kwargs</code>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="overridable-defaults">Overridable defaults<a class="headerlink" href="#overridable-defaults" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Default behavior</th>
+<th>Override when…</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>preprocess_observations(obs)</code></td>
+<td>Pass-through</td>
+<td>You have expensive one-time ops (e.g. ESM3's VQ-VAE structure encoding).</td>
+</tr>
+<tr>
+<td><code>collate_observations(x_B, obs)</code></td>
+<td>Tile each tensor to match batch size</td>
+<td>You have non-tensor observations or need selective expansion.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="conditioning">Conditioning<a class="headerlink" href="#conditioning" title="Permanent link">&para;</a></h2>
+<p>Conditioning attaches observations (e.g. structure coordinates) that persist across <code>get_log_probs</code> calls. The API has three levels:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">model</span><span class="o">.</span><span class="n">set_condition_</span><span class="p">(</span><span class="n">obs</span><span class="p">)</span>              <span class="c1"># in-place, returns None</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">set_condition</span><span class="p">(</span><span class="n">obs</span><span class="p">)</span>       <span class="c1"># returns self (chainable)</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="k">with</span> <span class="n">model</span><span class="o">.</span><span class="n">conditioned_on</span><span class="p">(</span><span class="n">obs</span><span class="p">):</span>        <span class="c1"># context manager, reverts on exit</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">log_probs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get_log_probs</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</code></pre></div>
+<p>The <code>preprocess_observations</code> → <code>collate_observations</code> split is a performance optimization: expensive preprocessing (running a VQ-VAE encoder) happens once when the condition is set, while cheap per-batch collation (tiling tensors to batch size) happens on every forward pass.</p>
+<div class="admonition warning">
+<p class="admonition-title">Conditioning is mutable state</p>
+<p><code>set_condition_()</code> modifies <code>self.observations</code> in place. The <code>conditioned_on()</code> context manager handles revert, but be careful with concurrent usage.</p>
+</div>
+<h2 id="checkpointing">Checkpointing<a class="headerlink" href="#checkpointing" title="Permanent link">&para;</a></h2>
+<p>Save and restore models with their constructor arguments:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">model</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">&quot;checkpoints/my_model&quot;</span><span class="p">)</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">restored</span> <span class="o">=</span> <span class="n">MyModel</span><span class="o">.</span><span class="n">from_checkpoint</span><span class="p">(</span><span class="s2">&quot;checkpoints/my_model&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>Subclasses participate via:</p>
+<ul>
+<li><code>_save_args() → dict</code> — return JSON-serializable constructor kwargs (raises <code>NotImplementedError</code> by default)</li>
+<li>Override <code>save()</code> to write additional state (weights, LoRA adapters), then call <code>super().save()</code></li>
+<li>Override <code>from_checkpoint()</code> to load additional state after construction</li>
+</ul>
+<p>For example, <code>TransitionModel.save</code> writes a <code>lora_adapter/</code> directory if LoRA is present, and <code>LinearProbe.save</code> writes <code>head.pt</code> plus delegates to <code>embed_model.save()</code>.</p>
+<h2 id="gotchas">Gotchas<a class="headerlink" href="#gotchas" title="Permanent link">&para;</a></h2>
+<ul>
+<li>The <code>device</code> property uses <code>next(self.parameters()).device</code> — it will fail on models with no parameters (all current subclasses have parameters).</li>
+<li><code>forward</code> returns <code>Any</code>, not just tensors. This is intentional — ESM models return dataclass outputs. The <code>format_raw_to_logits</code> step is where you extract the tensor.</li>
+<li>The default <code>collate_observations</code> assumes all observation values are tensors or scalars. If you store non-tensor observations (lists, strings), override this method.</li>
+</ul>
+<hr />
+<h2 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h2>
 
 
 <div class="doc doc-object doc-module">

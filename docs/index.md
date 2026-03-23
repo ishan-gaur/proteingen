@@ -1,10 +1,20 @@
-ProteinGen centralizes common models and computational workflows for sequence-based protein design in one place. We provide a unified interface that makes models from different organizations--ESM, Evodiff, DPLM, ProteinMPNN--letting us implement training, sampling, and guidance algorithms on top of them as part of a single ecosystem. Our goal is to accelerate the development of new methods for drylab practitioners and to make modern statistical and deep learning methods for protein design more accessible for the wetlab community as well.
+New here? Start with:
+1. [**Setup**](setup.md): get ProteinGen installed in your project
+2. [**Examples**](examples.md): get some idea of the available features
+3. [**Workflows**](workflows/index.md): find the workflow that matches your usecase
+4. [**Design Philosophy**](reference/design-philosophy.md): understand how the codebase is designed so you can best take advantage of it
+
+---
+
+## What is ProteinGen?
+
+Today, every time you need to try a different model, training, or sampling algorithm, you basically have to rewrite your existing code from scratch. Even worse to use the latest sampling and design techniques you might have to wade through hundreds of lines of library code to figure out, for example, that ESM only uses 33 of their 64 output logits or exactly how you were supposed to format conditioning inputs for ProteinMPNN. 
+
+Pipelines written with ProteinGen make it trivial to swap in and out models, training techniques, and inference time algorithms whenever you want. Implementation costs should never stop you from trying the latest and greatest technique for protein design.
+
+ProteinGen centralizes common models and computational workflows for sequence-based protein design in one place. We provide a unified interface that makes models from different organizations--ESM, Evodiff, DPLM, ProteinMPNN--interoperate. This lets us implement training, sampling, and guidance algorithms on top of them as part of a single ecosystem. Our goal is to accelerate the development of new methods for drylab practitioners and to make modern statistical and deep learning methods for protein design more accessible for the wetlab community as well.
 
 ProteinGen was developed by [Ishan Gaur](https://ishangaur.com) and is maintained by the [Listgarten Lab](http://www.jennifer.listgarten.com/group.html) at UC Berkeley.
-
-## Why ProteinGen
-
-Today, every time you need to try a different model, training, or sampling algorithm, you basically have to rewrite your existing code from scratch. Even worse to use the latest sampling and design techniques you might have to wade through hundreds of lines of company library code to figure out that ESM only uses 33 of their 64 output logits or how exactly you're supposed to format the inputs for ProteinMPNN. Pipelines written with ProteinGen make it trivial to swap in and out models, training techniques, and inference time algorithms whenever you want. Implementation costs should never stop you from trying the latest and greatest technique for protein design.
 
 ### Use coding agents with confidence
 
