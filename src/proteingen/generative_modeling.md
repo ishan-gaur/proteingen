@@ -95,6 +95,7 @@ Returns `logits.float()` unchanged. For models that don't need output masking.
 - `output_dim` can exceed `vocab_size` for alignment (e.g. ESM's 33→64). Extra columns are valid mask outputs.
 - ESM tokenizer v3.0.3: `mask_token_id` is `None` — use `tokenizer.vocab["<mask>"]`
 - Current `MaskedModelLogitFormatter` constructor is HF-tokenizer-specific (uses `.vocab`, `.added_tokens_decoder`) — TODO for general constructor
+- **Special token IDs for noising**: when masking positions for training or guidance, use `tokenizer.all_special_ids` to determine which positions are non-maskable (CLS, EOS, PAD, etc.) rather than hardcoding offsets like `+1` for CLS. This keeps noising logic tokenizer-agnostic — e.g. `~torch.isin(input_ids, torch.tensor(tokenizer.all_special_ids))` gives a boolean mask of maskable positions.
 
 ## MPNNTokenizer
 
