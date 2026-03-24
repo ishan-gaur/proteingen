@@ -217,9 +217,6 @@ def main():
         weight_decay=0.01,
     )
 
-    V = model.OUTPUT_DIM
-    pad_id = model.tokenizer.pad_token_id
-
     use_amp = args.amp and device.type == "cuda"
     amp_dtype = torch.bfloat16 if use_amp else None
 
@@ -253,10 +250,11 @@ def main():
                     raw = model(input_ids)
                     logits = model.format_raw_to_logits(raw, input_ids)
 
+                # Loss only on masked positions (where input differs from target)
+                masked = input_ids != target_ids  # (B, L)
                 loss = F.cross_entropy(
-                    logits.float().reshape(-1, V),
-                    target_ids.reshape(-1),
-                    ignore_index=pad_id,
+                    logits.float()[masked],  # (N_masked, V)
+                    target_ids[masked],  # (N_masked,)
                 )
 
             optimizer.zero_grad()
@@ -266,18 +264,18 @@ def main():
             )
             optimizer.step()
 
-            n_tokens = (target_ids != pad_id).sum().item()
+            n_masked = masked.sum().item()
             batch_loss = loss.item()
             if not (torch.isnan(loss) or torch.isinf(loss)):
-                epoch_loss += batch_loss * n_tokens
-                epoch_tokens += n_tokens
+                epoch_loss += batch_loss * n_masked
+                epoch_tokens += n_masked
             global_step += 1
 
             wandb.log(
                 {
                     "train/loss": batch_loss,
                     "train/ppl": torch.exp(loss.detach().cpu()).item(),
-                    "train/tokens": n_tokens,
+                    "train/n_masked": n_masked,
                     "global_step": global_step,
                 },
                 step=global_step,
