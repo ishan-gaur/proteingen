@@ -1,10 +1,15 @@
 """Guidance: Conditional protein generation via guided diffusion."""
 
 from .data import (
-    GuidanceDataset,
-    NoiseSchedule,
-    unmasked_only,
-    uniform_schedule,
+    ProteinDataset,
+    NoiseFn,
+    TimeSampler,
+    uniform_mask_noise,
+    no_noise,
+    fully_unmasked,
+    uniform_time,
+    read_fasta,
+    aligned_sequences_to_raw,
 )
 
 from .generative_modeling import (
@@ -32,10 +37,15 @@ from .sampling import sample_any_order_ancestral
 
 
 __all__ = [
-    "GuidanceDataset",
-    "NoiseSchedule",
-    "unmasked_only",
-    "uniform_schedule",
+    "ProteinDataset",
+    "NoiseFn",
+    "TimeSampler",
+    "uniform_mask_noise",
+    "no_noise",
+    "fully_unmasked",
+    "uniform_time",
+    "read_fasta",
+    "aligned_sequences_to_raw",
     "ProbabilityModel",
     "TransitionModel",
     "TransitionModelWithEmbedding",
