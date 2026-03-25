@@ -1,0 +1,13 @@
+Bootstrap: docker-daemon
+From: alphafold3:latest
+
+%post
+    pip3 install fastapi uvicorn
+
+%environment
+    export XLA_FLAGS="--xla_gpu_enable_triton_gemm=false"
+    export XLA_PYTHON_CLIENT_PREALLOCATE=true
+    export XLA_CLIENT_MEM_FRACTION=0.95
+
+%runscript
+    exec python3 "$@"
