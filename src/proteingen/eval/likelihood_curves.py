@@ -14,9 +14,23 @@ from proteingen.generative_modeling import TransitionModel
 
 matplotlib.use("Agg")
 
+# Color palette for multi-condition plots (up to 10 conditions)
+_COLORS = [
+    "#1f77b4",  # blue
+    "#ff7f0e",  # orange
+    "#2ca02c",  # green
+    "#d62728",  # red
+    "#9467bd",  # purple
+    "#8c564b",  # brown
+    "#e377c2",  # pink
+    "#7f7f7f",  # gray
+    "#bcbd22",  # olive
+    "#17becf",  # cyan
+]
+
 
 class LogProbTrajectory(TypedDict):
-    """Result of plot_p_x_trajectory.
+    """Result of compute_log_prob_trajectory.
 
     time_points: (n_time_points,) — fraction of positions unmasked at each step.
     avg_log_probs: (n_sequences, n_time_points) — per-sequence average log p(x_true)
@@ -28,14 +42,13 @@ class LogProbTrajectory(TypedDict):
 
 
 @torch.no_grad()
-def plot_p_x_trajectory(
+def compute_log_prob_trajectory(
     sequences: list[str],
     model: TransitionModel,
     n_time_points: int,
-    output_path: str | Path,
     batch_size: int = 32,
 ) -> LogProbTrajectory:
-    """Compute and plot average log-probability trajectories under progressive unmasking.
+    """Compute average log-probability trajectories under progressive unmasking.
 
     For each of n_time_points evenly-spaced noise levels t in [0, 1), randomly
     masks each sequence position with probability (1 - t), then measures the
@@ -48,7 +61,6 @@ def plot_p_x_trajectory(
         sequences: protein sequences to evaluate.
         model: a TransitionModel (e.g. ESMC wrapped with MaskedModelLogitFormatter).
         n_time_points: number of evenly-spaced noise levels to evaluate.
-        output_path: file path for the saved plot (e.g. "trajectory.png").
         batch_size: sequences per forward pass.
 
     Returns:
@@ -108,33 +120,64 @@ def plot_p_x_trajectory(
         seq_avg[n_masked_S == 0] = float("nan")
         avg_log_probs[:, t_idx] = seq_avg
 
-    # ── Plot ─────────────────────────────────────────────────────────────
+    return LogProbTrajectory(time_points=time_points, avg_log_probs=avg_log_probs)
+
+
+def plot_log_prob_trajectories(
+    trajectories: list[LogProbTrajectory],
+    labels: list[str],
+    output_path: str | Path,
+    show_individual: bool = True,
+    max_individual: int = 200,
+    title: str = "Log-likelihood trajectory under progressive unmasking",
+) -> None:
+    """Plot one or more log-probability trajectories on a single figure.
+
+    Each trajectory is drawn as a mean ± std band, optionally with individual
+    sequence curves behind it.
+
+    Args:
+        trajectories: list of LogProbTrajectory dicts to plot.
+        labels: display name for each trajectory (must match len(trajectories)).
+        output_path: file path for the saved plot.
+        show_individual: if True, draw faint per-sequence lines behind the mean.
+        max_individual: cap on per-sequence lines drawn per trajectory.
+        title: plot title.
+    """
+    assert len(trajectories) == len(labels), (
+        f"Got {len(trajectories)} trajectories but {len(labels)} labels"
+    )
+
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    fig, ax = plt.subplots(figsize=(8, 5))
-    t_np = time_points.numpy()
+    fig, ax = plt.subplots(figsize=(10, 6))
 
-    # Individual trajectories (cap drawn curves to keep the plot readable)
-    for s in range(min(S, 200)):
-        ax.plot(
-            t_np, avg_log_probs[s].numpy(), alpha=0.1, color="steelblue", linewidth=0.5
+    for idx, (traj, label) in enumerate(zip(trajectories, labels)):
+        color = _COLORS[idx % len(_COLORS)]
+        t_np = traj["time_points"].numpy()
+        avg_lp = traj["avg_log_probs"]
+        S = avg_lp.shape[0]
+
+        # Individual trajectories
+        if show_individual:
+            for s in range(min(S, max_individual)):
+                ax.plot(t_np, avg_lp[s].numpy(), alpha=0.08, color=color, linewidth=0.5)
+
+        # Mean ± std (NaN-safe)
+        mean_lp = torch.nanmean(avg_lp, dim=0).numpy()
+        centered = avg_lp - torch.nanmean(avg_lp, dim=0, keepdim=True)
+        n_valid = (~torch.isnan(avg_lp)).sum(dim=0).float().clamp(min=1)
+        std_lp = (torch.nan_to_num(centered**2).sum(dim=0) / n_valid).sqrt().numpy()
+
+        ax.plot(t_np, mean_lp, color=color, linewidth=2, label=label)
+        ax.fill_between(
+            t_np, mean_lp - std_lp, mean_lp + std_lp, alpha=0.15, color=color
         )
-
-    # Mean ± std (NaN-safe)
-    mean_lp = torch.nanmean(avg_log_probs, dim=0).numpy()
-    centered = avg_log_probs - torch.nanmean(avg_log_probs, dim=0, keepdim=True)
-    n_valid = (~torch.isnan(avg_log_probs)).sum(dim=0).float().clamp(min=1)
-    std_lp = (torch.nan_to_num(centered**2).sum(dim=0) / n_valid).sqrt().numpy()
-
-    ax.plot(t_np, mean_lp, color="navy", linewidth=2, label="Mean")
-    ax.fill_between(t_np, mean_lp - std_lp, mean_lp + std_lp, alpha=0.2, color="navy")
 
     ax.set_xlabel("Fraction unmasked (t)")
     ax.set_ylabel("Avg log p(x_true) at masked positions")
-    ax.set_title("Log-likelihood trajectory under progressive unmasking")
+    ax.set_title(title)
     ax.legend()
     fig.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
-
-    return LogProbTrajectory(time_points=time_points, avg_log_probs=avg_log_probs)

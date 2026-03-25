@@ -9,12 +9,16 @@ Usage:
 """
 
 import argparse
+from pathlib import Path
 
 import pandas as pd
 import torch
 from huggingface_hub import hf_hub_download
 
-from proteingen.eval.likelihood_curves import plot_p_x_trajectory
+from proteingen.eval.likelihood_curves import (
+    compute_log_prob_trajectory,
+    plot_log_prob_trajectories,
+)
 from proteingen.models.esm import ESMC
 
 DATASET_ID = "SaProtHub/Dataset-TrpB_fitness_landsacpe"
@@ -29,7 +33,12 @@ def main():
     parser.add_argument("--n-sequences", type=int, default=50)
     parser.add_argument("--n-time-points", type=int, default=20)
     parser.add_argument("--batch-size", type=int, default=8)
-    parser.add_argument("--output", default="trpb_likelihood_curves.png")
+    parser.add_argument(
+        "--output",
+        default=str(
+            Path(__file__).resolve().parent / "outputs" / "trpb_likelihood_curves.png"
+        ),
+    )
     args = parser.parse_args()
 
     print("Loading TrpB dataset...")
@@ -42,12 +51,17 @@ def main():
     model = ESMC(args.esmc_checkpoint).to(args.device).eval()
 
     print(f"Computing likelihood trajectories ({args.n_time_points} time points)...")
-    result = plot_p_x_trajectory(
+    result = compute_log_prob_trajectory(
         sequences=sequences,
         model=model,
         n_time_points=args.n_time_points,
-        output_path=args.output,
         batch_size=args.batch_size,
+    )
+
+    plot_log_prob_trajectories(
+        trajectories=[result],
+        labels=[args.esmc_checkpoint],
+        output_path=args.output,
     )
 
     print(f"\nSaved plot to {args.output}")
