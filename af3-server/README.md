@@ -208,9 +208,12 @@ af3-server/
 ## Notes
 
 - **GPU compatibility**: Tested on RTX 6000 Ada (49GB). Officially supported on
-  A100/H100 80GB only, but works for typical single-chain predictions.
-- **First prediction is slow** (~2-3 min) due to JIT compilation. Subsequent
-  predictions of similar token count reuse the compiled model (~60-70s).
+  A100/H100 80GB only. For GPUs <80GB, unified memory is required
+  (`TF_FORCE_UNIFIED_MEMORY=true`, `XLA_CLIENT_MEM_FRACTION=3.2`) — this is
+  already set in `launch.sh`. Inference spills to host RAM when needed.
+- **First prediction** includes JIT compilation. On RTX 6000 Ada, ubiquitin
+  (76 residues) took ~44s total including compilation. Subsequent predictions
+  of similar token count reuse the compiled model.
 - **JAX compilation cache** persists compiled models across server restarts.
   Set `AF3_CACHE_DIR` to a persistent directory.
 - **Queue**: Jobs are processed sequentially (one GPU). Multiple submissions

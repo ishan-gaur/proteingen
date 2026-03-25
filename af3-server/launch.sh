@@ -79,8 +79,9 @@ apptainer exec \
     --env AF3_PORT="$AF3_PORT" \
     --env AF3_RUN_DATA_PIPELINE="$AF3_RUN_DATA_PIPELINE" \
     --env XLA_FLAGS="--xla_gpu_enable_triton_gemm=false" \
-    --env XLA_PYTHON_CLIENT_PREALLOCATE=true \
-    --env XLA_CLIENT_MEM_FRACTION=0.95 \
+    --env XLA_PYTHON_CLIENT_PREALLOCATE=false \
+    --env TF_FORCE_UNIFIED_MEMORY=true \
+    --env XLA_CLIENT_MEM_FRACTION=3.2 \
     --env JAX_COMPILATION_CACHE_DIR=/app/jax_cache \
     --pwd /app/alphafold \
     "$AF3_SIF" \
