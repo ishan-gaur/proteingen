@@ -39,7 +39,9 @@ AF3_CACHE_DIR="${AF3_CACHE_DIR:-/data/af3_jax_cache}"
 # ── Apptainer setup ──────────────────────────────────────────────────────
 export PATH="$HOME/bin:$PATH"
 
-SERVER_SCRIPT="$(cd "$(dirname "$0")" && pwd)/server.py"
+# Use absolute path — $(dirname "$0") breaks under SLURM (resolves to spool dir)
+AF3_SERVER_DIR="${AF3_SERVER_DIR:-/home/ishan/dfm-worktrees/esm3-ephb1-finetuning/af3-server}"
+SERVER_SCRIPT="$AF3_SERVER_DIR/server.py"
 
 echo "================================================================"
 echo "AF3 Inference Server"

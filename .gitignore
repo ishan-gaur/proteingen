@@ -25,3 +25,7 @@ site/
 checkpoints/
 examples/finetune_esm3/7KPM_atom37_295.pt
 examples/finetune_esm3/checkpoints/
+af3-server/*.out
+af3-server/*.err
+fold_msa.log
+wandb/
