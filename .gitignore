@@ -21,6 +21,7 @@ logs
 
 # mkdocs build output
 site/
+
 checkpoints/
 examples/finetune_esm3/7KPM_atom37_295.pt
 examples/finetune_esm3/checkpoints/
