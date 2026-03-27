@@ -54,4 +54,55 @@ Available skills:
 - **Repo renamed to `proteingen`** — display name is **ProteinGen**, URLs/paths/package-slug stay lowercase `proteingen`
 - Git remote: `git@github.com:ishan-gaur/proteingen.git`
 
+## ProteinDataset Design Decisions
+
+Replaces old `GuidanceDataset`. Key design choices from discussion:
+
+- **Dataset holds raw data only** — sequences, observations, labels. All model-specific transforms (tokenization, noising, padding) happen in the collator.
+- **Collator is model-specific** — `dataset.collator(model, noise_fn, time_sampler)` returns a collate_fn. The model provides tokenizer and `preprocess_observations`.
+- **`noise_fn` and `time_sampler` are required, not optional** — use sentinels `no_noise` + `fully_unmasked` for clean training. This forces the user to be explicit.
+- **`NoiseFn = (input_ids, t) -> noised_ids`** — owns the corruption strategy. `TimeSampler = () -> float` — owns when/how much. Separated so you can reuse the same corruption with different `t` distributions.
+- **Observations, not conditioning** — dataset stores "observations" (what the model sees). No "conditioning → observations" rename layer inside the dataset.
+- **`rename_obs_keys` on the collator** — `{model_kwarg: dataset_key}` for when two models use different names for the same data. One dataset, multiple collators.
+- **`preprocess_observations` should be batched** — called per-batch in the collator with list-valued dicts. Not yet fully implemented on the model side (ESM3's `preprocess_observations` is still single-sample).
+- **Training uses `model(input_ids, **observations)` not `get_log_probs`** — `get_log_probs` adds log_softmax/temp which isn't wanted for training loss.
+- **Loss on masked positions only** — `F.cross_entropy(logits[masked], target[masked])` where `masked = input_ids != target_ids`. Unmasked positions have trivial loss due to logit formatting.
+
+## ESM3 Training Gotchas
+
+- **ESM3 fp32 logits overflow** — without AMP (bfloat16), loss can be `inf`. Always use `--amp` for GPU training.
+- **ESM3 structure conditioning requires fixed-length sequences** — structure tokens are (L+2,) with BOS/EOS. All sequences in the batch must match the structure length. For MSA fine-tuning with variable-length sequences, don't use structure conditioning.
+- **ESM3 `forward()` doesn't use `self.observations`** — only `get_log_probs` bridges `set_condition_` → `collate_observations` → `forward(**obs)`. For training, manually call `model.collate_observations(input_ids, model.observations)` then `model(input_ids, **obs)`.
+- **ESM3 VQ-VAE lazy loading** — `set_condition_` triggers VQ-VAE encoder load (~30M params). Must re-freeze all non-LoRA params after this call.
+- **SLURM output buffering** — Python's stdout is block-buffered when redirected to a file. Use `sys.stdout.reconfigure(line_buffering=True)` at the start of `main()` for SLURM log visibility.
+
+## EphB1 MSA Data Notes
+
+- `examples/finetune_esm3/EphB1_MSA.fasta` — 14,335 UniRef sequences aligned to the EphB1 kinase domain (295 residues, UniProt P54762 residues 602-896)
+- **Sequences are domain fragments, not full-length proteins** — MSA headers contain alignment coordinates (e.g. `560 854 943` = hit residues 560-854 of a 943-residue protein). After gap removal you get ~200-295 residue kinase domains.
+- After gap removal and filtering ≥200 residues: ~9,947 sequences
+- Only 16 sequences are exactly 295 residues (required for structure conditioning)
+- Characters: standard 20 AAs + X (106 sequences have X), gap chars `-`
+- `7KPM_atom37_295.pt` — preprocessed atom37 coords (295, 37, 3) for ESM3. Same file as in `kortemme_tyrosine_kinase_design/structures/`. Built by renaming PTR→TYR, filtering ADP ligand.
+- `pdb_to_atom37_and_seq()` crashes on raw 7KPM.pdb due to PTR (phosphotyrosine) and ADP ligand — use the preprocessed .pt file.
+
+## AlphaFold 3 Setup
+
+- Docker image `alphafold3:latest` available on this machine
+- Model weights: `/data/af3/af3.bin`
+- Databases: `/data/af3db/` (original), `/data/af3db_updated/` (newer PDB from 2025/11)
+- Source: `/home/ishan/local_dependencies/alphafold3/`
+- Run pattern: `docker run -v /data/af3:/app/models -v /data/af3db:/public_databases -v <input>:/app/af_input -v <output>:/app/af_output alphafold3 python run_alphafold.py --json_path=... --model_dir=/app/models --output_dir=/app/af_output`
+- `--norun_data_pipeline` flag skips MSA search (for pre-computed MSAs)
+- User hanlun runs it regularly; last successful run was via docker
+
+## Kortemme Tyrosine Kinase Project Reference
+
+- Located at `/home/ishan/kortemme_tyrosine_kinase_design/`
+- Uses the same EphB1 kinase domain (7KPM structure, P54762)
+- Has preprocessed `7KPM_atom37_295.pt` in `structures/`
+- `train_ohe_mlp.py` — comprehensive training script with OneHotMLP, EmbeddingMLP, ESMC/ESM3 probes, LoRA probe
+- `data.py` — dataset loading with GuidanceDataset (old API)
+- Key finding: OneHotMLP (ρ=0.46 combi activity) outperformed all ESM-based approaches for this small dataset (~780 samples)
+
 
