@@ -3,8 +3,6 @@ from torch.nn import functional as F
 from typing import Callable, Optional, List
 from proteingen.generative_modeling import TransitionModel, TransitionFunc
 from tqdm import tqdm
-import random
-import math
 
 SamplingStep = Callable[
     [TransitionFunc, torch.LongTensor, ...],
@@ -53,6 +51,205 @@ def sample_linear_interpolation(
         return tensor_to_string(x_SP, model.tokenizer)
     else:
         return x_SP.to(x_device)
+
+
+def _formatted_logits(model: TransitionModel, x_SP: torch.LongTensor) -> torch.FloatTensor:
+    """Run forward + format_raw_to_logits without applying log_softmax."""
+    if model.observations is not None:
+        obs = model.collate_observations(x_SP, model.observations)
+        raw_output = model.forward(x_SP, **obs)
+        return model.format_raw_to_logits(raw_output, x_SP, **obs)
+    raw_output = model.forward(x_SP)
+    return model.format_raw_to_logits(raw_output, x_SP)
+
+
+def _predictive_log_prob_from_ohe(
+    pred_model,
+    ohe_seq_SPK: torch.FloatTensor,
+) -> torch.FloatTensor:
+    """Evaluate predictor log p(target|x) from already-projected OHE features."""
+    if pred_model.target is None:
+        raise ValueError(
+            "Predictive model target not set. Call set_target_() or use with_target()."
+        )
+    if pred_model.observations is not None:
+        obs = pred_model.collate_observations(ohe_seq_SPK, pred_model.observations)
+        raw_output = pred_model.forward(ohe_seq_SPK, **obs)
+        logits = pred_model.format_raw_to_logits(raw_output, ohe_seq_SPK, **obs)
+    else:
+        raw_output = pred_model.forward(ohe_seq_SPK)
+        logits = pred_model.format_raw_to_logits(raw_output, ohe_seq_SPK)
+    log_probs = F.log_softmax(logits / pred_model.temp, dim=-1)
+    return log_probs[:, 1]
+
+
+def build_legacy_predictor_log_prob(tag_model):
+    """Build old-demo style predictor_log_prob closure from DFM TAG components.
+
+    Returns a closure compatible with the original flow-matching guidance loop:
+    - integer token input: ``(B, P)`` in generator token space
+    - one-hot input: ``(B, P, T_gen)`` for TAG Taylor guidance
+    """
+    from dfm.guide import LinearGuidanceProjection
+
+    projection = tag_model.projection
+    if not isinstance(projection, LinearGuidanceProjection):
+        raise ValueError(
+            "Legacy predictor_log_prob currently supports LinearGuidanceProjection only"
+        )
+    pred_model = tag_model.pred_model
+    gen_vocab_size = projection.tokenizer_gen.vocab_size
+    start = projection._strip_prefix
+    suffix = projection._strip_suffix
+
+    def _pred_window(x):
+        end = x.shape[1] - suffix
+        if end < start:
+            raise ValueError(
+                f"Invalid strip window: start={start}, end={end}, length={x.shape[1]}"
+            )
+        return x[:, start:end]
+
+    def predictor_log_prob(xt, t, **kwargs):
+        if xt.is_floating_point():
+            xt_inner = _pred_window(xt)
+            xt_inner = xt_inner[..., :gen_vocab_size]
+            pred_ohe = xt_inner @ projection.gen_to_pred_ohe_TK.to(xt.device)
+            return _predictive_log_prob_from_ohe(pred_model, pred_ohe)
+
+        xt = xt.long()
+        xt_inner = _pred_window(xt)
+        pred_tokens = projection.gen_to_pred_idx_T[xt_inner]
+        return pred_model.get_log_probs(pred_tokens)
+
+    return predictor_log_prob
+
+
+def _legacy_get_guided_rates(
+    predictor_log_prob,
+    xt,
+    t,
+    R_t,
+    S,
+    use_tag=False,
+    guide_temp=1.0,
+    log_prob_ratio_cutoff=80.0,
+):
+    """Original demo guidance-ratio update used by flow-matching sampler."""
+    B, D = xt.shape
+    device = xt.device
+    t_tensor = t * torch.ones((B,), device=device)
+
+    if not use_tag:
+        log_prob_xt = predictor_log_prob(xt, t_tensor)
+        log_prob_xt_jumps = torch.zeros(B, D, S, device=device)
+        for d_idx in range(D):
+            for s_idx in range(S):
+                xt_jump = xt.clone()
+                xt_jump[:, d_idx] = s_idx
+                log_prob_xt_jumps[:, d_idx, s_idx] = predictor_log_prob(xt_jump, t_tensor)
+        log_prob_ratio = log_prob_xt_jumps - log_prob_xt.view(B, 1, 1)
+    else:
+        xt_ohe = F.one_hot(xt.long(), num_classes=S).to(torch.float)
+        with torch.enable_grad():
+            xt_ohe.requires_grad_(True)
+            log_prob_xt = predictor_log_prob(xt_ohe, t_tensor)
+            log_prob_xt.sum().backward()
+            grad_log_prob = xt_ohe.grad
+        log_prob_ratio = grad_log_prob - (xt_ohe * grad_log_prob).sum(
+            dim=-1, keepdim=True
+        )
+
+    log_prob_ratio /= guide_temp
+    log_prob_ratio = torch.clamp(log_prob_ratio, max=log_prob_ratio_cutoff)
+    prob_ratio = torch.exp(log_prob_ratio)
+    return R_t * prob_ratio
+
+
+@torch.no_grad()
+def sample_flow_matching_legacy(
+    model: TransitionModel,
+    x_SP: torch.LongTensor | List[str],
+    dt: float = 0.01,
+    predictor_log_prob=None,
+    guide_temp: float = 1.0,
+    use_tag: bool = False,
+    x1_temp: float = 1.0,
+    stochasticity: float = 0.0,
+    argmax_final: bool = True,
+    logits_postprocess: Optional[Callable[[torch.FloatTensor, torch.LongTensor], torch.FloatTensor]] = None,
+    return_string: bool = True,
+) -> torch.LongTensor | list[str]:
+    """Legacy flow-matching Euler sampler (old stability demo numerics).
+
+    This reproduces the original rate-matrix integration loop and guidance-ratio
+    update so DFM models can be compared head-to-head against old behavior.
+    """
+    if isinstance(x_SP, list):
+        x_SP = model.tokenizer(x_SP, padding=True, return_tensors="pt")["input_ids"]
+    x_device = x_SP.device
+    xt = x_SP.to(model.device)
+
+    S = model.tokenizer.vocab_size
+    mask_idx = model.tokenizer.mask_token_id
+    if mask_idx is None:
+        raise ValueError("sample_flow_matching_legacy requires tokenizer.mask_token_id")
+
+    t = 0.0
+    n_steps = int(1.0 / dt)
+    mask_one_hot = torch.zeros((S,), device=xt.device)
+    mask_one_hot[mask_idx] = 1.0
+
+    for _ in tqdm(range(n_steps)):
+        logits = _formatted_logits(model, xt)[..., :S]
+        if logits_postprocess is not None:
+            logits = logits_postprocess(logits, xt)
+        pt_x1_probs = F.softmax(logits / x1_temp, dim=-1)
+
+        xt_is_mask = (xt == mask_idx).view(*xt.shape, 1).float()
+        R_t = xt_is_mask * pt_x1_probs * ((1 + stochasticity * t) / (1 - t))
+        remask_rates = (1 - xt_is_mask) * mask_one_hot.view(1, 1, -1) * stochasticity
+        R_t += remask_rates
+
+        if predictor_log_prob is not None:
+            R_t = _legacy_get_guided_rates(
+                predictor_log_prob,
+                xt,
+                t,
+                R_t,
+                S,
+                use_tag=use_tag,
+                guide_temp=guide_temp,
+            )
+
+        R_t.scatter_(-1, xt[:, :, None], 0.0)
+        R_t.scatter_(-1, xt[:, :, None], (-R_t.sum(dim=-1, keepdim=True)))
+
+        step_probs = (R_t * dt).clamp(min=0.0, max=1.0)
+        step_probs.scatter_(-1, xt[:, :, None], 0.0)
+        step_probs.scatter_(
+            -1,
+            xt[:, :, None],
+            (1.0 - torch.sum(step_probs, dim=-1, keepdim=True)).clamp(min=0.0),
+        )
+        step_probs = torch.clamp(step_probs, min=0.0, max=1.0)
+
+        xt = torch.distributions.Categorical(step_probs).sample()
+
+        t += dt
+        if t > 1.0:
+            break
+
+    if argmax_final:
+        xt_is_mask = (xt == mask_idx).view(*xt.shape).float()
+        logits = _formatted_logits(model, xt)[..., :S]
+        if logits_postprocess is not None:
+            logits = logits_postprocess(logits, xt)
+        xt = (torch.argmax(logits, dim=-1) * xt_is_mask + xt * (1 - xt_is_mask)).long()
+
+    if return_string:
+        return tensor_to_string(xt, model.tokenizer)
+    return xt.to(x_device)
 
 
 def sample_any_order_ancestral(
