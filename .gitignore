@@ -21,3 +21,4 @@ logs
 
 # mkdocs build output
 site/
+examples/outputs/
