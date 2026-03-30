@@ -127,41 +127,44 @@ def inverse_folding_collator(tokenizer, mask_token_id: int):
 
 
 @torch.no_grad()
-def compute_structure_conditioned_log_probs(
+def compute_eval_log_probs(
     model: ESM3,
     dataset: InverseFoldingDataset,
     indices: list[int],
     n_time_points: int,
     batch_size: int,
     device: torch.device,
+    use_structure: bool = True,
 ) -> LogProbTrajectory:
-    """Compute log-prob trajectories with structure conditioning.
+    """Compute log-prob trajectories, optionally with structure conditioning.
 
-    Like compute_log_prob_trajectory but conditions on per-sequence structures
-    and processes them through ESM3's forward directly.
+    Args:
+        use_structure: if True, conditions on per-sequence structures.
+            If False, runs sequence-only (no structure tokens/coords).
     """
     tokenizer = model.tokenizer
     mask_token_id = tokenizer.mask_token_id
     special_ids = set(tokenizer.all_special_ids)
 
-    # Collect eval data
     sequences = [dataset.sequences[i] for i in indices]
-    struct_tokens_list = [dataset.structure_tokens[i] for i in indices]
-    coords_list = [dataset.coordinates[i] for i in indices]
 
-    # Tokenize all
     tokenized = tokenizer(sequences, padding=True, return_tensors="pt")
     true_tokens = tokenized["input_ids"]  # (S, P)
     S, P = true_tokens.shape
 
-    # Pad structures to match
-    structure_pad = ESM3_CONSTANTS.STRUCTURE_PAD_TOKEN
-    padded_struct = torch.full((S, P), structure_pad, dtype=torch.long)
-    padded_coords = torch.zeros(S, P, 37, 3)
-    for i in range(S):
-        sl = struct_tokens_list[i].shape[0]
-        padded_struct[i, :sl] = struct_tokens_list[i]
-        padded_coords[i, :sl] = coords_list[i]
+    # Prepare structures if needed
+    padded_struct = None
+    padded_coords = None
+    if use_structure:
+        struct_tokens_list = [dataset.structure_tokens[i] for i in indices]
+        coords_list = [dataset.coordinates[i] for i in indices]
+        structure_pad = ESM3_CONSTANTS.STRUCTURE_PAD_TOKEN
+        padded_struct = torch.full((S, P), structure_pad, dtype=torch.long)
+        padded_coords = torch.zeros(S, P, 37, 3)
+        for i in range(S):
+            sl = struct_tokens_list[i].shape[0]
+            padded_struct[i, :sl] = struct_tokens_list[i]
+            padded_coords[i, :sl] = coords_list[i]
 
     # Maskable positions
     maskable = torch.ones(S, P, dtype=torch.bool)
@@ -173,32 +176,35 @@ def compute_structure_conditioned_log_probs(
 
     model.eval()
     for t_idx, t in enumerate(time_points):
-        # Mask with probability (1 - t)
         keep = torch.rand(S, P) < t
         to_mask = maskable & ~keep
 
         noised = true_tokens.clone()
         noised[to_mask] = mask_token_id
 
-        # Forward in batches with structure conditioning
         log_prob_chunks = []
         for start in range(0, S, batch_size):
             end = min(start + batch_size, S)
             inp = noised[start:end].to(device)
-            st = padded_struct[start:end].to(device)
-            co = padded_coords[start:end].to(device)
 
-            raw = model(inp, structure_tokens=st, coordinates=co)
-            logits = model.format_raw_to_logits(
-                raw, inp, structure_tokens=st, coordinates=co
-            )
+            if use_structure:
+                st = padded_struct[start:end].to(device)
+                co = padded_coords[start:end].to(device)
+                raw = model(inp, structure_tokens=st, coordinates=co)
+                logits = model.format_raw_to_logits(
+                    raw, inp, structure_tokens=st, coordinates=co
+                )
+            else:
+                raw = model(inp)
+                logits = model.format_raw_to_logits(raw, inp)
+
             lp = F.log_softmax(logits.float(), dim=-1)
             log_prob_chunks.append(lp.cpu())
 
         log_probs = torch.cat(log_prob_chunks, dim=0)  # (S, P, V)
         V = log_probs.shape[-1]
         safe_idx = true_tokens.clamp(max=V - 1)
-        true_lp = log_probs.gather(2, safe_idx.unsqueeze(2)).squeeze(2)  # (S, P)
+        true_lp = log_probs.gather(2, safe_idx.unsqueeze(2)).squeeze(2)
 
         true_lp[~to_mask] = 0.0
         n_masked_per_seq = to_mask.sum(dim=1).float()
@@ -350,29 +356,40 @@ def main():
         },
     )
 
+    # ── Eval helper ─────────────────────────────────────────────────────
+    def run_eval(epoch_label: str, step: int | None = None):
+        """Compute structure-conditioned and sequence-only likelihood curves."""
+        results = {}
+        for mode, use_struct in [("struct", True), ("seq_only", False)]:
+            traj = compute_eval_log_probs(
+                model,
+                eval_dataset,
+                eval_indices,
+                n_time_points=args.n_time_points,
+                batch_size=args.batch_size,
+                device=device,
+                use_structure=use_struct,
+            )
+            results[mode] = traj
+            mean_lp = torch.nanmean(traj["avg_log_probs"], dim=0)
+            log_dict = {
+                f"eval/{mode}/log_prob_t0": mean_lp[0].item(),
+                f"eval/{mode}/log_prob_mid": mean_lp[len(mean_lp) // 2].item(),
+            }
+            if step is not None:
+                wandb.log(log_dict, step=step)
+            else:
+                wandb.log(log_dict)
+            print(
+                f"  {epoch_label} [{mode}]: log p at t=0: {mean_lp[0]:.3f}, "
+                f"t=0.5: {mean_lp[len(mean_lp) // 2]:.3f}"
+            )
+        return results
+
     # ── Initial eval ──────────────────────────────────────────────────────
     if eval_dataset is not None:
         print("\nComputing initial likelihood curves...")
-        traj_init = compute_structure_conditioned_log_probs(
-            model,
-            eval_dataset,
-            eval_indices,
-            n_time_points=args.n_time_points,
-            batch_size=args.batch_size,
-            device=device,
-        )
-        mean_lp = torch.nanmean(traj_init["avg_log_probs"], dim=0)
-        wandb.log(
-            {
-                "eval/log_prob_t0": mean_lp[0].item(),
-                "eval/log_prob_mid": mean_lp[len(mean_lp) // 2].item(),
-                "epoch": 0,
-            }
-        )
-        print(
-            f"  Initial: mean log p at t=0.0: {mean_lp[0]:.3f}, "
-            f"t=0.5: {mean_lp[len(mean_lp) // 2]:.3f}"
-        )
+        init_results = run_eval("Init")
 
     # ── Training ──────────────────────────────────────────────────────────
     optimizer = torch.optim.AdamW(
@@ -391,12 +408,16 @@ def main():
 
     model.train()
     global_step = 0
-    all_trajectories = []
-    trajectory_labels = []
+    struct_trajectories = []
+    struct_labels = []
+    seq_only_trajectories = []
+    seq_only_labels = []
 
     if eval_dataset is not None:
-        all_trajectories.append(traj_init)
-        trajectory_labels.append("epoch 0 (pretrained)")
+        struct_trajectories.append(init_results["struct"])
+        struct_labels.append("epoch 0 (pretrained) + struct")
+        seq_only_trajectories.append(init_results["seq_only"])
+        seq_only_labels.append("epoch 0 (pretrained) seq-only")
 
     for epoch in range(1, args.epochs + 1):
         epoch_loss = 0.0
@@ -482,29 +503,11 @@ def main():
         # ── End-of-epoch likelihood curves ────────────────────────────────
         if eval_dataset is not None:
             print(f"  Computing likelihood curves (epoch {epoch})...")
-            traj = compute_structure_conditioned_log_probs(
-                model,
-                eval_dataset,
-                eval_indices,
-                n_time_points=args.n_time_points,
-                batch_size=args.batch_size,
-                device=device,
-            )
-            all_trajectories.append(traj)
-            trajectory_labels.append(f"epoch {epoch}")
-
-            mean_lp = torch.nanmean(traj["avg_log_probs"], dim=0)
-            wandb.log(
-                {
-                    "eval/log_prob_t0": mean_lp[0].item(),
-                    "eval/log_prob_mid": mean_lp[len(mean_lp) // 2].item(),
-                },
-                step=global_step,
-            )
-            print(
-                f"  Eval: mean log p at t=0.0: {mean_lp[0]:.3f}, "
-                f"t=0.5: {mean_lp[len(mean_lp) // 2]:.3f}"
-            )
+            epoch_results = run_eval(f"Epoch {epoch}", step=global_step)
+            struct_trajectories.append(epoch_results["struct"])
+            struct_labels.append(f"epoch {epoch} + struct")
+            seq_only_trajectories.append(epoch_results["seq_only"])
+            seq_only_labels.append(f"epoch {epoch} seq-only")
 
     # ── Save model ────────────────────────────────────────────────────────
     save_dir = args.save_dir or str(
@@ -513,15 +516,28 @@ def main():
     print(f"\nSaving to {save_dir}")
     model.save(save_dir)
 
-    # ── Save likelihood curve plot ────────────────────────────────────────
-    if all_trajectories:
+    # ── Save likelihood curve plots ──────────────────────────────────────
+    if struct_trajectories:
+        # Combined plot: structure-conditioned vs sequence-only, first & last epoch
+        combined_trajs = [
+            seq_only_trajectories[0],
+            struct_trajectories[0],
+            seq_only_trajectories[-1],
+            struct_trajectories[-1],
+        ]
+        combined_labels = [
+            seq_only_labels[0],
+            struct_labels[0],
+            seq_only_labels[-1],
+            struct_labels[-1],
+        ]
         plot_path = str(DATA_DIR / "outputs" / "inverse_folding_likelihood_curves.png")
         plot_log_prob_trajectories(
-            trajectories=all_trajectories,
-            labels=trajectory_labels,
+            trajectories=combined_trajs,
+            labels=combined_labels,
             output_path=plot_path,
             show_individual=True,
-            title="ESM3 inverse folding: likelihood curves per epoch",
+            title="ESM3 inverse folding: struct-conditioned vs seq-only",
         )
         wandb.log({"eval/likelihood_curves": wandb.Image(plot_path)})
         print(f"Saved likelihood curve plot to {plot_path}")
