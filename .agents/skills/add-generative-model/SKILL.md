@@ -18,7 +18,6 @@ Before writing any code:
    - How should **weights be stored and loaded**? (HuggingFace hub, local checkpoint path, bundled with the package?)
    - Are there **multiple model variants/sizes** to support?
    - Any **licensing or access restrictions** on weights?
-4. **Get user approval** — present a summary of what you'll build (which base class, what the interface will look like, what the example script will do) and get explicit sign-off before starting implementation.
 
 ## Phase 2: Understand the Model Internals
 
@@ -31,17 +30,46 @@ With access to the source code, gather:
 5. **Conditioning** — does the model support structure conditioning or other side inputs? If so, how expensive is preprocessing?
 6. **Loading** — how is the model loaded? (`from_pretrained`, custom checkpoint, etc.) Any device arg quirks?
 
-Present your findings and confirm with the user before proceeding.
+## Phase 2.5: Present Plan & Get Approval
+
+Before writing any implementation code, present a summary to the user:
+
+- **Which base class** (`TransitionModel` vs `TransitionModelWithEmbedding`) and why
+- **Directory/file layout** — where the model files will live, what each file contains
+- **Interface design** — constructor signature, what conditioning looks like, any limitations
+- **What the example script will look like** end-to-end
+
+Get explicit sign-off before proceeding to implementation.
 
 ## Phase 3: Create the Directory Structure
 
 ```bash
-mkdir -p src/proteingen/models/<name>/
+mkdir -p src/proteingen/models/<provider>/
 ```
 
+Directory names should reflect the **provider or model family** (e.g. `esm/` for
+EvolutionaryScale ESM models, `mpnn/` for ProteinMPNN). Multiple models from
+the same family live in the same directory.
+
 Files to create:
-- `__init__.py` — model class(es), exports
-- `<name>.md` — design doc (dependencies, used-by, gotchas)
+- `__init__.py` — **re-exports only**, no implementation. Imports classes from
+  sibling modules to keep the public API clean (e.g. `from .esmc import ESMC`).
+- One `.py` file per model class (e.g. `esmc.py`, `esm3.py`). Name matches the
+  class in lowercase.
+- `utils.py` (optional) — shared helpers across models in the family (e.g.
+  common input/output parsing, tokenizer setup, conditioning utilities).
+- `<provider>.md` — design doc (dependencies, used-by, architecture, gotchas).
+
+Example layout for ESM family:
+```
+models/esm/
+├── __init__.py      # from .esmc import ESMC; from .esm3 import ESM3; ...
+├── esmc.py          # ESMC class
+├── esm3.py          # ESM3 class
+├── esm3_api.py      # ESM3API class (Forge API variant)
+├── utils.py         # shared tokenizer/formatting helpers
+└── esm.md           # design doc
+```
 
 Update `src/proteingen/models/__init__.py` to export the new class.
 Update `src/proteingen/models/AGENTS.md` to add the model to the registry.
@@ -78,11 +106,12 @@ Define `TypedDict`s for:
 - **Conditioning input** — if the model accepts conditioning variables (structure coords, chain IDs, etc.), define a `TypedDict` for the conditioning dict so the interface is self-documenting and type-checkable. E.g. `class ESM3Conditioning(TypedDict): structure_coords: Tensor; ...`
 - **Raw forward output** — if `forward` or `embedding_to_outputs` returns something richer than a plain tensor (e.g. a dataclass with multiple heads), define a `TypedDict` for the raw output so downstream code can access fields by name. This replaces opaque `Any` return types.
 
-Place these in the model's `__init__.py` alongside the model class. Export them from `models/__init__.py`.
+Place these in the model's `.py` file alongside the class, or in `utils.py` if shared
+across models in the family. Export them from the directory's `__init__.py` and from `models/__init__.py`.
 
 ### Step 2a: TransitionModelWithEmbedding (most common path)
 
-Use ESMC as the reference implementation: `src/proteingen/models/esm/__init__.py`.
+Use ESMC as the reference implementation: `src/proteingen/models/esm/esmc.py`.
 
 #### Constructor checklist
 
