@@ -58,6 +58,63 @@ This example demonstrates:
 3. Combining the probe with ESMC via DEG for guided generation
 4. Evaluating guided vs. unguided samples
 
+## Likelihood Curves (TrpB)
+
+Evaluate how well a model predicts masked amino acids under progressive unmasking, using real TrpB sequences from SaProtHub.
+
+```bash
+uv run python examples/trpb_likelihood_curves.py --device cuda --n-sequences 50 --n-time-points 20
+```
+
+Produces a plot showing average log p(true token) at masked positions vs fraction unmasked. See the [Likelihood Curves workflow](workflows/likelihood-curves.md) for interpretation and usage.
+
+## Fine-tuning ESM3 on EphB1 (Sequence-only MLM)
+
+Fine-tune ESM3 with LoRA on ~10k EphB1 kinase domain homologs using masked language modeling.
+
+```bash
+uv run python examples/finetune_esm3/finetune_esm3_ephb1.py --device cuda --amp --epochs 5
+```
+
+This trains the model to predict randomly masked amino acids from surrounding sequence context. After 5 epochs on ~10k sequences: **loss 1.80 → 1.60, perplexity 6.04 → 4.96**.
+
+See the [Fine-tuning workflow](workflows/finetune-generative.md) for details.
+
+## Fine-tuning ESM3 as Inverse Folding Model (EphB1)
+
+The full pipeline: fold MSA sequences with AF3, then fine-tune ESM3 to predict sequence from structure.
+
+### Step 1: Fold MSA sequences
+
+```bash
+# Start AF3 server
+cd af3-server && sbatch launch.sh
+
+# Fold all sequences (runs ~80h for 10k sequences, saves incrementally)
+uv run python examples/finetune_esm3/fold_msa_domains.py \
+    --server-url http://localhost:8080
+```
+
+### Step 2: Train inverse folding model
+
+```bash
+uv run python examples/finetune_esm3/finetune_inverse_folding.py \
+    --device cuda --amp --epochs 5
+```
+
+Evaluates both structure-conditioned and sequence-only likelihood curves at each epoch. Results on ~9.2k EphB1 structures:
+
+| Epoch | Loss  | PPL  | Struct log p (t=0) | Seq-only log p (t=0) |
+|-------|-------|------|--------------------|---------------------|
+| 0     | —     | —    | -2.075             | -2.955              |
+| 5     | 0.572 | 1.77 | -0.798             | -2.953              |
+
+The structure-conditioned model improves from -2.075 to -0.798 while sequence-only stays flat at -2.95, confirming the model learns to use structure information.
+
+![Inverse folding likelihood curves](assets/images/inverse_folding_likelihood_curves.png)
+
+See the [Fine-tuning workflow](workflows/finetune-generative.md) and [MSA → Dataset workflow](workflows/msa-to-dataset.md) for the full walkthrough.
+
 ## Stability-Guided Generation
 
 !!! note "Coming soon"

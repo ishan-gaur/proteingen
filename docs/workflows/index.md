@@ -8,10 +8,14 @@ Workflows are step-by-step recipes for common protein design tasks. Each workflo
 
 The main workflow: go from a fitness function or dataset to guided protein sequence generation. Covers data organization, training a predictive model, combining it with a generative model via TAG or DEG, and sampling candidates.
 
-<!-- TODO[pi]: add more workflows as they are developed -->
-<!-- Planned workflows:
-  - Fine-tuning a generative model (LoRA)
-  - Structure-conditioned generation
-  - Evaluating generated sequences (metrics, plotting, sanity checks)
-  - Submitting sequences for wet-lab validation
--->
+### [MSA → Sequence + Structure Dataset](msa-to-dataset.md)
+
+Turn a multiple sequence alignment into a training-ready dataset. Covers loading FASTA files, stripping gaps, folding with AF3, and encoding ESM3 structure tokens.
+
+### [Fine-tuning a Generative Model](finetune-generative.md)
+
+Fine-tune ESM3 or ESMC with LoRA for sequence-only MLM or structure-conditioned inverse folding. Includes training loop patterns, example results, and checkpoint management.
+
+### [Evaluating with Likelihood Curves](likelihood-curves.md)
+
+Measure model quality by tracking log-probability trajectories under progressive unmasking. Compare structure-conditioned vs sequence-only, pretrained vs fine-tuned, and track improvement over training.

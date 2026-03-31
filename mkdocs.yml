@@ -63,6 +63,9 @@ nav:
   - Workflows:
     - Overview: workflows/index.md
     - ProteinGuide: workflows/protein-guide.md
+    - MSA → Dataset: workflows/msa-to-dataset.md
+    - Fine-tuning: workflows/finetune-generative.md
+    - Likelihood Curves: workflows/likelihood-curves.md
   - Contributing: contributing.md
   - Reference:
     - Design Philosophy: reference/design-philosophy.md
