@@ -6,6 +6,16 @@
 |-------|-------|--------|-------------|--------|
 | ESMC (300m/600m) | `proteingen.models.ESMC` | [EvolutionaryScale/esm](https://github.com/evolutionaryscale/esm) | None (masked LM) | `(B, L, 64)` logits |
 | ESM3 | `proteingen.models.ESM3` | [EvolutionaryScale/esm](https://github.com/evolutionaryscale/esm) | Structure (atom37 coords) | `(B, L, 64)` logits |
+| DPLM-2 | `proteingen.models.DPLM2` | [bytedance/dplm](https://github.com/bytedance/dplm) | None (masked diffusion) | `(B, L, 8229)` logits |
+| ESM Forge API | `proteingen.models.ESMForgeAPI` | [EvolutionaryScale Forge](https://forge.evolutionaryscale.ai) | Structure (ESM3 only) | `(B, L, 64)` logits |
+| ProteinMPNN | *coming soon* | [dauparas/ProteinMPNN](https://github.com/dauparas/ProteinMPNN) | Structure (required) | Sequence logits |
+| LigandMPNN | *coming soon* | [dauparas/LigandMPNN](https://github.com/dauparas/LigandMPNN) | Structure + ligands | Sequence logits |
+| SaProt | *coming soon* | [westlake-repl/SaProt](https://github.com/westlake-repl/SaProt) | Structure (Foldseek tokens) | Sequence logits |
+| EvoDiff | *coming soon* | [microsoft/evodiff](https://github.com/microsoft/evodiff) | None (discrete diffusion) | Sequence logits |
+| AMPLIFY | *coming soon* | [chandar-lab/AMPLIFY](https://github.com/chandar-lab/AMPLIFY) | None (masked LM) | Sequence logits |
+| ProGen2 | *coming soon* | [salesforce/progen](https://github.com/salesforce/progen) | None (autoregressive) | Sequence logits |
+| Dayhoff | *coming soon* | [microsoft/Dayhoff](https://huggingface.co/microsoft/Dayhoff-170m-UR50) | None (masked LM) | Sequence logits |
+| ZymCTRL | *coming soon* | [AI4PD/ZymCTRL](https://huggingface.co/AI4PD/ZymCTRL) | EC number (autoregressive) | Sequence logits |
 
 ### ESMC
 
@@ -82,6 +92,8 @@ ESM3's geometric attention computes pairwise (L×L) tensors. For a sequence of l
 | Model | Class | Source | Conditioning | Output |
 |-------|-------|--------|-------------|--------|
 | StabilityPMPNN | `proteingen.models.rocklin_ddg.PreTrainedStabilityPredictor` | [ProteinGuide](https://arxiv.org/abs/2505.04823) (ProteinMPNN-based) | Structure (PDB → featurize) | Scalar stability logit |
+| METL | *coming soon* | [gelman-lab/METL](https://github.com/gelman-lab/METL) | Structure (biophysics-pretrained) | Fitness scalar |
+| Tranception | *coming soon* | [OATML-Markslab/Tranception](https://github.com/OATML-Markslab/Tranception) | MSA (retrieval-augmented) | Fitness scalar |
 
 ### StabilityPMPNN
 
@@ -96,4 +108,4 @@ The stability predictor overrides `token_ohe_basis()` so that the `<mask>` token
 
 <!-- TODO[pi]: figure out model storage strategy — should we convert all models to HuggingFace format? Use torch hub cache as default (like evodiff loads from zenodo)? Or extend the save/from_checkpoint interface to support both HF and custom loading? This affects how contributed models are distributed. -->
 
-<!-- TODO[pi]: add models from TODO.md — Progen, Dayhoff, Evodiff, METL, SaProt -->
+
