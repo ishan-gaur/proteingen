@@ -1,14 +1,11 @@
 # Models
 
-## Available Models
+## Generative Models
 
 | Model | Class | Source | Conditioning | Output |
 |-------|-------|--------|-------------|--------|
 | ESMC (300m/600m) | `proteingen.models.ESMC` | [EvolutionaryScale/esm](https://github.com/evolutionaryscale/esm) | None (masked LM) | `(B, L, 64)` logits |
 | ESM3 | `proteingen.models.ESM3` | [EvolutionaryScale/esm](https://github.com/evolutionaryscale/esm) | Structure (atom37 coords) | `(B, L, 64)` logits |
-| StabilityPMPNN | `proteingen.models.rocklin_ddg.PreTrainedStabilityPredictor` | In-repo (ProteinMPNN-based) | Structure (PDB → featurize) | Scalar stability logit |
-
----
 
 ### ESMC
 
@@ -23,9 +20,6 @@ from proteingen.models import ESMC
 
 model = ESMC("esmc_300m").cuda()  # or "esmc_600m"
 ```
-
-!!! note "300m vs 600m"
-    ESMC-300m and ESMC-600m produce essentially identical correlation on the TrpB benchmark (ρ = 0.38 vs 0.39). The 300m variant is recommended for development and prototyping.
 
 ### ESM3
 
@@ -81,9 +75,17 @@ ESM3's geometric attention computes pairwise (L×L) tensors. For a sequence of l
 | 4 | ~4.9M | 0.35% |
 | 2 | ~2.5M | 0.18% |
 
+---
+
+## Predictive Models
+
+| Model | Class | Source | Conditioning | Output |
+|-------|-------|--------|-------------|--------|
+| StabilityPMPNN | `proteingen.models.rocklin_ddg.PreTrainedStabilityPredictor` | [ProteinGuide](https://arxiv.org/abs/2505.04823) (ProteinMPNN-based) | Structure (PDB → featurize) | Scalar stability logit |
+
 ### StabilityPMPNN
 
-ProteinMPNN-based stability predictor from the Rocklin lab. Predicts thermodynamic stability (ΔΔG) from structure + sequence.
+ProteinMPNN-based stability predictor from the [ProteinGuide paper](https://arxiv.org/abs/2505.04823). Trained on the [Rocklin Megascale stability dataset](https://www.nature.com/articles/s41586-022-04604-z) to predict thermodynamic stability (ΔΔG) from structure + sequence.
 
 - **Encode/decode split**: `encode_structure()` runs once per structure (expensive), `decode()` runs per sequence sample (cheap). This maps naturally to ProbabilityModel's `preprocess_observations` / `forward` pattern.
 - **Tokenizer**: `MPNNTokenizer` with 21 tokens (20 standard AAs + UNK). When used with TAG, `include_mask_token=True` adds `<mask>` at idx 21.
