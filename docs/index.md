@@ -12,19 +12,6 @@ ProteinGen centralizes common models and computational workflows for sequence-ba
 
 ProteinGen was developed by [Ishan Gaur](https://ishangaur.com) and is maintained by the [Listgarten Lab](http://www.jennifer.listgarten.com/group.html) at UC Berkeley.
 
-### Use coding agents with confidence
-
-As part of minimizing implementation overhead, we're obviously excited about the future of AI coding agents but recognize that it can be hard to balance their use with doing science that you trust. 
-
-We have structured our codebase and documentation to empower you to develop new design pipelines as effectively as possible. We provide resources for you to understand the algorithms in our repo, make sure your agents avoid common mistakes, and give you the evaluation tools to verify the quality of the pipelines your agents create. Specifically, when developing this repo we focused on the following three things:
-
-1. [Workflows](workflows/index.md): these guides walk you through common training, sampling, and conditional generation pipelines step-by-step. They provide conceptual overviews, agent prompts, and the evals/sanity checks we run when writing code ourselves to make sure everything looks good in our own wetlab collaborations.
-
-2. We teach your coding agents how to use our code. Having Claude Code read through our repo shouldn't torch your token budget. We include AGENTS.md files and SKILLS.md files to help your models understand our design philosophy, common gotchas, and best practices without you having to manually intervene.
-
-3. [Contributing](contributing.md): we want to make it easy for people to use cutting edge models and design algorithms. A key part of this is making it easy for you to get your own work out there. We include SKILLS.md files that help your coding agents make your research code ProteinGen compatible and submit pull requests to add your work to the next release. We want to make this possible even if you've never contributed to open source before.
-
-
 ### Trying new models is dead simple
 
 For example, this is all the machine learning code you need to replicate the stability optimization experiments from our recent [ProteinGuide preprint](https://arxiv.org/abs/2505.04823). In that paper we present two guidance algorithms: TAG (fast, gradient-based) and DEG (exact, enumeration-based). With ProteinGen, switching between algorithms or swapping in a completely different generative model is as easy as changing the imports:
@@ -88,6 +75,18 @@ For example, this is all the machine learning code you need to replicate the sta
     masked_seqs = ["<mask>" * 100] * 8
     seqs = sample_ancestral(tag, masked_seqs)
     ```
+
+### Use coding agents with confidence
+
+As part of minimizing implementation overhead, we're obviously excited about the future of AI coding agents but recognize that it can be hard to balance their use with doing science that you trust. 
+
+We have structured our codebase and documentation to empower you to develop new design pipelines as effectively as possible. We provide resources for you to understand the algorithms in our repo, make sure your agents avoid common mistakes, and give you the evaluation tools to verify the quality of the pipelines your agents create. Specifically, when developing this repo we focused on the following three things:
+
+1. [Workflows](workflows/index.md): these guides walk you through common training, sampling, and conditional generation pipelines step-by-step. They provide conceptual overviews, agent prompts, and the evals/sanity checks we run when writing code ourselves to make sure everything looks good in our own wetlab collaborations.
+
+2. We teach your coding agents how to use our code. Having Claude Code read through our repo shouldn't torch your token budget. We include AGENTS.md files and SKILLS.md files to help your models understand our design philosophy, common gotchas, and best practices without you having to manually intervene.
+
+3. [Contributing](contributing.md): we want to make it easy for people to use cutting edge models and design algorithms. A key part of this is making it easy for you to get your own work out there. We include SKILLS.md files that help your coding agents make your research code ProteinGen compatible and submit pull requests to add your work to the next release. We want to make this possible even if you've never contributed to open source before.
 
 <!-- TODO[pi]: flesh out home page with a diagram showing the generative + predictive model combination via Bayes' rule -->
 <!-- TODO[pi]: add a quick "5-line example" code block showing unconditional sampling -->
