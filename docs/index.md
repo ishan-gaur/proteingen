@@ -1,8 +1,4 @@
-New here? Start with:
-1. [**Setup**](setup.md): get ProteinGen installed in your project
-2. [**Examples**](examples.md): get some idea of the available features
-3. [**Workflows**](workflows/index.md): find the workflow that matches your usecase
-4. [**Design Philosophy**](reference/design-philosophy.md): understand how the codebase is designed so you can best take advantage of it
+New here? Start with: [**Setup**](setup.md) · [**Examples**](examples.md) · [**Workflows**](workflows/index.md) · [**Design Philosophy**](reference/design-philosophy.md)
 
 ---
 
