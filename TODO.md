@@ -4,7 +4,7 @@ TODO[pi] integrate with https://github.com/COLA-Laboratory/GraphFLA to get the d
 
 - [ ] Test guided sampling
     - [ ] Get a stability guided generation demo
-        - [ ] ESM3IF
+        - [ ] ESM3 with structure conditioning
         - [ ] Integrate the stability mpnn
         - [ ] Setup his code into a minimal demo
     - [ ] Implement Tanja work as pilot for classifier stuff

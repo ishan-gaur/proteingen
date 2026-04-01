@@ -8,7 +8,7 @@ Three tokenizer ecosystems coexist in the library — cross-tokenizer mapping is
 
 | Tokenizer | Vocab size | Special tokens | Used by |
 |-----------|-----------|----------------|---------|
-| ESM (`EsmSequenceTokenizer`) | 33 | `<cls>=0, <pad>=1, <eos>=2, <unk>=3, <mask>=32` | ESMC, ESM3, ESM3IF |
+| ESM (`EsmSequenceTokenizer`) | 33 | `<cls>=0, <pad>=1, <eos>=2, <unk>=3, <mask>=32` | ESMC, ESM3 |
 | MPNN (`MPNNTokenizer`) | 21 (or 22 with mask) | `UNK(X)=20`, optional `<mask>=21` | StabilityPMPNN |
 | Simple 20-AA | 21 | `pad=20` | Custom predictors |
 

@@ -13,7 +13,7 @@ import argparse
 import numpy as np
 import torch
 
-from dfm.models.esm import ESM3IF
+from dfm.models.esm import ESM3
 from dfm.models.rocklin_ddg.stability_predictor import (
     PreTrainedStabilityPredictor,
     StabilityPMPNN,
@@ -86,7 +86,7 @@ def main():
     classifier_path = base_dir / "weights" / "noisy_classifier_146_iter_1.pt"
 
     print("Loading DFM models...")
-    esm_model = ESM3IF().to(device)
+    esm_model = ESM3().to(device)
     classifier = (
         PreTrainedStabilityPredictor(str(classifier_path), one_hot_encode_input=True)
         .to(device)

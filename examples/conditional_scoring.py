@@ -1,4 +1,4 @@
-from proteingen.models import ESM3IF, ExprStabilityProbePredictor
+from proteingen.models import ESM3, ExprStabilityProbePredictor
 from proteingen.datasets.seki_tyrosine_kinase import WT_LABELS
 import atomworks.io as aio
 
@@ -7,7 +7,7 @@ import atomworks.io as aio
 test_set_SP = None  # TODO[pi] test set tensordataset tensor
 # TODO[pi] need to find where I implemented the stuff to get the likelihood trajectories--maybe in the tanja repo? actually probably in esm-cath
 tkdomain_structure = aio.parse(ExprStabilityProbePredictor.TK_DOMAIN_PDB_PATH)
-model = ESM3IF().set_condition({"structure": tkdomain_structure})
+model = ESM3().set_condition({"coords_RAX": tkdomain_structure})
 pred_model = ExprStabilityProbPredictor()
 y = [(">", WT_LABELS[0]), (">", WT_LABELS[1])]
 

@@ -6,7 +6,6 @@
 |-------|-------|--------|-------------|--------|
 | ESMC (300m/600m) | `proteingen.models.ESMC` | [EvolutionaryScale/esm](https://github.com/evolutionaryscale/esm) | None (masked LM) | `(B, L, 64)` logits |
 | ESM3 | `proteingen.models.ESM3` | [EvolutionaryScale/esm](https://github.com/evolutionaryscale/esm) | Structure (atom37 coords) | `(B, L, 64)` logits |
-| ESM3IF | `proteingen.models.ESM3IF` | [EvolutionaryScale/esm](https://github.com/evolutionaryscale/esm) | Structure (atom37 coords, **required**) | `(B, L, 64)` logits |
 | StabilityPMPNN | `proteingen.models.rocklin_ddg.PreTrainedStabilityPredictor` | In-repo (ProteinMPNN-based) | Structure (PDB → featurize) | Scalar stability logit |
 
 ---
@@ -75,9 +74,10 @@ ESM3's geometric attention computes pairwise (L×L) tensors. For a sequence of l
 | 4 | ~4.9M | 0.35% |
 | 2 | ~2.5M | 0.18% |
 
-### ESM3IF
+### ESM3IF (deprecated)
 
-ESM3 configured for inverse folding (structure-conditioned sequence generation). Structure conditioning is **required** — the model predicts sequences given a backbone.
+!!! warning "Deprecated"
+    `ESM3IF` is deprecated. Use `ESM3` with `set_condition_()` or `conditioned_on()` instead — it provides the same structure-conditioned generation with full embedding and LoRA support. `ESM3IF` now issues a `DeprecationWarning` and delegates to `ESM3`.
 
 ### StabilityPMPNN
 

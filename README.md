@@ -40,7 +40,7 @@ src/proteingen/
 ├── sampling.py             # sample_any_order_ancestral
 ├── data.py                 # GuidanceDataset, NoiseSchedule, schedule functions
 └── models/
-    ├── esm.py              # ESMC, ESM3, ESM3IF (TransitionModelWithEmbedding subclasses)
+    ├── esm.py              # ESMC, ESM3 (TransitionModelWithEmbedding subclasses)
     ├── rocklin_ddg/         # Stability predictor (StabilityPMPNN, PreTrainedStabilityPredictor)
     └── utils.py            # pdb_to_atom37_and_seq (WIP)
 
@@ -49,7 +49,7 @@ examples/
 ├── esm3_structure_conditioned_sampling.py # ESM3 with structure conditioning
 ├── pca_embedding_init.py                  # PCA-init EmbeddingMLP from ESMC
 ├── trpb_linear_probe.py                   # Train MLP probe + guided sampling on TrpB fitness
-├── conditional_scoring.py                 # ESM3IF scoring (uses older API, needs update)
+├── conditional_scoring.py                 # ESM3 structure-conditioned scoring (uses older API, needs update)
 └── stability_guidance/                    # Stability-guided generation (WIP)
 
 tests/
@@ -115,8 +115,7 @@ Template subclasses (all ABC — user implements `format_raw_to_logits`):
 ### Models
 
 - **`ESMC`** — ESM-C (300m/600m) as masked LM + embedding extractor
-- **`ESM3`** — ESM3-open with optional structure conditioning via atom37 coordinates
-- **`ESM3IF`** — ESM3 inverse folding (structure-conditioned sequence generation)
+- **`ESM3`** — ESM3-open with optional structure conditioning (inverse folding via `set_condition_()` / `conditioned_on()`)
 
 ### Sampling
 

@@ -24,7 +24,7 @@ from scipy.stats import gaussian_kde
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from proteingen.models.esm import ESM3IF
+from proteingen.models.esm import ESM3
 from proteingen.models.rocklin_ddg.stability_predictor import (
     PreTrainedStabilityPredictor,
     StabilityPMPNN,
@@ -96,7 +96,7 @@ def sample_batched(model, init_tokens, *, num_samples, batch_size, n_steps):
 # 1. Load ESM3 model
 # -------------------------------------------------------------------------
 print("Loading ESM3 model...")
-esm_model = ESM3IF().to(device)
+esm_model = ESM3().to(device)
 esm_model.set_temp_(gen_temp)
 
 # -------------------------------------------------------------------------

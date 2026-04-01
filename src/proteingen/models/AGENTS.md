@@ -6,7 +6,7 @@ Concrete model implementations that subclass the core abstractions.
 
 Each model lives in its own directory with a dedicated `.md`:
 
-- [esm/esm.md](esm/esm.md) — ESMC, ESM3, ESM3IF (TransitionModelWithEmbedding subclasses)
+- [esm/esm.md](esm/esm.md) — ESMC, ESM3 (TransitionModelWithEmbedding subclasses); ESM3IF deprecated (thin subclass of ESM3)
 - [dplm2/dplm2.md](dplm2/dplm2.md) — DPLM-2 discrete diffusion protein language model (TransitionModelWithEmbedding subclass)
 - [rocklin_ddg/rocklin_ddg.md](rocklin_ddg/rocklin_ddg.md) — Stability predictor from Listgarten lab / ProteinGuide, trained on Rocklin Megascale dataset (PredictiveModel subclass)
 - `seki_tyrosine_kinase.py` — kinase fitness predictor (stale, needs updating — sets `self.input_dim` manually)

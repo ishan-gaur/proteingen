@@ -37,7 +37,7 @@ def sample_linear_interpolation(
     for step in tqdm(range(n_steps)):
         logp_x_SPT = model.get_log_probs(
             x_SP
-        )  # TODO[pi] I'm not seeing any -infs here--which I should with ESM3IF for a masked logit formatted output
+        )  # TODO[pi] I'm not seeing any -infs here--which I should with ESM3 for a masked logit formatted output
         # Euler in this case is just a linear interpolation
         output_dim = logp_x_SPT.size(2)
         X_0_SPT = F.one_hot(x_SP, num_classes=output_dim)

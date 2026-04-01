@@ -1,4 +1,4 @@
-from proteingen import ESM3IF
+from proteingen import ESM3
 from proteingen import PredictiveModel, LinearProbe
 import atomworks.io as aio
 from esm.tokenization.sequence_tokenizer import EsmSequenceTokenizer
@@ -20,7 +20,7 @@ class ExprStabilityProbePredictor(RealValuedEnsembleModel):
         )
         self.tokenizer = EsmSequenceTokenizer()
         self.input_dim = (
-            self.ESM3IF.embed.sequence.vocab_size
+            self.probe.embed_model.tokenizer.vocab_size
         )  # make this the number of rows in the embedding module
 
     # TODO[pi]

@@ -13,7 +13,7 @@
 | **Home**       | Scaffold   | Problem statement, design philosophy blurb (agent-forward, wetlab workflows, drylab contributing) |
 | **Setup**      | Scaffold   | Claude Code install, uv setup, repo cloning, pointer to Design Philosophy |
 | **Examples**   | Scaffold   | Walk through existing `examples/` scripts |
-| **Models**     | Scaffold   | Table of models: ESMC, ESM3, ESM3IF, StabilityPMPNN; links, weights, conditioning vars, logit format |
+| **Models**     | Scaffold   | Table of models: ESMC, ESM3, StabilityPMPNN; links, weights, conditioning vars, logit format |
 | **Workflows**  | Scaffold   | ProteinGuide recipe tabs; each step refs a sub-workflow |
 | **Contributing** | Scaffold | How to prompt an agent to add a new model; skill files for generative + predictive model migration |
 | **Reference**  | Scaffold   | Auto-generated API docs via mkdocstrings |
@@ -49,7 +49,7 @@ Walk through each existing example:
 Table columns: Model | Source | Weights | Conditioning Variables | Output Format
 - ESMC (300m/600m) — github.com/evolutionaryscale/esm, HF `esmc_300m`/`esmc_600m`, none (masked LM), `(B, L, 64)` logits
 - ESM3 — same repo, HF `esm3-open`, structure (atom37 coords), `(B, L, 64)` logits
-- ESM3IF — same repo, HF `esm3-open`, structure (atom37 coords, required), `(B, L, 64)` logits
+- ESM3 — same repo, HF `esm3-open`, structure conditioning optional (atom37 coords), `(B, L, 64)` logits
 - StabilityPMPNN — rocklin_ddg in-repo, manual weights, structure (PDB → featurize), scalar stability logit
 
 TODO[pi]: figure out model storage strategy — convert to HF format? Use torch hub cache as default (like evodiff/zenodo)? Extend `save/from_checkpoint` interface? Needs design decision.
