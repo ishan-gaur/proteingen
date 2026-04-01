@@ -7,7 +7,11 @@ description: Step-by-step workflow for integrating a new generative (transition)
 
 Workflow for wrapping a new pretrained generative model (e.g. a protein language model) into proteingen's `TransitionModel` hierarchy. This skill covers `TransitionModel` (composition) and `TransitionModelWithEmbedding` (ABC with differentiable embeddings). It does **not** cover `PredictiveModel` subclasses — those are a separate concern.
 
-**Progress tracking**: Before returning control to the user (or when finishing a message), state which phase you just completed and which phase is next. Example: `✅ Phase 5 complete (tests). Next: Phase 6 (design doc) → Phase 7 (docs site).` This ensures the user knows work remains even when tests pass.
+**Progress tracking**: When returning control to the user, include a status line showing all phases and which one you're currently on. Example:
+
+`Phases: 1 Research → 2 Internals → 3 Plan → 4 Scaffold → 5 Implement → 6 Tests → 7 Design doc → **8 Docs site**`
+
+This ensures the user always knows where you are and how much remains.
 
 ## Phase 1: Get Access & Align on Scope
 
