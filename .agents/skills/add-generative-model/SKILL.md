@@ -7,6 +7,8 @@ description: Step-by-step workflow for integrating a new generative (transition)
 
 Workflow for wrapping a new pretrained generative model (e.g. a protein language model) into proteingen's `TransitionModel` hierarchy. This skill covers `TransitionModel` (composition) and `TransitionModelWithEmbedding` (ABC with differentiable embeddings). It does **not** cover `PredictiveModel` subclasses — those are a separate concern.
 
+**Progress tracking**: Before returning control to the user (or when finishing a message), state which phase you just completed and which phase is next. Example: `✅ Phase 5 complete (tests). Next: Phase 6 (design doc) → Phase 7 (docs site).` This ensures the user knows work remains even when tests pass.
+
 ## Phase 1: Get Access & Align on Scope
 
 Before writing any code:
@@ -226,16 +228,18 @@ Create `src/proteingen/models/<name>/<name>.md` following the pattern in `models
 
 ## Phase 7: Add Documentation
 
-After the model is implemented and tests pass, add documentation:
+⚠️ **The model is NOT done until this phase is complete.** Passing tests = Phase 5. Don't stop here.
 
-1. **MkDocs page** — add a page for the model in `docs/` following the existing pattern (see `docs/AGENTS.md` for structure). Include:
+After the model is implemented and tests pass, add user-facing documentation:
+
+1. **Update `docs/models.md`** — add the model to the appropriate table (Generative Models or Predictive Models) and write a section covering:
    - What the model does and where it comes from (paper, repo link)
    - How to load and use it with proteingen
    - Code snippets for common workflows (forward pass, sampling, conditioning, guidance)
    - Any model-specific configuration (variants, checkpoint sizes, device requirements)
-2. **Update `mkdocs.yml`** — add the new page to the nav.
-3. **Update `models/AGENTS.md`** — add the model to the registry with a link to its design doc.
-4. **Update `src/proteingen/models/__init__.py`** — ensure the model class and any TypedDicts are exported.
+2. **Update `mkdocs.yml`** — add any new pages to the nav if needed.
+3. **Verify `models/AGENTS.md`** — confirm the model was added to the registry in Phase 3.
+4. **Verify exports** — confirm `src/proteingen/models/__init__.py` exports the class.
 
 ## Common Gotchas Checklist
 
@@ -251,3 +255,14 @@ Review these before considering the integration complete:
 - [ ] **Geometric attention / pairwise ops OOM** — models with O(L²) attention may OOM at large batch sizes. Document the safe batch_size for your GPU.
 - [ ] **Structure conditioning length-lock** — if `preprocess_observations` encodes to fixed-length tokens, all subsequent calls must match that length.
 - [ ] **`from __future__ import annotations`** — if your file has forward references in type annotations, add this import at the top.
+
+## Completion Checklist
+
+Before declaring the integration done, verify all deliverables exist:
+
+- [ ] Model class in `src/proteingen/models/<provider>/`
+- [ ] Exported from `models/__init__.py`
+- [ ] Tests passing in `tests/test_<name>.py`
+- [ ] Design doc at `src/proteingen/models/<provider>/<provider>.md`
+- [ ] **Listed in `docs/models.md`** with section and code examples
+- [ ] `models/AGENTS.md` updated
