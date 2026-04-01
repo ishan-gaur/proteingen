@@ -1,7 +1,7 @@
-"""Tests for ESM Forge API model wrappers.
+"""Tests for ESMForgeAPI model wrapper.
 
-These tests require network access and a valid ESM_API_KEY environment variable.
-They are skipped automatically when the API key is not set.
+These tests require network access and a valid FORGE_TOKEN environment variable.
+They are skipped automatically when the token is not set.
 """
 
 import os
@@ -9,30 +9,29 @@ import os
 import torch
 import pytest
 
-from proteingen.models.esm import ESM3API, ESMCAPI
+from proteingen.models.esm import ESMForgeAPI
 
 FORGE_TOKEN = os.environ.get("FORGE_TOKEN", "")
 skip_no_key = pytest.mark.skipif(not FORGE_TOKEN, reason="FORGE_TOKEN not set")
 
 
-# ── ESMCAPI tests ────────────────────────────────────────────────────────
+# ── ESMC via Forge ───────────────────────────────────────────────────────
 
 
 @pytest.fixture
 def esmc_api():
-    return ESMCAPI("esmc-300m-2024-12", token=ESM_API_KEY)
+    return ESMForgeAPI("esmc-300m-2024-12", token=FORGE_TOKEN)
 
 
 @skip_no_key
-def test_esmc_api_construction(esmc_api):
+def test_esmc_construction(esmc_api):
     assert esmc_api.device == torch.device("cpu")
     assert esmc_api._model_name == "esmc-300m-2024-12"
-    assert esmc_api.tokenizer is not None
-    assert esmc_api.logit_formatter is not None
+    assert not esmc_api._is_esm3
 
 
 @skip_no_key
-def test_esmc_api_forward(esmc_api):
+def test_esmc_forward(esmc_api):
     seq_str = "ACDEF"
     encoded = esmc_api.tokenizer.encode(seq_str)
     seq_SP = torch.tensor([encoded], dtype=torch.long)
@@ -47,7 +46,7 @@ def test_esmc_api_forward(esmc_api):
 
 
 @skip_no_key
-def test_esmc_api_get_log_probs(esmc_api):
+def test_esmc_get_log_probs(esmc_api):
     seq_str = "ACDEF"
     encoded = esmc_api.tokenizer.encode(seq_str)
     seq_SP = torch.tensor([encoded], dtype=torch.long)
@@ -59,14 +58,13 @@ def test_esmc_api_get_log_probs(esmc_api):
     assert not torch.any(torch.isnan(log_probs))
     assert torch.all(log_probs <= 0.0)
 
-    # Normalized
     probs = torch.exp(log_probs)
     sums = probs.sum(dim=-1)
     assert torch.allclose(sums, torch.ones_like(sums), atol=1e-4)
 
 
 @skip_no_key
-def test_esmc_api_get_log_probs_from_string(esmc_api):
+def test_esmc_get_log_probs_from_string(esmc_api):
     log_probs = esmc_api.get_log_probs_from_string(["ACDEF"])
     assert log_probs.shape[0] == 1
     assert log_probs.shape[2] == 64
@@ -74,57 +72,48 @@ def test_esmc_api_get_log_probs_from_string(esmc_api):
 
 
 @skip_no_key
-def test_esmc_api_batched(esmc_api):
+def test_esmc_batched(esmc_api):
     """Batched input with padding."""
     log_probs = esmc_api.get_log_probs_from_string(["ACDEF", "GH"])
     assert log_probs.shape[0] == 2
-    # Longer sequence determines P
     assert log_probs.shape[1] == len(esmc_api.tokenizer.encode("ACDEF"))
 
 
 @skip_no_key
-def test_esmc_api_temperature(esmc_api):
+def test_esmc_temperature(esmc_api):
     seq_SP = torch.tensor([esmc_api.tokenizer.encode("ACDEF")], dtype=torch.long)
 
     lp_default = esmc_api.get_log_probs(seq_SP)
     with esmc_api.with_temp(0.5):
         lp_cold = esmc_api.get_log_probs(seq_SP)
 
-    # Colder temperature → sharper distribution → higher max log prob
     assert lp_cold.max() > lp_default.max()
 
 
 @skip_no_key
-def test_esmc_api_no_lora():
-    model = ESMCAPI("esmc-300m-2024-12", token=ESM_API_KEY)
-    with pytest.raises(NotImplementedError):
-        model.apply_lora()
+def test_esmc_no_structure_conditioning(esmc_api):
+    coords = torch.randn(5, 37, 3)
+    with pytest.raises(AssertionError, match="Structure conditioning not supported"):
+        esmc_api.set_condition_({"coords_RAX": coords})
 
 
-@skip_no_key
-def test_esmc_api_no_checkpointing():
-    model = ESMCAPI("esmc-300m-2024-12", token=ESM_API_KEY)
-    with pytest.raises(NotImplementedError):
-        model._save_args()
-
-
-# ── ESM3API tests ────────────────────────────────────────────────────────
+# ── ESM3 via Forge ───────────────────────────────────────────────────────
 
 
 @pytest.fixture
 def esm3_api():
-    return ESM3API("esm3-sm-open-v1", token=ESM_API_KEY)
+    return ESMForgeAPI("esm3-sm-open-v1", token=FORGE_TOKEN)
 
 
 @skip_no_key
-def test_esm3_api_construction(esm3_api):
+def test_esm3_construction(esm3_api):
     assert esm3_api.device == torch.device("cpu")
     assert esm3_api._model_name == "esm3-sm-open-v1"
-    assert esm3_api.tokenizer is not None
+    assert esm3_api._is_esm3
 
 
 @skip_no_key
-def test_esm3_api_forward(esm3_api):
+def test_esm3_forward(esm3_api):
     seq_str = "ACDEF"
     encoded = esm3_api.tokenizer.encode(seq_str)
     seq_SP = torch.tensor([encoded], dtype=torch.long)
@@ -139,7 +128,7 @@ def test_esm3_api_forward(esm3_api):
 
 
 @skip_no_key
-def test_esm3_api_get_log_probs(esm3_api):
+def test_esm3_get_log_probs(esm3_api):
     seq_str = "ACDEF"
     encoded = esm3_api.tokenizer.encode(seq_str)
     seq_SP = torch.tensor([encoded], dtype=torch.long)
@@ -157,7 +146,7 @@ def test_esm3_api_get_log_probs(esm3_api):
 
 
 @skip_no_key
-def test_esm3_api_get_log_probs_from_string(esm3_api):
+def test_esm3_get_log_probs_from_string(esm3_api):
     log_probs = esm3_api.get_log_probs_from_string(["ACDEF"])
     assert log_probs.shape[0] == 1
     assert log_probs.shape[2] == 64
@@ -165,16 +154,14 @@ def test_esm3_api_get_log_probs_from_string(esm3_api):
 
 
 @skip_no_key
-def test_esm3_api_batched(esm3_api):
+def test_esm3_batched(esm3_api):
     log_probs = esm3_api.get_log_probs_from_string(["ACDEF", "GH"])
     assert log_probs.shape[0] == 2
     assert log_probs.shape[1] == len(esm3_api.tokenizer.encode("ACDEF"))
 
 
 @skip_no_key
-def test_esm3_api_structure_conditioning(esm3_api):
-    """Structure conditioning via set_condition_."""
-    # 5 residues → atom37 coords (5, 37, 3)
+def test_esm3_structure_conditioning(esm3_api):
     coords = torch.randn(5, 37, 3)
 
     esm3_api.set_condition_({"coords_RAX": coords})
@@ -190,8 +177,7 @@ def test_esm3_api_structure_conditioning(esm3_api):
 
 
 @skip_no_key
-def test_esm3_api_conditioned_on_context_manager(esm3_api):
-    """conditioned_on reverts state."""
+def test_esm3_conditioned_on_context_manager(esm3_api):
     coords = torch.randn(5, 37, 3)
 
     assert esm3_api.observations is None
@@ -200,8 +186,18 @@ def test_esm3_api_conditioned_on_context_manager(esm3_api):
     assert esm3_api.observations is None
 
 
+# ── Shared: unsupported operations ───────────────────────────────────────
+
+
 @skip_no_key
-def test_esm3_api_no_lora():
-    model = ESM3API("esm3-sm-open-v1", token=ESM_API_KEY)
+def test_no_lora():
+    model = ESMForgeAPI("esmc-300m-2024-12", token=FORGE_TOKEN)
     with pytest.raises(NotImplementedError):
         model.apply_lora()
+
+
+@skip_no_key
+def test_no_checkpointing():
+    model = ESMForgeAPI("esmc-300m-2024-12", token=FORGE_TOKEN)
+    with pytest.raises(NotImplementedError):
+        model._save_args()
