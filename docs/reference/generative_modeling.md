@@ -14,6 +14,15 @@ TransitionModel(model: nn.Module, tokenizer, logit_formatter: LogitFormatter)
 - `format_raw_to_logits` applies `self.logit_formatter(raw, seq_SP)`
 - `get_log_probs_from_string(sequences)` tokenizes input strings, then calls `get_log_probs`
 
+### Conditioning
+
+`TransitionModel` inherits two conditioning patterns from `ProbabilityModel`:
+
+- **Inference** — `set_condition_()` / `conditioned_on()` caches a single observation and tiles it to the batch via `collate_observations`
+- **Training** — a collator prepares per-sample observations and the training loop passes them directly to `model.forward(input_ids, **observations)`
+
+See [probability_model → Conditioning](probability_model.md#conditioning) for the full explanation of both patterns, and [data](data.md) for the collator API.
+
 ### Overriding for non-tensor outputs
 
 When the wrapped model returns a dataclass (not a raw tensor), override `format_raw_to_logits`:
