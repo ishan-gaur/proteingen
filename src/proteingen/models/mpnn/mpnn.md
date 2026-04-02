@@ -10,7 +10,8 @@ Structure-conditioned autoregressive sequence design model from the Foundry (`rc
 
 ## Used By
 
-- `tests/test_protein_mpnn.py` — 18 tests (17 pass, 1 skipped for missing checkpoint)
+- `tests/test_protein_mpnn.py` — 19 tests (18 pass, 1 skipped for missing checkpoint)
+- Includes a Foundry reference test on PDB 1YCR (p53/MDM2, 2 chains, 98 residues) — produces bitwise-identical logits (0.0 max diff, 100% argmax match)
 - Sampling, TAG guidance, LinearProbe via `TransitionModelWithEmbedding` interface
 
 ## Architecture

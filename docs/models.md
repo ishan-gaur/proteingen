@@ -204,6 +204,21 @@ emb = model.embed(tokens)       # (B, L, 128) — differentiable
 out = model.embedding_to_outputs(emb)  # (B, L, 22) — gradients flow back
 ```
 
+#### Wrapper design
+
+ProteinMPNN is an autoregressive model — its native forward pass decodes one residue at a time in a random order — but proteingen wraps it to behave like a masked language model so it fits the same `get_log_probs` / sampling / TAG interface as ESM and DPLM-2. Here's how:
+
+**Encoder/decoder caching.** The MPNN architecture has two halves: an encoder that processes the backbone graph (no sequence information) and a decoder that predicts sequence conditioned on the encoder output. Since the structure doesn't change between calls, `set_condition_()` runs the graph featurization and encoder once, caching the node features `h_V` (L, 128), edge features `h_E` (L, K, 128), and neighbor indices `E_idx` (L, K). Every subsequent `forward` / `get_log_probs` / `embed` call only runs the lightweight decoder.
+
+**Conditional-minus-self causality.** MPNN's decoder supports several causal masking modes. The wrapper uses `conditional_minus_self`: each position sees every other position's ground-truth sequence embedding but *not* its own. This gives a pseudo-likelihood estimate — P(residue_i | structure, all other residues) — at every position in a single teacher-forcing pass. This is the same mode the original ProteinMPNN uses for scoring sequences.
+
+**Logit padding to 22-dim.** MPNN natively outputs 21-dim logits (20 standard AAs + UNK). The wrapper appends a -inf column for the mask token (index 21), producing 22-dim output. This lets `MaskedModelLogitFormatter` enforce the right masking semantics: mask-token inputs predict a distribution over the 20 standard AAs; regular AA inputs predict a delta on themselves. The padding is invisible to downstream code — `get_log_probs` returns a valid 22-dim log-probability distribution at every position.
+
+**Soft embeddings for TAG.** The differentiable embedding path replaces the discrete `W_s(token_ids)` lookup with a continuous `ohe @ W_s.weight` matmul, then runs the same decoder layers with the cached encoder features. For mask-token positions, the OHE slice over MPNN's 21 tokens is all zeros, yielding a zero sequence embedding — matching MPNN's native "unknown sequence" initialization. Gradients flow from the output logits back through the decoder and matmul to the input OHE, enabling TAG guidance.
+
+!!! info "Validated against Foundry"
+    The wrapper is tested against Foundry's own MPNN pipeline on PDB 1YCR (p53/MDM2, 2 chains, 98 residues) and produces **bitwise-identical logits** — 0.0 max absolute difference, 100% argmax agreement across all positions.
+
 ### ESM Forge API
 
 Remote inference via the [EvolutionaryScale Forge](https://forge.evolutionaryscale.ai) API. Wraps Forge clients to provide the same `get_log_probs` interface as local ESM models — no local weights needed. Automatically selects the right client (ESM3 vs ESMC) based on model name.
