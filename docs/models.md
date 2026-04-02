@@ -8,7 +8,7 @@
 | ESM3 | `proteingen.models.ESM3` | [EvolutionaryScale/esm](https://github.com/evolutionaryscale/esm) | Structure (atom37 coords) | `(B, L, 64)` logits |
 | DPLM-2 | `proteingen.models.DPLM2` | [bytedance/dplm](https://github.com/bytedance/dplm) | None (masked diffusion) | `(B, L, 8229)` logits |
 | ESM Forge API | `proteingen.models.ESMForgeAPI` | [EvolutionaryScale Forge](https://forge.evolutionaryscale.ai) | Structure (ESM3 only) | `(B, L, 64)` logits |
-| ProteinMPNN | *coming soon* | [dauparas/ProteinMPNN](https://github.com/dauparas/ProteinMPNN) | Structure (required) | Sequence logits |
+| ProteinMPNN | `proteingen.models.ProteinMPNN` | [Foundry](https://github.com/dauparas/ProteinMPNN) (via `rc-foundry[all]`) | Structure (required) | `(B, L, 22)` logits |
 | LigandMPNN | *coming soon* | [dauparas/LigandMPNN](https://github.com/dauparas/LigandMPNN) | Structure + ligands | Sequence logits |
 | SaProt | *coming soon* | [westlake-repl/SaProt](https://github.com/westlake-repl/SaProt) | Structure (Foldseek tokens) | Sequence logits |
 | EvoDiff | *coming soon* | [microsoft/evodiff](https://github.com/microsoft/evodiff) | None (discrete diffusion) | Sequence logits |
@@ -120,6 +120,89 @@ sequences = sample_linear_interpolation(model, init_tokens, n_steps=100)
 
 !!! warning "Untied embedding weights"
     The HuggingFace config for DPLM-2 incorrectly sets `tie_word_embeddings=True`. The `DPLM2` wrapper overrides this to `False` before loading — if you load the model manually via `AutoModelForMaskedLM`, you'll get wrong logits.
+
+### ProteinMPNN
+
+Structure-conditioned autoregressive sequence design model ([Dauparas et al., 2022](https://www.science.org/doi/10.1126/science.add2187)). Wraps the Foundry implementation (`rc-foundry[all]`) as a `TransitionModelWithEmbedding`.
+
+- **Output dim**: 22 (20 standard AAs + UNK + mask token column — mask column padded with -inf)
+- **Embedding dim**: 128
+- **Parameters**: 1.7M (small, runs fast on CPU)
+- **Structure conditioning**: **required** — the model is a structure-conditioned inverse folding model
+- **LoRA support**: yes, via `apply_lora()`
+
+Available checkpoints (from Foundry registry):
+
+| Checkpoint | Description |
+|---|---|
+| `proteinmpnn` | Standard ProteinMPNN (default) |
+| `solublempnn` | Trained on soluble proteins only |
+
+```python
+from proteingen.models import ProteinMPNN
+
+model = ProteinMPNN("proteinmpnn")  # or "solublempnn"
+```
+
+#### Structure conditioning
+
+ProteinMPNN **requires** backbone structure as input. The conditioning dict provides atom coordinates in the standard 37-atom representation:
+
+```python
+import torch
+
+# Structure with L residues
+L = 100
+condition = {
+    "X": coords,         # (L, 37, 3) — atom coordinates (backbone at positions 0-3)
+    "X_m": coord_mask,   # (L, 37) — bool mask for which atoms exist
+    "R_idx": res_idx,    # (L,) — residue indices within each chain
+    "chain_labels": chains,  # (L,) — integer chain IDs (0, 1, 2, ...)
+    "residue_mask": mask,    # (L,) — bool mask for valid residues
+}
+
+# Set conditioning — runs graph featurization + encoder once
+model.set_condition_(condition)
+
+# Get log probabilities for a sequence
+tokens = model.tokenizer("A" * L)["input_ids"]
+log_probs = model.get_log_probs(tokens)  # (1, L, 22)
+
+# Or use context manager
+with model.conditioned_on(condition):
+    log_probs = model.get_log_probs(tokens)
+```
+
+The wrapper precomputes the MPNN encoder features (graph featurization + message passing on the structure) once during `set_condition_()`. All subsequent forward passes reuse these cached features, making repeated calls cheap.
+
+#### Decoder mode
+
+The wrapper uses **conditional_minus_self** teacher forcing: each position's logit is conditioned on all other positions' sequence identities and the structure, but not on its own identity. This gives a pseudo-likelihood at every position, compatible with masked-diffusion sampling.
+
+For positions with mask tokens in the input, the model outputs a distribution over the 20 standard amino acids. For positions with regular AA tokens, the `MaskedModelLogitFormatter` forces the output to a delta on the input token.
+
+#### Sampling
+
+ProteinMPNN integrates with proteingen's sampling infrastructure:
+
+```python
+from proteingen.sampling import sample_linear_interpolation
+
+# Start from all-masked sequence
+init_tokens = model.tokenizer(["<mask>" * L])["input_ids"]
+with model.conditioned_on(condition):
+    sequences = sample_linear_interpolation(model, init_tokens, n_steps=50)
+```
+
+#### Differentiable embedding (TAG guidance)
+
+The embedding path supports gradients through the sequence → decoder → logits path. Structure encoder features are treated as constants (precomputed). Mask token positions receive a zero sequence embedding, equivalent to MPNN's "unknown sequence" initialization:
+
+```python
+# TAG guidance with ProteinMPNN
+emb = model.embed(tokens)       # (B, L, 128) — differentiable
+out = model.embedding_to_outputs(emb)  # (B, L, 22) — gradients flow back
+```
 
 ### ESM Forge API
 
