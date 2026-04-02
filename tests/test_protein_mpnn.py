@@ -3,6 +3,8 @@
 import torch
 import torch.utils.checkpoint
 import pytest
+import urllib.request
+from pathlib import Path
 from proteingen.models.mpnn import ProteinMPNN
 
 
@@ -335,3 +337,96 @@ def test_lora(conditioned_model):
     # Some params should be trainable
     trainable = sum(1 for p in model.parameters() if p.requires_grad)
     assert trainable > 0
+
+
+# ── Foundry reference comparison on real multimer PDB ─────────────────────
+
+
+PDB_1YCR = Path("/tmp/test_1YCR.pdb")
+
+
+@pytest.fixture(scope="module")
+def real_multimer_data():
+    """Download 1YCR (p53/MDM2, 2 chains, 98 residues) and process via Foundry."""
+    # Download PDB
+    if not PDB_1YCR.exists():
+        urllib.request.urlretrieve(
+            "https://files.rcsb.org/download/1YCR.pdb", str(PDB_1YCR)
+        )
+
+    from atomworks.io import parse
+    from mpnn.pipelines.mpnn import build_mpnn_transform_pipeline
+    from mpnn.collate.feature_collator import FeatureCollator
+    from mpnn.model.mpnn import ProteinMPNN as _ProteinMPNN
+    from mpnn.utils.weights import load_legacy_weights
+
+    # Parse with full annotations
+    parsed = parse(str(PDB_1YCR))
+    atom_array = parsed["assemblies"]["1"][0]
+
+    # Run Foundry pipeline
+    pipeline = build_mpnn_transform_pipeline(
+        model_type="protein_mpnn",
+        is_inference=True,
+        minimal_return=False,
+    )
+    pipeline_output = pipeline(
+        {
+            "atom_array": atom_array.copy(),
+            "structure_noise": 0.0,
+            "decode_type": "teacher_forcing",
+            "causality_pattern": "conditional_minus_self",
+            "initialize_sequence_embedding_with_ground_truth": True,
+            "atomize_side_chains": False,
+            "repeat_sample_num": None,
+            "features_to_return": None,
+        }
+    )
+    network_input = FeatureCollator()([pipeline_output])
+
+    # Run Foundry model
+    foundry_model = _ProteinMPNN()
+    load_legacy_weights(foundry_model, "/data/ishan/foundry/proteinmpnn_v_48_020.pt")
+    foundry_model.eval()
+
+    with torch.no_grad():
+        foundry_output = foundry_model(network_input)
+
+    return {
+        "network_input": network_input,
+        "foundry_logits": foundry_output["decoder_features"]["logits"],
+    }
+
+
+def test_matches_foundry_on_real_multimer(real_multimer_data):
+    """Our wrapper produces identical logits to Foundry on 1YCR (2-chain PDB)."""
+    ni = real_multimer_data["network_input"]
+    foundry_logits = real_multimer_data["foundry_logits"]
+
+    S = ni["input_features"]["S"]
+    X = ni["input_features"]["X"]
+    X_m = ni["input_features"]["X_m"]
+    R_idx = ni["input_features"]["R_idx"]
+    chain_labels = ni["input_features"]["chain_labels"]
+    residue_mask = ni["input_features"]["residue_mask"]
+
+    assert chain_labels.unique().numel() == 2, "Expected 2 chains in 1YCR"
+
+    model = ProteinMPNN("proteinmpnn")
+    model.set_condition_(
+        {
+            "X": X.squeeze(0),
+            "X_m": X_m.squeeze(0),
+            "R_idx": R_idx.squeeze(0),
+            "chain_labels": chain_labels.squeeze(0),
+            "residue_mask": residue_mask.squeeze(0),
+        }
+    )
+
+    with torch.no_grad():
+        our_logits_22 = model.embedding_to_outputs(model.embed(S))
+        our_logits_21 = our_logits_22[:, :, :21]
+
+    max_diff = (foundry_logits - our_logits_21).abs().max().item()
+    assert max_diff == 0.0, f"Logits differ by {max_diff} on real multimer 1YCR"
+    assert foundry_logits.argmax(-1).eq(our_logits_21.argmax(-1)).all()
