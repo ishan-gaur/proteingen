@@ -1,8 +1,24 @@
 import torch
 from torch.nn import functional as F
-from typing import Callable, Optional, List
+from typing import Callable, Optional, List, TypedDict
 from proteingen.generative_modeling import TransitionModel, TransitionFunc
 from tqdm import tqdm
+
+
+class SamplingTrajectory(TypedDict):
+    """Per-step data recorded during ordered ancestral sampling.
+
+    sequences: (S,) list of generated sequences (strings).
+    step_log_probs: (S, n_steps) — log p(sampled_token) at each generation step.
+    step_positions: (S, n_steps) — which position was unmasked at each step.
+    step_tokens: (S, n_steps) — which token was sampled at each step.
+    """
+
+    sequences: list[str]
+    step_log_probs: torch.Tensor
+    step_positions: torch.Tensor
+    step_tokens: torch.Tensor
+
 
 SamplingStep = Callable[
     [TransitionFunc, torch.LongTensor, ...],
@@ -53,7 +69,9 @@ def sample_linear_interpolation(
         return x_SP.to(x_device)
 
 
-def _formatted_logits(model: TransitionModel, x_SP: torch.LongTensor) -> torch.FloatTensor:
+def _formatted_logits(
+    model: TransitionModel, x_SP: torch.LongTensor
+) -> torch.FloatTensor:
     """Run forward + format_raw_to_logits without applying log_softmax."""
     if model.observations is not None:
         obs = model.collate_observations(x_SP, model.observations)
@@ -147,7 +165,9 @@ def _legacy_get_guided_rates(
             for s_idx in range(S):
                 xt_jump = xt.clone()
                 xt_jump[:, d_idx] = s_idx
-                log_prob_xt_jumps[:, d_idx, s_idx] = predictor_log_prob(xt_jump, t_tensor)
+                log_prob_xt_jumps[:, d_idx, s_idx] = predictor_log_prob(
+                    xt_jump, t_tensor
+                )
         log_prob_ratio = log_prob_xt_jumps - log_prob_xt.view(B, 1, 1)
     else:
         xt_ohe = F.one_hot(xt.long(), num_classes=S).to(torch.float)
@@ -177,7 +197,9 @@ def sample_flow_matching_legacy(
     x1_temp: float = 1.0,
     stochasticity: float = 0.0,
     argmax_final: bool = True,
-    logits_postprocess: Optional[Callable[[torch.FloatTensor, torch.LongTensor], torch.FloatTensor]] = None,
+    logits_postprocess: Optional[
+        Callable[[torch.FloatTensor, torch.LongTensor], torch.FloatTensor]
+    ] = None,
     return_string: bool = True,
 ) -> torch.LongTensor | list[str]:
     """Legacy flow-matching Euler sampler (old stability demo numerics).
@@ -276,9 +298,7 @@ def sample_any_order_ancestral(
 
     t = t_st
     while t != t_end:
-        x_SP = any_order_ancestral_step(
-            model, x_SP, n_parallel, mask_token_id
-        )
+        x_SP = any_order_ancestral_step(model, x_SP, n_parallel, mask_token_id)
         len_S = x_SP.size(1) - (x_SP == pad_token_id).sum(dim=1)
         t_S = 1 - (x_SP == mask_token_id).sum(dim=1) / len_S
         t_new = t_S.min().item()
@@ -341,3 +361,165 @@ def any_order_ancestral_step(
     for i_for_pos_idx, (i, j) in enumerate(next_pos_idx_SP):
         x_SP[i, j] = x_new_S[i_for_pos_idx]
     return x_SP
+
+
+def generate_unmask_orders(
+    seq_lengths: list[int],
+    n_orders: int,
+    special_positions: Optional[list[set[int]]] = None,
+    seed: Optional[int] = None,
+) -> list[list[torch.LongTensor]]:
+    """Generate random unmask orders for a set of sequences.
+
+    Returns orders[s][k] = 1-D LongTensor of maskable position indices for
+    sequence s, order k. Positions are listed in the order they should be
+    unmasked (first element = first position revealed).
+
+    Args:
+        seq_lengths: length of each tokenized sequence (including special tokens).
+        n_orders: how many random orders to generate per sequence.
+        special_positions: per-sequence set of position indices that are NOT
+            maskable (BOS, EOS, PAD). If None, positions 0 and L-1 are treated
+            as special (BOS/EOS convention for ESM-family tokenizers).
+        seed: optional RNG seed for reproducibility.
+    """
+    rng = torch.Generator()
+    if seed is not None:
+        rng.manual_seed(seed)
+
+    orders: list[list[torch.LongTensor]] = []
+    for s, L in enumerate(seq_lengths):
+        if special_positions is not None:
+            maskable = sorted(set(range(L)) - special_positions[s])
+        else:
+            # Default: skip first and last (BOS/EOS)
+            maskable = list(range(1, L - 1))
+        maskable_t = torch.LongTensor(maskable)
+        seq_orders = []
+        for _ in range(n_orders):
+            perm = torch.randperm(len(maskable_t), generator=rng)
+            seq_orders.append(maskable_t[perm])
+        orders.append(seq_orders)
+    return orders
+
+
+def mask_by_order(
+    token_ids: torch.LongTensor,
+    order: torch.LongTensor,
+    mask_fraction: float,
+    mask_token_id: int,
+) -> torch.LongTensor:
+    """Mask positions according to a decoding order.
+
+    Positions appearing LAST in the order (the tail) are masked. Specifically,
+    the last ``ceil(mask_fraction * len(order))`` positions in the order are
+    set to mask_token_id.
+
+    Args:
+        token_ids: (P,) token IDs for a single sequence.
+        order: (M,) position indices in unmask order (first = first revealed).
+        mask_fraction: fraction of maskable positions to mask (0 to 1).
+        mask_token_id: token ID to use for masking.
+
+    Returns:
+        (P,) masked token IDs. The order of unmasking during generation should
+        be order[n_keep:] (i.e. the masked positions, in unmask order).
+    """
+    import math
+
+    n_maskable = len(order)
+    n_to_mask = math.ceil(mask_fraction * n_maskable)
+    n_keep = n_maskable - n_to_mask
+
+    masked = token_ids.clone()
+    positions_to_mask = order[n_keep:]
+    masked[positions_to_mask] = mask_token_id
+    return masked
+
+
+@torch.no_grad()
+def sample_ordered_ancestral(
+    model: TransitionModel,
+    x_SP: torch.LongTensor,
+    unmask_orders: list[torch.LongTensor],
+) -> SamplingTrajectory:
+    """Ancestral sampling with explicit unmask order, recording per-step log probs.
+
+    Unmasks one position at a time per sequence following the given order.
+    At each step records the log probability the model assigned to the sampled token.
+
+    Args:
+        model: a TransitionModel.
+        x_SP: (S, P) partially masked token IDs (already on the right device or CPU).
+        unmask_orders: list of S LongTensors, each giving the positions to unmask
+            in order. Only positions that are currently masked will be unmasked;
+            positions in the order that are already unmasked are skipped.
+
+    Returns:
+        SamplingTrajectory with generated sequences and per-step log probs.
+    """
+    mask_token_id = model.tokenizer.mask_token_id
+    x_SP = x_SP.clone().to(model.device)
+    S = x_SP.size(0)
+
+    # Figure out actual steps needed per sequence (only masked positions in the order)
+    steps_per_seq = []
+    for s in range(S):
+        order_s = unmask_orders[s]
+        masked_in_order = [p.item() for p in order_s if x_SP[s, p] == mask_token_id]
+        steps_per_seq.append(masked_in_order)
+
+    max_steps = max(len(steps) for steps in steps_per_seq)
+    step_log_probs = torch.full((S, max_steps), float("nan"))
+    step_positions = torch.full((S, max_steps), -1, dtype=torch.long)
+    step_tokens = torch.full((S, max_steps), -1, dtype=torch.long)
+
+    for step_idx in tqdm(range(max_steps), desc="Ordered ancestral sampling"):
+        # Build next_pos_idx for this step (only sequences that still have work)
+        next_pos_idx = []
+        seq_to_local = {}  # maps index in next_pos_idx to (seq_idx, position)
+        for s in range(S):
+            if step_idx < len(steps_per_seq[s]):
+                pos = steps_per_seq[s][step_idx]
+                assert x_SP[s, pos] == mask_token_id, (
+                    f"Position {pos} in seq {s} at step {step_idx} is not masked"
+                )
+                idx = len(next_pos_idx)
+                next_pos_idx.append([s, pos])
+                seq_to_local[idx] = (s, pos)
+
+        if not next_pos_idx:
+            break
+
+        next_pos_idx_t = torch.LongTensor(next_pos_idx)
+
+        # Get log probs from model
+        log_probs_SPT = model.get_log_probs(x_SP)
+        probs_SPT = torch.exp(log_probs_SPT)
+
+        # Sample from selected positions
+        p_x_NT = torch.stack(
+            [probs_SPT[s_idx, p_idx, :] for s_idx, p_idx in next_pos_idx_t]
+        )
+        sampled_N = torch.multinomial(p_x_NT, num_samples=1).squeeze(-1)
+
+        # Record and update
+        for local_idx, (s_idx, p_idx) in enumerate(next_pos_idx_t):
+            s, p = s_idx.item(), p_idx.item()
+            token = sampled_N[local_idx].item()
+            log_p = log_probs_SPT[s, p, token].item()
+
+            x_SP[s, p] = token
+            step_log_probs[s, step_idx] = log_p
+            step_positions[s, step_idx] = p
+            step_tokens[s, step_idx] = token
+
+    assert (x_SP == mask_token_id).sum() == 0, "Some positions remain masked"
+    sequences = tensor_to_string(x_SP, model.tokenizer)
+
+    return SamplingTrajectory(
+        sequences=sequences,
+        step_log_probs=step_log_probs,
+        step_positions=step_positions,
+        step_tokens=step_tokens,
+    )
