@@ -14,6 +14,7 @@ End-to-end usage examples demonstrating proteingen workflows.
 | `trpb_linear_probe.py` | TrpB fitness predictor with ESMC LinearProbe | Working |
 | `conditional_scoring.py` | Structure-conditioned scoring | Working |
 | `esm3_structure_conditioned_sampling.py` | ESM3 structure-conditioned generation | Working |
+| `pbrr_walkthrough/` | PbrR 3-step guided design walkthrough (LoRA, predictors, DEG guidance) | Working |
 
 ## Stability Demo Reimplementation Notes
 

@@ -21,6 +21,8 @@ dependencies = [
     "peft>=0.13.0",
     "mkdocs-material>=9.7.5",
     "mkdocstrings[python]>=1.0.3",
+    "openpyxl>=3.1.5",
+    "xgboost>=3.2.0",
 ]
 
 [dependency-groups]
