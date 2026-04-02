@@ -224,10 +224,11 @@ class ProteinMPNN(TransitionModelWithEmbedding):
         zeros, giving a zero sequence embedding — equivalent to MPNN's
         "unknown sequence" initialization during inference.
         """
-        assert self.observations is not None, (
-            "ProteinMPNN requires structure conditioning. "
-            "Call set_condition_() or use conditioned_on() first."
-        )
+        if self.observations is None:
+            raise ValueError(
+                "ProteinMPNN requires structure conditioning. "
+                "Call set_condition_() or use conditioned_on() first."
+            )
 
         B, L, T = ohe_seq_SPT.shape
         device = ohe_seq_SPT.device

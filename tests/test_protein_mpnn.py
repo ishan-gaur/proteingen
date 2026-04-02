@@ -101,7 +101,7 @@ def test_conditioned_on_context_manager(model):
 def test_requires_conditioning(model):
     """Forward/embed should fail without conditioning."""
     tokens = model.tokenizer("AAAAA")["input_ids"]
-    with pytest.raises(AssertionError, match="structure conditioning"):
+    with pytest.raises(ValueError, match="structure conditioning"):
         model.get_log_probs(tokens)
 
 
