@@ -125,7 +125,7 @@ sequences = sample_linear_interpolation(model, init_tokens, n_steps=100)
 
 Structure-conditioned autoregressive sequence design model ([Dauparas et al., 2022](https://www.science.org/doi/10.1126/science.add2187)). Wraps the Foundry implementation (`rc-foundry[all]`) as a `TransitionModelWithEmbedding`.
 
-- **Output dim**: 22 (20 standard AAs + UNK + mask token column — mask column padded with -inf)
+- **Output dim**: 22 (20 standard AAs + UNK + mask — UNK and mask columns are always -inf)
 - **Embedding dim**: 128
 - **Parameters**: 1.7M (small, runs fast on CPU)
 - **Structure conditioning**: **required** — the model is a structure-conditioned inverse folding model
@@ -173,48 +173,13 @@ with model.conditioned_on(condition):
     log_probs = model.get_log_probs(tokens)
 ```
 
-The wrapper precomputes the MPNN encoder features (graph featurization + message passing on the structure) once during `set_condition_()`. All subsequent forward passes reuse these cached features, making repeated calls cheap.
+#### How the wrapper works
 
-#### Decoder mode
+ProteinMPNN natively decodes one residue at a time in a random autoregressive order. The wrapper instead runs the decoder in **conditional-minus-self** mode: each position's prediction is conditioned on every other position's sequence identity and the full structure, but not on its own identity. This produces a pseudo-likelihood P(residue_i | structure, all other residues) at every position simultaneously, making the model behave like a masked language model compatible with the library's `get_log_probs` / sampling / TAG interface. Importantly, this means `get_log_probs` returns a real conditional distribution at *every* position — not just mask positions — so the output is directly useful for scoring sequences.
 
-The wrapper uses **conditional_minus_self** teacher forcing: each position's logit is conditioned on all other positions' sequence identities and the structure, but not on its own identity. This gives a pseudo-likelihood at every position, compatible with masked-diffusion sampling.
+The MPNN architecture has a natural split: the encoder processes backbone geometry (no sequence information) and the decoder predicts sequence conditioned on the encoder output. Since structure doesn't change between calls, `set_condition_()` runs graph featurization and the encoder once, caching node features, edge features, and graph topology. Every subsequent call only runs the lightweight 3-layer decoder. MPNN natively outputs 21-dim logits (20 AAs + UNK); the wrapper pads to 22-dim with a -inf mask column for compatibility with the tokenizer, and the logit formatter sets UNK to -inf so only the 20 standard amino acids have finite probability.
 
-For positions with mask tokens in the input, the model outputs a distribution over the 20 standard amino acids. For positions with regular AA tokens, the `MaskedModelLogitFormatter` forces the output to a delta on the input token.
-
-#### Sampling
-
-ProteinMPNN integrates with proteingen's sampling infrastructure:
-
-```python
-from proteingen.sampling import sample_linear_interpolation
-
-# Start from all-masked sequence
-init_tokens = model.tokenizer(["<mask>" * L])["input_ids"]
-with model.conditioned_on(condition):
-    sequences = sample_linear_interpolation(model, init_tokens, n_steps=50)
-```
-
-#### Differentiable embedding (TAG guidance)
-
-The embedding path supports gradients through the sequence → decoder → logits path. Structure encoder features are treated as constants (precomputed). Mask token positions receive a zero sequence embedding, equivalent to MPNN's "unknown sequence" initialization:
-
-```python
-# TAG guidance with ProteinMPNN
-emb = model.embed(tokens)       # (B, L, 128) — differentiable
-out = model.embedding_to_outputs(emb)  # (B, L, 22) — gradients flow back
-```
-
-#### Wrapper design
-
-ProteinMPNN is an autoregressive model — its native forward pass decodes one residue at a time in a random order — but proteingen wraps it to behave like a masked language model so it fits the same `get_log_probs` / sampling / TAG interface as ESM and DPLM-2. Here's how:
-
-**Encoder/decoder caching.** The MPNN architecture has two halves: an encoder that processes the backbone graph (no sequence information) and a decoder that predicts sequence conditioned on the encoder output. Since the structure doesn't change between calls, `set_condition_()` runs the graph featurization and encoder once, caching the node features `h_V` (L, 128), edge features `h_E` (L, K, 128), and neighbor indices `E_idx` (L, K). Every subsequent `forward` / `get_log_probs` / `embed` call only runs the lightweight decoder.
-
-**Conditional-minus-self causality.** MPNN's decoder supports several causal masking modes. The wrapper uses `conditional_minus_self`: each position sees every other position's ground-truth sequence embedding but *not* its own. This gives a pseudo-likelihood estimate — P(residue_i | structure, all other residues) — at every position in a single teacher-forcing pass. This is the same mode the original ProteinMPNN uses for scoring sequences.
-
-**Logit padding to 22-dim.** MPNN natively outputs 21-dim logits (20 standard AAs + UNK). The wrapper appends a -inf column for the mask token (index 21), producing 22-dim output. This lets `MaskedModelLogitFormatter` enforce the right masking semantics: mask-token inputs predict a distribution over the 20 standard AAs; regular AA inputs predict a delta on themselves. The padding is invisible to downstream code — `get_log_probs` returns a valid 22-dim log-probability distribution at every position.
-
-**Soft embeddings for TAG.** The differentiable embedding path replaces the discrete `W_s(token_ids)` lookup with a continuous `ohe @ W_s.weight` matmul, then runs the same decoder layers with the cached encoder features. For mask-token positions, the OHE slice over MPNN's 21 tokens is all zeros, yielding a zero sequence embedding — matching MPNN's native "unknown sequence" initialization. Gradients flow from the output logits back through the decoder and matmul to the input OHE, enabling TAG guidance.
+<!-- TODO: compare pseudo-likelihood (conditional-minus-self) vs any-order autoregressive decoding on ~10 random PDBs from the MPNN test set -->
 
 !!! info "Validated against Foundry"
     The wrapper is tested against Foundry's own MPNN pipeline on PDB 1YCR (p53/MDM2, 2 chains, 98 residues) and produces **bitwise-identical logits** — 0.0 max absolute difference, 100% argmax agreement across all positions.

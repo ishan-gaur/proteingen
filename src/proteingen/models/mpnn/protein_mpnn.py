@@ -6,13 +6,33 @@ from typing import TypedDict
 
 from proteingen.generative_modeling import (
     TransitionModelWithEmbedding,
-    MaskedModelLogitFormatter,
+    LogitFormatter,
     MPNNTokenizer,
 )
 from mpnn.model.mpnn import ProteinMPNN as _ProteinMPNN
 from mpnn.model.layers.message_passing import cat_neighbors_nodes, gather_nodes
 from mpnn.utils.weights import load_legacy_weights
 from foundry.inference_engines.checkpoint_registry import REGISTERED_CHECKPOINTS
+
+
+class _BlockUNKLogitFormatter(LogitFormatter):
+    """Sets the UNK column to -inf so UNK is never sampled.
+
+    Unlike MaskedModelLogitFormatter, does NOT force delta at non-mask
+    input positions. With conditional_minus_self decoding, every position
+    gets a meaningful conditional distribution — forcing delta would
+    destroy that signal and make sequence scoring useless.
+    """
+
+    def __init__(self, unk_idx: int):
+        self.unk_idx = unk_idx
+
+    def __call__(
+        self, logits: torch.Tensor, input_ids: torch.LongTensor
+    ) -> torch.FloatTensor:
+        logits = logits.float().clone()
+        logits[..., self.unk_idx] = float("-inf")
+        return logits
 
 
 class ProteinMPNNCondition(TypedDict):
@@ -90,7 +110,7 @@ class ProteinMPNN(TransitionModelWithEmbedding):
         self.EMB_DIM = mpnn.hidden_dim  # 128
 
         tokenizer = MPNNTokenizer(include_mask_token=True)
-        logit_formatter = MaskedModelLogitFormatter(tokenizer, self.OUTPUT_DIM)
+        logit_formatter = _BlockUNKLogitFormatter(unk_idx=tokenizer.unk_token_id)
 
         super().__init__(
             model=mpnn, tokenizer=tokenizer, logit_formatter=logit_formatter

@@ -153,9 +153,17 @@ def test_log_probs_with_mask_tokens(conditioned_model):
     # Should have non-trivial distribution (not all mass on one token)
     assert (mask_probs[:, :20] > 1e-6).sum() > 5  # multiple AAs have probability
 
-    # Non-mask positions: delta on their input token (ALA = 0)
+    # Non-mask positions: still get a real conditional distribution
+    # (conditional_minus_self means each position predicts based on all
+    # others, so non-mask positions have meaningful log-probs, not delta)
     non_mask_probs = log_probs[0, 0:5].exp()
-    assert torch.allclose(non_mask_probs[:, 0], torch.ones(5), atol=1e-4)
+    assert torch.allclose(non_mask_probs.sum(dim=-1), torch.ones(5), atol=1e-4)
+    # Not all mass on input token — it's a real distribution
+    assert (non_mask_probs[:, :20] > 1e-6).sum() > 5
+
+    # UNK (20) and mask (21) should always be -inf
+    assert torch.all(log_probs[..., 20] == float("-inf"))
+    assert torch.all(log_probs[..., 21] == float("-inf"))
 
 
 def test_temperature_scaling(conditioned_model):

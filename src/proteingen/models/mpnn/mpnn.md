@@ -34,19 +34,9 @@ The proteingen wrapper splits the model into two cached stages:
 
 MPNN outputs 21-dim logits (20 AAs + UNK). The wrapper:
 1. Pads to 22-dim by appending -inf at index 21 (mask token column)
-2. Uses `MaskedModelLogitFormatter` with `MPNNTokenizer(include_mask_token=True)`:
-   - Mask token (21) → can predict any of 20 standard AAs
-   - Regular AA tokens (0-19) → forced to predict only themselves (delta)
-   - UNK (20) → predicts only itself
+2. Uses a simple `_BlockUNKLogitFormatter` that sets UNK (index 20) to -inf
 
-### Differentiable embedding path
-
-For TAG guidance and LinearProbe, the embedding path is:
-1. `ohe_seq_SPT[:, :, :21] @ W_s.weight` → soft sequence embedding `h_S`
-2. Decoder layers with cached encoder features → `h_V_decoder`
-3. `W_out(h_V_decoder)` → logits → pad to 22-dim
-
-Mask token positions get zero sequence embedding (the OHE slice over MPNN's 21 tokens is all zeros), equivalent to MPNN's "unknown sequence" initialization.
+Unlike `MaskedModelLogitFormatter`, there is no delta-forcing at non-mask positions. With conditional-minus-self decoding, every position already gets a meaningful conditional distribution P(residue_i | structure, all other residues). Forcing delta would destroy this signal and make sequence scoring useless — `get_log_probs` would return 0 at every non-mask position.
 
 ## Checkpointing
 
