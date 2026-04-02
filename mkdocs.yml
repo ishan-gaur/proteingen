@@ -63,6 +63,7 @@ nav:
   - Workflows:
     - Overview: workflows/index.md
     - ProteinGuide: workflows/protein-guide.md
+    - PbrR Walkthrough: workflows/pbrr-walkthrough.md
     - MSA → Dataset: workflows/msa-to-dataset.md
     - Fine-tuning: workflows/finetune-generative.md
     - Likelihood Curves: workflows/likelihood-curves.md

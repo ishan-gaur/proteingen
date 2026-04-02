@@ -8,6 +8,10 @@ Workflows are step-by-step recipes for common protein design tasks. Each workflo
 
 The main workflow: go from a fitness function or dataset to guided protein sequence generation. Covers data organization, training a predictive model, combining it with a generative model via TAG or DEG, and sampling candidates.
 
+### [PbrR Guided Design Walkthrough](pbrr-walkthrough.md)
+
+End-to-end example: fine-tune ESMC on Pareto-front PbrR variants, compare three predictive model architectures (LinearProbe, OneHotMLP, XGBoost), then generate sequences with DEG guidance and score them with an oracle trained on all experimental rounds.
+
 ### [MSA → Sequence + Structure Dataset](msa-to-dataset.md)
 
 Turn a multiple sequence alignment into a training-ready dataset. Covers loading FASTA files, stripping gaps, folding with AF3, and encoding ESM3 structure tokens.

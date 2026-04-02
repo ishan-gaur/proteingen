@@ -115,6 +115,30 @@ The structure-conditioned model improves from -2.075 to -0.798 while sequence-on
 
 See the [Fine-tuning workflow](workflows/finetune-generative.md) and [MSA → Dataset workflow](workflows/msa-to-dataset.md) for the full walkthrough.
 
+## PbrR Guided Design Walkthrough (3-Step)
+
+End-to-end multi-objective protein design: engineer PbrR transcription factor variants with high lead (Pb) sensitivity and low zinc (Zn) response. Extends the experiment from [*Active learning-guided optimization of cell-free biosensors*](https://www.nature.com/articles/s41467-025-66964-6) (Nature Communications, 2025).
+
+```bash
+# Step 1: LoRA fine-tune ESMC on Pareto-front variants
+uv run python examples/pbrr_walkthrough/step1_finetune_esmc.py --device cuda
+
+# Step 2: Compare LinearProbe, OneHotMLP, and XGBoost predictors
+uv run python examples/pbrr_walkthrough/step2_train_predictors.py --device cuda
+
+# Step 3: Train oracle + noisy classifier, generate with 4 methods, compare
+uv run python examples/pbrr_walkthrough/step3_guided_generation.py --device cuda
+```
+
+This demonstrates:
+
+1. LoRA fine-tuning on a small set of successful variants (33 sequences)
+2. Training and comparing three predictive model types on the same train/test split
+3. DEG-guided generation combining fine-tuned generative models with noisy classifiers
+4. Oracle-based evaluation using all-rounds data from the paper's supplementary
+
+See the [PbrR Walkthrough workflow](workflows/pbrr-walkthrough.md) for detailed results and interpretation.
+
 ## Stability-Guided Generation
 
 !!! note "Coming soon"
