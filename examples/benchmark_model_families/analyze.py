@@ -118,24 +118,83 @@ def parse_dssp_from_cif(cif_path: Path) -> dict:
         return {"helix_frac": 0.0, "strand_frac": 0.0, "coil_frac": 1.0}
 
 
+def extract_plddt_from_cif(cif_path: Path) -> float:
+    """Extract global pLDDT from an AF3 mmCIF file.
+
+    AF3 stores pLDDT in the _ma_qa_metric_global category.
+    """
+    try:
+        with open(cif_path) as f:
+            for line in f:
+                if line.startswith("_ma_qa_metric_global.metric_value"):
+                    # Value is on the same line after the key
+                    parts = line.strip().split()
+                    if len(parts) >= 2:
+                        return float(parts[1])
+                    # Or on the next line
+                    break
+            # Also try parsing as a loop
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("_") and not line.startswith("#"):
+                    try:
+                        return float(line.split()[0])
+                    except (ValueError, IndexError):
+                        pass
+                elif line.startswith("_") or line.startswith("#"):
+                    break
+        return float("nan")
+    except Exception as e:
+        warnings.warn(f"pLDDT extraction failed for {cif_path}: {e}")
+        return float("nan")
+
+
 def compute_tm_score(cif_path1: Path, cif_path2: Path) -> float:
     """Compute TM-score between two structures using tmtools."""
     try:
         import biotite.structure.io.pdbx as pdbx
         import tmtools
 
-        def get_ca_coords(path):
+        def get_ca_coords_and_seq(path):
             pdbx_file = pdbx.CIFFile.read(str(path))
             structure = pdbx.get_structure(pdbx_file, model=1)
             ca_mask = structure.atom_name == "CA"
             ca = structure[ca_mask]
-            return ca.coord
+            coords = ca.coord.astype(np.float64)
+            # Build sequence from residue names
+            from biotite.structure import get_residues
 
-        coords1 = get_ca_coords(cif_path1)
-        coords2 = get_ca_coords(cif_path2)
+            _, res_names = get_residues(ca)
+            three_to_one = {
+                "ALA": "A",
+                "CYS": "C",
+                "ASP": "D",
+                "GLU": "E",
+                "PHE": "F",
+                "GLY": "G",
+                "HIS": "H",
+                "ILE": "I",
+                "LYS": "K",
+                "LEU": "L",
+                "MET": "M",
+                "ASN": "N",
+                "PRO": "P",
+                "GLN": "Q",
+                "ARG": "R",
+                "SER": "S",
+                "THR": "T",
+                "VAL": "V",
+                "TRP": "W",
+                "TYR": "Y",
+            }
+            seq = "".join(three_to_one.get(r, "X") for r in res_names)
+            return coords, seq
 
-        result = tmtools.tm_align(coords1, coords2)
-        return result.tm_norm_chain1
+        coords1, seq1 = get_ca_coords_and_seq(cif_path1)
+        coords2, seq2 = get_ca_coords_and_seq(cif_path2)
+
+        result = tmtools.tm_align(coords1, coords2, seq1, seq2)
+        return float(result.tm_norm_chain1)
 
     except Exception as e:
         warnings.warn(f"TM-score failed: {e}")
@@ -233,18 +292,17 @@ def build_metrics_table(data: dict) -> list[dict]:
                 fr = fold_results[fold_key]
                 confidences = fr.get("summary_confidences", {})
 
-                # pLDDT: use chain-level average if available
-                chain_plddt = confidences.get("atom_chain_plddt", {})
-                if chain_plddt:
-                    row["plddt"] = np.mean(list(chain_plddt.values()))
-                else:
-                    row["plddt"] = float("nan")
-
                 row["ptm"] = confidences.get("ptm", float("nan"))
                 row["ranking_score"] = fr.get("best_ranking_score", float("nan"))
 
-                # TM-score to original (if both CIF files exist)
+                # pLDDT from CIF file (B-factor field)
                 gen_cif = cif_dir / f"{fold_key}.cif"
+                if gen_cif.exists():
+                    row["plddt"] = extract_plddt_from_cif(gen_cif)
+                else:
+                    row["plddt"] = float("nan")
+
+                # TM-score to original (if both CIF files exist)
                 orig_cif = (
                     cif_dir
                     / f"original_{seq_idx}_{data['entries'][seq_idx]['accession']}.cif"
