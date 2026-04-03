@@ -31,8 +31,12 @@ Integrator = Callable[
 
 
 def tensor_to_string(x_SP, tokenizer):
-    seq_SP = tokenizer.batch_decode(x_SP)
-    seq_SP = [s.replace(" ", "") for s in seq_SP]
+    if hasattr(tokenizer, "batch_decode"):
+        seq_SP = tokenizer.batch_decode(x_SP)
+        seq_SP = [s.replace(" ", "") for s in seq_SP]
+    else:
+        # Fallback for tokenizers without batch_decode (e.g. DPLM2Tokenizer)
+        seq_SP = [tokenizer.decode(row) for row in x_SP]
     seq_SP = [s.replace("<mask>", "") for s in seq_SP]
     seq_SP = [s.replace("<cls>", "") for s in seq_SP]
     seq_SP = [s.replace("<eos>", "") for s in seq_SP]

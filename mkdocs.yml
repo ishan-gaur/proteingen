@@ -60,6 +60,7 @@ nav:
   - Home: index.md
   - Setup: setup.md
   - Examples: examples.md
+  - Benchmark: benchmark-model-families.md
   - Models: models.md
   - Workflows:
     - Overview: workflows/index.md

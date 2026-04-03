@@ -131,6 +131,8 @@ def run_generation_for_model(
     device: str,
 ):
     """Run ordered ancestral sampling for one model across all configs."""
+    import math
+
     from proteingen.sampling import sample_ordered_ancestral
 
     print(f"\n{'=' * 60}")
@@ -154,11 +156,20 @@ def run_generation_for_model(
     model = load_model(family, checkpoint, device)
     print(f"Model loaded in {time.time() - t0:.1f}s")
 
-    # Output directory for this model
+    # Output directory for this model — load existing results for resume
     model_dir = OUTPUT_DIR / display_name.replace(" ", "_")
     model_dir.mkdir(parents=True, exist_ok=True)
+    out_path = model_dir / "generation_results.json"
 
     results = {}
+    if out_path.exists():
+        with open(out_path) as f:
+            results = json.load(f)
+        print(f"Loaded {len(results)} cached results from {out_path}")
+
+    total_keys = len(entries) * N_ORDERS * len(MASK_FRACTIONS)
+    n_done = len(results)
+    print(f"Need to generate {total_keys - n_done} / {total_keys} samples")
 
     for seq_idx in range(len(entries)):
         seq = sequences[seq_idx]
@@ -171,6 +182,11 @@ def run_generation_for_model(
 
             for mask_frac in MASK_FRACTIONS:
                 key = f"{seq_idx}_{order_idx}_{mask_frac:.2f}"
+
+                # Skip if already computed
+                if key in results:
+                    continue
+
                 esm_masked = masked_inputs[key]
 
                 # Translate to model's tokenizer space
@@ -180,8 +196,6 @@ def run_generation_for_model(
                 model_unmask_order = translate_unmask_order(esm_order, seq, model)
 
                 # Get the unmask tail (only the masked positions, in order)
-                import math
-
                 n_maskable = len(esm_order)
                 n_to_mask = math.ceil(mask_frac * n_maskable)
                 n_keep = n_maskable - n_to_mask
@@ -225,12 +239,12 @@ def run_generation_for_model(
                     "seq_idx": seq_idx,
                 }
 
-    # Save results
-    out_path = model_dir / "generation_results.json"
-    with open(out_path, "w") as f:
-        json.dump(results, f, indent=2)
-    print(f"\nSaved results to {out_path}")
+        # Save after each sequence (for resume)
+        with open(out_path, "w") as f:
+            json.dump(results, f, indent=2)
+        print(f"  [checkpoint] Saved {len(results)} results to {out_path}")
 
+    print(f"\nDone — {len(results)} total results saved to {out_path}")
     return results
 
 
