@@ -41,6 +41,7 @@ markdown_extensions:
 
 plugins:
   - search
+  - liveedit
   - mkdocstrings:
       handlers:
         python:
