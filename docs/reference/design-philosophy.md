@@ -100,6 +100,17 @@ class MyPredictor(PredictiveModel):
         return point_estimate_binary_logits(raw.squeeze(-1), threshold=0.7, k=10)
 ```
 
+#### Four layers
+
+A predictive model integration decomposes into four separable layers. Understanding this decomposition makes it clear what you're building vs reusing:
+
+1. **Raw Predictor** — the original pretrained model (architecture + weights), ported with minimal changes. Not proteingen-specific.
+2. **Binary Logit Function** — converts raw output to `(B, 2)` binary logits. Independent of the model — the same predictor could use different functions. The library provides `binary_logits`, `categorical_binary_logits`, `point_estimate_binary_logits`, and `gaussian_binary_logits`.
+3. **Template Model Class** *(optional)* — a reusable architecture pattern (e.g. `LinearProbe`, `EmbeddingMLP`). If the predictor's architecture generalizes, add a template. If it's one-off, subclass `PredictiveModel` directly.
+4. **PredictiveModel Subclass** — thin glue wiring 1–3 together with conditioning, tokenizer, and OHE basis. If the other layers are well-designed, this should be mostly boilerplate.
+
+See the [contributing guide](../contributing.md#the-four-layers) for details on each layer.
+
 #### Target management
 
 ```python
@@ -120,7 +131,7 @@ grad = model.grad_log_prob(seq_SP)  # ∂log p(target|x) / ∂OHE, shape (B, L, 
 - **`EmbeddingMLP`** — learnable embeddings + MLP, with PCA initialization from pretrained models
 - **`OneHotMLP`** — flattened one-hot + MLP
 
-All are ABCs — you implement `format_raw_to_logits` using the provided binary logit functions: `categorical_binary_logits`, `binary_logits`, `point_estimate_binary_logits`, `gaussian_binary_logits`.
+All are ABCs — you implement `format_raw_to_logits` using the binary logit functions listed above.
 
 ---
 
@@ -153,7 +164,45 @@ model = ESMC().cuda()
 sequences = sample_any_order_ancestral(model, ["<mask>" * 100] * 8)
 ```
 
-<!-- TODO[pi]: document Euler sampler and linear interpolation sampler once they are stable -->
+### Linear interpolation sampler
+
+`sample_linear_interpolation` generates sequences by interpolating between the current token distribution and the model's predicted distribution over a fixed number of steps. At each step $i$ of $N$ total:
+
+$$
+p_\text{next}(x) = \frac{N - i - 1}{N - i} \cdot \mathbb{1}[x = x_\text{current}] + \frac{1}{N - i} \cdot p_\text{model}(x)
+$$
+
+Tokens are resampled from this mixture at every position simultaneously, so the distribution gradually shifts from the initial state (fully masked) to the model's predicted distribution. Unlike ancestral sampling which unmasks one position at a time, linear interpolation updates all positions in parallel at each step.
+
+```python
+from proteingen.sampling import sample_linear_interpolation
+from proteingen.models import ESMC
+
+model = ESMC().cuda()
+sequences = sample_linear_interpolation(model, ["<mask>" * 100] * 8, n_steps=50)
+```
+
+### Flow-matching Euler sampler
+
+`sample_flow_matching_legacy` integrates a rate matrix using Euler steps, following the continuous-time flow-matching framework. At each time step, the model predicts an $x_1$ distribution, and a rate matrix $R_t$ is constructed such that masked positions transition toward the predicted distribution at a rate proportional to $1/(1-t)$. With optional stochasticity, unmasked positions can also remask.
+
+When a predictive model is provided, guidance is applied by reweighting the rate matrix with likelihood ratios — either via enumeration (DEG-style) or first-order Taylor approximation (TAG-style).
+
+```python
+from proteingen.sampling import sample_flow_matching_legacy
+from proteingen.models import ESMC
+
+model = ESMC().cuda()
+sequences = sample_flow_matching_legacy(model, ["<mask>" * 100] * 8, dt=0.01)
+```
+
+Key parameters:
+
+- `dt` — step size (default 0.01, i.e. 100 steps)
+- `x1_temp` — temperature applied to the model's $x_1$ prediction
+- `stochasticity` — controls remasking rate (0 = deterministic flow, >0 = stochastic)
+- `argmax_final` — if True, remaining masked positions are filled with argmax at $t=1$
+- `predictor_log_prob` — optional guidance function (use `build_legacy_predictor_log_prob` to construct from a TAG model)
 
 ---
 

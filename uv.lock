@@ -1396,7 +1396,7 @@ wheels = [
 [[package]]
 name = "mkdocs-liveedit"
 version = "0.1.0"
-source = { git = "https://github.com/ishan-gaur/mkdocs-liveedit.git#0478ebd9cf6e2b397e73aa0e7d1a80cdad3cffda" }
+source = { git = "https://github.com/ishan-gaur/mkdocs-liveedit.git#cbded2ef4a261026eef5fcbeece61b1053c4034b" }
 dependencies = [
     { name = "mkdocs" },
     { name = "ruamel-yaml" },

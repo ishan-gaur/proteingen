@@ -1,9 +1,5 @@
 # ProteinGen
 
-<!-- TODO[pi]: rename package from dfm to proteingen in pyproject.toml, src/, imports, tests -->
-<!-- TODO[pi]: update git remote from dfm to proteingen -->
-<!-- TODO[pi]: create contributing skill files in contributing/ folder (add_generative_model.md, add_predictive_model.md) and link from AGENTS.md -->
-<!-- TODO[pi]: figure out model storage strategy — HF format vs torch hub cache vs custom (see docs/models.md) -->
 <!-- TODO[pi]: write detailed workflow sub-pages (data org, predictive model setup, training, guidance, sampling, evaluation) -->
 <!-- TODO[pi]: add evaluation workflow for wetlab scientists to assess generated sequence quality -->
 

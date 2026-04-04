@@ -120,4 +120,3 @@ See the [Fine-tuning workflow](workflows/finetune-generative.md) and [MSA → Da
 !!! note "Coming soon"
     The `examples/stability_guidance/` directory contains a work-in-progress reimplementation of stability-guided protein generation using the ProteinMPNN stability predictor and ESM3 as the generative model.
 
-<!-- TODO[pi]: finish stability guidance example and document it here -->

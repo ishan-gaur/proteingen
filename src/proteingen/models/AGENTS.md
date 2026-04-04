@@ -16,4 +16,4 @@ Each model lives in its own directory with a dedicated `.md`:
 ## Adding a New Model
 
 - **Generative models** (TransitionModel / TransitionModelWithEmbedding): use the `/skill:add-generative-model` skill (`.agents/skills/add-generative-model/SKILL.md`)
-- **Predictive models** (PredictiveModel subclasses): TODO — create an `add-predictive-model` skill
+- **Predictive models** (PredictiveModel subclasses): use the `/skill:add-predictive-model` skill (`.agents/skills/add-predictive-model/SKILL.md`)

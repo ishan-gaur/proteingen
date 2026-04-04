@@ -300,8 +300,6 @@ class DEG(TransitionModel):
         self.argmax_masked_positions = argmax_masked_positions
         self.positions_to_score_S = None
 
-    # TODO[pi] with all these different things we have to mix in, I'm wondering if
-    # the context manager approach was really the right one
     @contextmanager
     def at_position(self, positions_to_score_S: List[int]):
         """
@@ -315,7 +313,6 @@ class DEG(TransitionModel):
         finally:
             self.positions_to_score_S = old
 
-    # TODO[pi] need forward that is fully batched for predictor, sequence-wise batched, and does things one at a time
     def forward(self, seq_SP: torch.LongTensor):
         if self.positions_to_score_S is None:
             raise ValueError(

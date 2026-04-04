@@ -29,3 +29,5 @@ af3-server/*.out
 af3-server/*.err
 fold_msa.log
 wandb/
+
+.env

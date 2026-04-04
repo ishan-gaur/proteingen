@@ -9,10 +9,6 @@ from proteingen.generative_modeling import TransitionModelWithEmbedding
 from proteingen.probability_model import ProbabilityModel
 from transformers import PreTrainedTokenizerBase
 
-
-# TODO[pi] Think carefully about tokenizer mismatch: the predictor's tokenizer
-# (used for OHE/grad_log_prob) may differ from the underlying model's tokenizer
-# (e.g. ESMC's 64-wide embed table vs 33 vocab_size).
 class PredictiveModel(ProbabilityModel, ABC):
     """Base class for predictive models used in guidance.
 

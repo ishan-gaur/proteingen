@@ -20,8 +20,6 @@ from abc import ABC, abstractmethod
 from proteingen.probability_model import ProbabilityModel
 
 
-# TODO[pi] add a DFM Protocol and Base Class which defines a score method which returns logits for each positions and makes sure to do things like force register token probs to themselves and regular tokens to only be regular tokens, etc. Actually give it a fix register tokens method and allow child classes to specify those token ids and output indices in the init to make it easy. Maybe the model output formatter is a general thing that's defined ... -- like what's the best way to spec the output_dim of ESM models??
-
 TransitionFunc = Callable[
     torch.LongTensor, torch.FloatTensor
 ]  # takes in sequence outputs log_probs

@@ -4,6 +4,7 @@
 
 Available skills:
 - `add-generative-model` — workflow for integrating a new generative model into the library
+- `add-predictive-model` — workflow for integrating a new predictive model into the library
 
 ## Project Management
 

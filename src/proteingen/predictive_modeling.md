@@ -60,13 +60,13 @@ get_log_probs(seq_SP)
 
 ### Maintenance
 
-If changes are made to `PredictiveModel`'s interface (abstract methods, binary logit pattern, OHE basis), a corresponding `add-predictive-model` skill should be created (TODO — does not exist yet).
+If changes are made to `PredictiveModel`'s interface (abstract methods, binary logit pattern, OHE basis), update the `add-predictive-model` skill (`.agents/skills/add-predictive-model/SKILL.md`) to reflect the new contract.
 
 ## Gotchas
 
 - **Target must be set** before `get_log_probs` — asserts `self.target is not None`
 - **`format_raw_to_logits` must return `(B, 2)`** — asserted in `get_log_probs`
-- **Tokenizer mismatch** (TODO[pi]): predictor's tokenizer (used for OHE) may differ from gen model's tokenizer. TAG's `GuidanceProjection` handles this mapping — see [guide.md](guide.md).
+- **Tokenizer mismatch**: predictor's tokenizer (used for OHE) may differ from gen model's tokenizer. TAG's `GuidanceProjection` handles this mapping — see [guide.md](guide.md).
 - **`forward` takes OHE, not token IDs** — all template models receive OHE from `get_log_probs`. The matmul embedding in EmbeddingMLP (`ohe @ embed.weight`) is differentiable for TAG.
 
 ## Binary Logit Functions

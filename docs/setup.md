@@ -61,8 +61,6 @@ claude --version
 
 See the [Claude Code quickstart](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview) for authentication setup and first-run instructions.
 
-<!-- TODO[pi]: add brief note on alternative agents once we test compatibility -->
-
 ## 3. Set up your project
 
 ProteinGen is meant to be **cloned into your own project and modified**. It's a library you own — adapt models, add new ones, tweak sampling algorithms, and change whatever you need to match your use case. Your coding agent can read the codebase, understand the design, and help you make changes confidently.
