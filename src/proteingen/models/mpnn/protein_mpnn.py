@@ -48,51 +48,78 @@ class ProteinMPNNCondition(TypedDict):
     residue_mask: torch.Tensor  # (L,) valid residues (bool)
 
 
-def structure_from_pdb(pdb_path) -> ProteinMPNNCondition:
-    """Load a PDB file and return a ProteinMPNN conditioning dict.
+def structure_from_pdb(
+    pdb_path, design_chains: list[str] | None = None
+) -> ProteinMPNNCondition:
+    """Load a PDB and return a ProteinMPNN conditioning dict.
 
-    Handles multi-chain structures. Uses atomworks for parsing and
-    biotite for per-residue chain/residue index extraction.
+    Convenience wrapper: calls :func:`~proteingen.models.utils.load_pdb`
+    then :func:`condition_from_structure`.
 
     Args:
         pdb_path: path to .pdb file.
+        design_chains: chain IDs to design (e.g. ``["A"]``).
+            If None, all chains are designable.
     """
-    from pathlib import Path
+    from proteingen.models.utils import load_pdb
+
+    return condition_from_structure(load_pdb(pdb_path), design_chains)
+
+
+def condition_from_structure(
+    structure, design_chains: list[str] | None = None
+) -> ProteinMPNNCondition:
+    """Convert a :class:`~proteingen.models.utils.PDBStructure` to ProteinMPNN conditioning.
+
+    Uses Foundry's MPNN atom encoding (``MPNN_TOKEN_ENCODING``) with
+    ``default_coord=0.0`` and occupancy-based masking, matching the
+    original ProteinMPNN featurization exactly.
+
+    Args:
+        structure: a :class:`PDBStructure` from :func:`load_pdb`.
+        design_chains: chain IDs to design (e.g. ``["A"]``).
+            If None, all chains are designable.
+    """
     import numpy as np
-    import biotite.structure as bts
-    import atomworks.io as aio
     from atomworks.ml.transforms.encoding import atom_array_to_encoding
-    from atomworks.ml.encoding_definitions import UNIFIED_ATOM37_ENCODING
+    from mpnn.transforms.feature_aggregation.mpnn import MPNN_TOKEN_ENCODING
 
-    structure_data_dict = aio.parse(str(pdb_path))
-    atom_array = structure_data_dict["assemblies"]["1"][0]
+    encoded = atom_array_to_encoding(
+        structure.atom_array,
+        encoding=MPNN_TOKEN_ENCODING,
+        default_coord=0.0,
+        occupancy_threshold=0.5,
+    )
+    X = torch.from_numpy(encoded["xyz"].astype(np.float32))  # (L, 37, 3)
+    X_m = torch.from_numpy(encoded["mask"].astype(np.bool_))  # (L, 37)
+    L = X.shape[0]
 
-    coords_RAX = torch.from_numpy(
-        atom_array_to_encoding(atom_array, UNIFIED_ATOM37_ENCODING)["xyz"]
-    ).float()  # (L, 37, 3)
-    L = coords_RAX.shape[0]
-
-    # Per-residue chain labels and residue indices
-    residue_starts = bts.get_residue_starts(atom_array)
-    chain_ids = atom_array.chain_id[residue_starts]  # (L,) str
-    unique_chains = np.unique(chain_ids)
+    # Per-chain integer labels and 0-indexed residue indices
+    unique_chains = np.unique(structure.chain_ids)
     chain_to_int = {c: i for i, c in enumerate(unique_chains)}
     chain_labels = torch.tensor(
-        [chain_to_int[c] for c in chain_ids], dtype=torch.long
+        [chain_to_int[c] for c in structure.chain_ids], dtype=torch.long
     )  # (L,)
 
-    # 0-indexed residue indices, reset per chain (matches Foundry convention)
     R_idx = torch.zeros(L, dtype=torch.long)
     for chain_int in range(len(unique_chains)):
         mask = chain_labels == chain_int
         R_idx[mask] = torch.arange(mask.sum())
 
+    # Residue mask: True for designable positions
+    if design_chains is not None:
+        residue_mask = torch.tensor(
+            [c in design_chains for c in structure.chain_ids], dtype=torch.bool
+        )
+    else:
+        residue_mask = torch.ones(L, dtype=torch.bool)
+
     return {
-        "X": torch.nan_to_num(coords_RAX, 0.0),
-        "X_m": ~torch.isnan(coords_RAX[..., 0]),
+        "X": X,
+        "X_m": X_m,
         "R_idx": R_idx,
         "chain_labels": chain_labels,
-        "residue_mask": torch.ones(L, dtype=torch.bool),
+        "residue_mask": residue_mask,
     }
 
 
