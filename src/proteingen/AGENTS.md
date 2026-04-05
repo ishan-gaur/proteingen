@@ -31,7 +31,8 @@ Per-component design, dependencies, gotchas, and checklists:
 - [guide.md](guide.md) — `TAG`, `DEG`, `GuidanceProjection`, cross-tokenizer mapping
 - [sampling.md](sampling.md) — sampling algorithms, noise schedules
 - [data.md](data.md) — `GuidanceDataset`, schedule functions
-- [models/AGENTS.md](models/AGENTS.md) — model registry, per-model links ([esm](models/esm/esm.md), [rocklin_ddg](models/rocklin_ddg/rocklin_ddg.md))
+- [models/AGENTS.md](models/AGENTS.md) — model registry, per-model links ([esm](models/esm/esm.md), [mpnn](models/mpnn/mpnn.md), [rocklin_ddg](models/rocklin_ddg/rocklin_ddg.md))
+- [models/utils.md](models/utils.md) — structure loading (`PDBStructure`, `load_pdb`) and atom encoding API for structure-conditioned models
 
 ## Cross-Cutting Concerns
 

@@ -58,6 +58,10 @@ get_log_probs(seq_SP)
 - Override when tokens should map to a reduced space (e.g. stability predictor maps `<mask>` to all-zero OHE row)
 - `grad_log_prob` returns gradients in feature space `(B, P, K)` — not always `(B, P, vocab_size)`
 
+## Structure Conditioning
+
+Structure-conditioned predictive models (e.g. `PreTrainedStabilityPredictor`) use `set_condition_()` / `conditioned_on()` inherited from `ProbabilityModel`. When adding a new structure-conditioned predictor, see [models/utils.md](models/utils.md) for the two-layer API (`PDBStructure` → `atom_array_to_encoding`) and the pattern for `condition_from_structure()` helpers. The PMPNN implementation in [models/mpnn/mpnn.md](models/mpnn/mpnn.md) is the reference for generative models; the same pattern applies to predictive models.
+
 ### Maintenance
 
 If changes are made to `PredictiveModel`'s interface (abstract methods, binary logit pattern, OHE basis), update the `add-predictive-model` skill (`.agents/skills/add-predictive-model/SKILL.md`) to reflect the new contract.

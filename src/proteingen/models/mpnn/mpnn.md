@@ -5,6 +5,7 @@ Structure-conditioned autoregressive sequence design model from the Foundry (`rc
 ## Dependencies
 
 - **Core abstractions**: `TransitionModelWithEmbedding`, `MaskedModelLogitFormatter`, `MPNNTokenizer` from `proteingen.generative_modeling`
+- **Structure loading**: `load_pdb`, `PDBStructure` from `proteingen.models.utils` — see [../utils.md](../utils.md) for the two-layer API
 - **External**: `mpnn` package (via `rc-foundry[all]`) — provides `ProteinMPNN` model, `load_legacy_weights`, `cat_neighbors_nodes`, `gather_nodes`
 - **Checkpoint registry**: `foundry.inference_engines.checkpoint_registry.REGISTERED_CHECKPOINTS`
 
@@ -13,6 +14,14 @@ Structure-conditioned autoregressive sequence design model from the Foundry (`rc
 - `tests/test_protein_mpnn.py` — 19 tests (18 pass, 1 skipped for missing checkpoint)
 - Includes a Foundry reference test on PDB 1YCR (p53/MDM2, 2 chains, 98 residues) — produces bitwise-identical logits (0.0 max diff, 100% argmax match)
 - Sampling, TAG guidance, LinearProbe via `TransitionModelWithEmbedding` interface
+
+## Structure Loading
+
+PMPNN is the reference implementation for the structure conditioning pattern described in [../utils.md](../utils.md).
+
+- **`structure_from_pdb(pdb_path, design_chains=None)`** — convenience: `load_pdb` → `condition_from_structure`
+- **`condition_from_structure(structure: PDBStructure, design_chains=None)`** — encodes using `MPNN_TOKEN_ENCODING` (from `mpnn.transforms.feature_aggregation.mpnn`) with `default_coord=0.0`, `occupancy_threshold=0.5`. Produces 0.0 logit diff vs Foundry's own pipeline on 1YCR multimer.
+- **`design_chains`** — list of chain IDs to design (e.g. `["B"]`). Sets `residue_mask` to True only for those chains. If None, all chains are designable.
 
 ## Architecture
 

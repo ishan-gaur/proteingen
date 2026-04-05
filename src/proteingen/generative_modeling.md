@@ -123,6 +123,16 @@ LoRA adapter support lives on `TransitionModel`:
 - `TransitionModel.save()` writes `lora_adapter/` if LoRA present
 - `TransitionModel.from_checkpoint()` loads LoRA adapter if `lora_adapter/` exists
 
+## Structure Conditioning
+
+Structure-conditioned generative models (PMPNN, ESM3) use `set_condition_()` / `conditioned_on()` inherited from `ProbabilityModel` to cache structure inputs. When adding a new structure-conditioned model, see [models/utils.md](models/utils.md) for:
+
+- The two-layer API: `PDBStructure` (user-facing) → `atom_array_to_encoding` (model-implementer-facing)
+- The pattern for writing `condition_from_structure()` / `structure_from_pdb()` helpers
+- Which atom encoding to use (critical — different encodings place atoms at different slots)
+
+The PMPNN implementation in [models/mpnn/mpnn.md](models/mpnn/mpnn.md) is the reference.
+
 ## Maintenance
 
 If changes are made to `TransitionModel` or `TransitionModelWithEmbedding` interfaces (abstract methods, LoRA API, LogitFormatter protocol), update the `add-generative-model` skill (`.agents/skills/add-generative-model/SKILL.md`) to reflect the new contract.
