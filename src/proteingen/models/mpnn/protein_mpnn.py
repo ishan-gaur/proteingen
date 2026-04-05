@@ -48,81 +48,6 @@ class ProteinMPNNCondition(TypedDict):
     residue_mask: torch.Tensor  # (L,) valid residues (bool)
 
 
-def structure_from_pdb(
-    pdb_path, design_chains: list[str] | None = None
-) -> ProteinMPNNCondition:
-    """Load a PDB and return a ProteinMPNN conditioning dict.
-
-    Convenience wrapper: calls :func:`~proteingen.models.utils.load_pdb`
-    then :func:`condition_from_structure`.
-
-    Args:
-        pdb_path: path to .pdb file.
-        design_chains: chain IDs to design (e.g. ``["A"]``).
-            If None, all chains are designable.
-    """
-    from proteingen.models.utils import load_pdb
-
-    return condition_from_structure(load_pdb(pdb_path), design_chains)
-
-
-def condition_from_structure(
-    structure, design_chains: list[str] | None = None
-) -> ProteinMPNNCondition:
-    """Convert a :class:`~proteingen.models.utils.PDBStructure` to ProteinMPNN conditioning.
-
-    Uses Foundry's MPNN atom encoding (``MPNN_TOKEN_ENCODING``) with
-    ``default_coord=0.0`` and occupancy-based masking, matching the
-    original ProteinMPNN featurization exactly.
-
-    Args:
-        structure: a :class:`PDBStructure` from :func:`load_pdb`.
-        design_chains: chain IDs to design (e.g. ``["A"]``).
-            If None, all chains are designable.
-    """
-    import numpy as np
-    from atomworks.ml.transforms.encoding import atom_array_to_encoding
-    from mpnn.transforms.feature_aggregation.mpnn import MPNN_TOKEN_ENCODING
-
-    encoded = atom_array_to_encoding(
-        structure.atom_array,
-        encoding=MPNN_TOKEN_ENCODING,
-        default_coord=0.0,
-        occupancy_threshold=0.5,
-    )
-    X = torch.from_numpy(encoded["xyz"].astype(np.float32))  # (L, 37, 3)
-    X_m = torch.from_numpy(encoded["mask"].astype(np.bool_))  # (L, 37)
-    L = X.shape[0]
-
-    # Per-chain integer labels and 0-indexed residue indices
-    unique_chains = np.unique(structure.chain_ids)
-    chain_to_int = {c: i for i, c in enumerate(unique_chains)}
-    chain_labels = torch.tensor(
-        [chain_to_int[c] for c in structure.chain_ids], dtype=torch.long
-    )  # (L,)
-
-    R_idx = torch.zeros(L, dtype=torch.long)
-    for chain_int in range(len(unique_chains)):
-        mask = chain_labels == chain_int
-        R_idx[mask] = torch.arange(mask.sum())
-
-    # Residue mask: True for designable positions
-    if design_chains is not None:
-        residue_mask = torch.tensor(
-            [c in design_chains for c in structure.chain_ids], dtype=torch.bool
-        )
-    else:
-        residue_mask = torch.ones(L, dtype=torch.bool)
-
-    return {
-        "X": X,
-        "X_m": X_m,
-        "R_idx": R_idx,
-        "chain_labels": chain_labels,
-        "residue_mask": residue_mask,
-    }
-
-
 class ProteinMPNN(TransitionModelWithEmbedding):
     """ProteinMPNN structure-conditioned sequence design model.
 
@@ -158,14 +83,11 @@ class ProteinMPNN(TransitionModelWithEmbedding):
 
     Example::
 
+        from proteingen.models.utils import load_pdb
+
         model = ProteinMPNN()
-        with model.conditioned_on({
-            "X": coords,            # (L, 37, 3)
-            "X_m": coord_mask,      # (L, 37)
-            "R_idx": res_idx,       # (L,)
-            "chain_labels": chains,  # (L,)
-            "residue_mask": mask,    # (L,)
-        }):
+        structure = load_pdb("1YCR.pdb")
+        with model.conditioned_on({"structure": structure, "design_chains": ["B"]}):
             log_probs = model.get_log_probs(seq_SP)
     """
 
@@ -196,29 +118,93 @@ class ProteinMPNN(TransitionModelWithEmbedding):
 
     # ── Conditioning ─────────────────────────────────────────────────────
 
+    @staticmethod
+    def _encode_structure(structure) -> ProteinMPNNCondition:
+        """Convert a PDBStructure to the internal conditioning dict.
+
+        Uses Foundry's MPNN atom encoding with occupancy-based masking,
+        matching the original ProteinMPNN featurization exactly.
+        """
+        import numpy as np
+        from atomworks.ml.transforms.encoding import atom_array_to_encoding
+        from mpnn.transforms.feature_aggregation.mpnn import MPNN_TOKEN_ENCODING
+
+        encoded = atom_array_to_encoding(
+            structure.atom_array,
+            encoding=MPNN_TOKEN_ENCODING,
+            default_coord=0.0,
+            occupancy_threshold=0.5,
+        )
+        X = torch.from_numpy(encoded["xyz"].astype(np.float32))  # (L, 37, 3)
+        X_m = torch.from_numpy(encoded["mask"].astype(np.bool_))  # (L, 37)
+        L = X.shape[0]
+
+        unique_chains = np.unique(structure.chain_ids)
+        chain_to_int = {c: i for i, c in enumerate(unique_chains)}
+        chain_labels = torch.tensor(
+            [chain_to_int[c] for c in structure.chain_ids], dtype=torch.long
+        )  # (L,)
+
+        R_idx = torch.zeros(L, dtype=torch.long)
+        for chain_int in range(len(unique_chains)):
+            mask = chain_labels == chain_int
+            R_idx[mask] = torch.arange(mask.sum())
+
+        return {
+            "X": X,
+            "X_m": X_m,
+            "R_idx": R_idx,
+            "chain_labels": chain_labels,
+            "residue_mask": torch.ones(L, dtype=torch.bool),
+        }
+
     def preprocess_observations(
-        self, observations: ProteinMPNNCondition
+        self, observations: dict
     ) -> dict[str, torch.Tensor]:
         """Encode structure via graph featurization + MPNN encoder.
+
+        Accepts either a :class:`PDBStructure`-based dict or a raw
+        :class:`ProteinMPNNCondition` tensor dict::
+
+            # PDBStructure (preferred)
+            {"structure": pdb_structure, "design_chains": ["B"]}
+
+            # Raw tensor dict (advanced / testing)
+            {"X": ..., "X_m": ..., "R_idx": ..., "chain_labels": ..., "residue_mask": ...}
 
         Runs the expensive structure processing once. The resulting encoder
         node/edge features and graph topology are cached and reused for
         every subsequent forward pass.
         """
+        from proteingen.models.utils import PDBStructure
+
+        if "structure" in observations:
+            structure = observations["structure"]
+            assert isinstance(structure, PDBStructure)
+            condition = self._encode_structure(structure)
+            design_chains = observations.get("design_chains")
+            if design_chains is not None:
+                condition["residue_mask"] = torch.tensor(
+                    [c in design_chains for c in structure.chain_ids],
+                    dtype=torch.bool,
+                )
+        else:
+            condition = observations
+
         device = self.device
-        L = observations["X"].shape[0]
+        L = condition["X"].shape[0]
 
         # Build input dict with batch dim for MPNN internals.
         # S=0 (ALA) is a safe placeholder: backbone atoms N/CA/C/O are at
         # positions 0-3 for all amino acids, and ProteinMPNN only uses
         # backbone geometry for graph featurization.
         input_features: dict = {
-            "X": observations["X"].unsqueeze(0).to(device).float(),
-            "X_m": observations["X_m"].unsqueeze(0).to(device).bool(),
+            "X": condition["X"].unsqueeze(0).to(device).float(),
+            "X_m": condition["X_m"].unsqueeze(0).to(device).bool(),
             "S": torch.zeros(1, L, dtype=torch.long, device=device),
-            "R_idx": observations["R_idx"].unsqueeze(0).to(device).long(),
-            "chain_labels": observations["chain_labels"].unsqueeze(0).to(device).long(),
-            "residue_mask": observations["residue_mask"].unsqueeze(0).to(device).bool(),
+            "R_idx": condition["R_idx"].unsqueeze(0).to(device).long(),
+            "chain_labels": condition["chain_labels"].unsqueeze(0).to(device).long(),
+            "residue_mask": condition["residue_mask"].unsqueeze(0).to(device).bool(),
             "structure_noise": 0.0,
         }
 

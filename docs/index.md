@@ -16,11 +16,12 @@ For our computational colleagues, we hope ProteinGen makes your lives easier. Fo
 ProteinGen was developed by [Ishan Gaur](https://ishangaur.com) and is maintained by the [Listgarten Lab](http://www.jennifer.listgarten.com/group.html) at UC Berkeley.
 
 ```python
-from proteingen.models.mpnn import ProteinMPNN, structure_from_pdb
+from proteingen.models.mpnn import ProteinMPNN
+from proteingen.models.utils import load_pdb
 from proteingen.sampling import sample_any_order_ancestral
 
-structure = structure_from_pdb("1YCR.pdb")
-model = ProteinMPNN().conditioned_on(structure)
+structure = load_pdb("1YCR.pdb")
+model = ProteinMPNN().conditioned_on({"structure": structure})
 
 seqs = sample_any_order_ancestral(model, ["<mask>" * 98] * 8)
 ```
