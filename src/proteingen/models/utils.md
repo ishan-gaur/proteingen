@@ -67,15 +67,12 @@ The `encoded` dict contains:
 
 When integrating a new structure-conditioned model, follow the PMPNN pattern:
 
-1. **Define a conditioning TypedDict** with the fields your model needs (coordinates, masks, etc.)
-2. **Write `condition_from_structure(structure: PDBStructure, ...) -> YourCondition`** that:
-   - Calls `atom_array_to_encoding(structure.atom_array, YOUR_ENCODING, ...)` to get coords/mask
-   - Derives chain labels, residue indices from `encoded["chain_id"]` / `encoded["chain_id_to_int"]`
-   - Accepts user-facing options like `design_chains` and maps them to internal fields (e.g. `residue_mask`)
-3. **Write `structure_from_pdb(pdb_path, ...) -> YourCondition`** as a convenience wrapper: `load_pdb()` → `condition_from_structure()`
-4. **Keep the conditioning TypedDict internal** — users interact with `PDBStructure` + options like `design_chains`, not raw tensor dicts
+1. **Accept `PDBStructure` in `preprocess_observations`** — users pass `{"structure": pdb_structure, ...}` to `set_condition_()` / `conditioned_on()`. The model's `preprocess_observations` handles encoding internally.
+2. **Encode inside the model** — call `atom_array_to_encoding(structure.atom_array, YOUR_ENCODING, ...)` to get coords/mask. Derive chain labels, residue indices from the encoded dict. Accept user-facing options like `design_chains` from the observations dict and map them to internal fields (e.g. `residue_mask`).
+3. **Also accept raw tensor dicts** for testing / advanced use — check for `"structure"` key to distinguish the two paths.
+4. **Keep internal conditioning TypedDicts internal** — users interact with `PDBStructure` + options, not raw tensor dicts.
 
-See `proteingen.models.mpnn.protein_mpnn` for the reference implementation.
+See `proteingen.models.mpnn.protein_mpnn` (`preprocess_observations` and `_encode_structure`) for the reference implementation.
 
 ## Legacy
 
