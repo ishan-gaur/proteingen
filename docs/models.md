@@ -146,31 +146,30 @@ model = ProteinMPNN("proteinmpnn")  # or "solublempnn"
 
 #### Structure conditioning
 
-ProteinMPNN **requires** backbone structure as input. The conditioning dict provides atom coordinates in the standard 37-atom representation:
+ProteinMPNN **requires** backbone structure as input. Pass a `PDBStructure` from `load_pdb`:
 
 ```python
-import torch
+from proteingen.models.utils import load_pdb
 
-# Structure with L residues
-L = 100
-condition = {
-    "X": coords,         # (L, 37, 3) — atom coordinates (backbone at positions 0-3)
-    "X_m": coord_mask,   # (L, 37) — bool mask for which atoms exist
-    "R_idx": res_idx,    # (L,) — residue indices within each chain
-    "chain_labels": chains,  # (L,) — integer chain IDs (0, 1, 2, ...)
-    "residue_mask": mask,    # (L,) — bool mask for valid residues
-}
+structure = load_pdb("1YCR.pdb")
 
 # Set conditioning — runs graph featurization + encoder once
-model.set_condition_(condition)
+model.set_condition_({"structure": structure})
 
 # Get log probabilities for a sequence
-tokens = model.tokenizer("A" * L)["input_ids"]
-log_probs = model.get_log_probs(tokens)  # (1, L, 22)
+tokens = model.tokenizer("A" * 98)["input_ids"]
+log_probs = model.get_log_probs(tokens)  # (1, 98, 22)
 
 # Or use context manager
-with model.conditioned_on(condition):
+with model.conditioned_on({"structure": structure}):
     log_probs = model.get_log_probs(tokens)
+```
+
+For multi-chain structures, use `design_chains` to specify which chains to design (others are held as fixed context):
+
+```python
+# Design only chain B, use chain A as structural context
+model.set_condition_({"structure": structure, "design_chains": ["B"]})
 ```
 
 #### How the wrapper works

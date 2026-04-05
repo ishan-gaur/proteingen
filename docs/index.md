@@ -32,64 +32,67 @@ Take the stability optimization experiment from [ProteinGuide](https://arxiv.org
 
 === "TAG + PMPNN"
 
-    ```python hl_lines="2 3 12 16"
+    ```python hl_lines="2 3 13 17"
     from proteingen.models import PMPNN, StabilityPredictor
     from proteingen.guide import TAG
     from proteingen.sampling import sample_linear_interpolation
+    from proteingen.models.utils import load_pdb
 
-    coords = ... # load backbone structure from pdb file
+    structure = load_pdb("1YCR.pdb")
 
     # Load the models
-    gen_model = PMPNN().conditioned_on({"structure": coords}) # inverse-folding model
+    gen_model = PMPNN().conditioned_on({"structure": structure}) # inverse-folding model
     predictor = StabilityPredictor() # ddg predictor trained on the Megascale dataset
 
     # Get the stability guided conditional generative model
     guided = TAG(gen_model, predictor).cuda()
 
     # Sample 8 stability-optimized variants starting from fully masked sequences
-    masked_seqs = ["<mask>" * 100] * 8
+    masked_seqs = ["<mask>" * 98] * 8
     seqs = sample_linear_interpolation(guided, masked_seqs)
     ```
 
 === "DEG + PMPNN"
 
-    ```python hl_lines="2 3 12 16"
+    ```python hl_lines="2 3 13 17"
     from proteingen.models import PMPNN, StabilityPredictor
     from proteingen.guide import DEG
     from proteingen.sampling import sample_any_order_ancestral
+    from proteingen.models.utils import load_pdb
 
-    coords = ... # load backbone structure from pdb file
+    structure = load_pdb("1YCR.pdb")
 
     # Load the models
-    gen_model = PMPNN().conditioned_on({"structure": coords}) # inverse-folding model
+    gen_model = PMPNN().conditioned_on({"structure": structure}) # inverse-folding model
     predictor = StabilityPredictor() # ddg predictor trained on the Megascale dataset
 
     # Get the stability guided models
     guided = DEG(gen_model, predictor).cuda()
 
     # Sample 8 stability-optimized variants starting from fully masked sequences
-    masked_seqs = ["<mask>" * 100] * 8
+    masked_seqs = ["<mask>" * 98] * 8
     seqs = sample_any_order_ancestral(guided, masked_seqs)
     ```
 
 === "DEG + ESM3"
 
-    ```python hl_lines="1 8"
+    ```python hl_lines="1 9"
     from proteingen.models import ESM3, StabilityPredictor
     from proteingen.guide import DEG
     from proteingen.sampling import sample_any_order_ancestral
+    from proteingen.models.utils import load_pdb
 
-    coords = ... # load backbone structure from pdb file
+    structure = load_pdb("1YCR.pdb")
 
     # Load the models
-    gen_model = ESM3("esm3-small").conditioned_on({"structure": coords}) # inverse-folding model
+    gen_model = ESM3("esm3-small").conditioned_on({"structure": structure}) # inverse-folding model
     predictor = StabilityPredictor() # ddg predictor trained on the Megascale dataset
 
     # Get the stability guided models
     guided = DEG(gen_model, predictor).cuda()
 
     # Sample 8 stability-optimized variants starting from fully masked sequences
-    masked_seqs = ["<mask>" * 100] * 8
+    masked_seqs = ["<mask>" * 98] * 8
     seqs = sample_any_order_ancestral(guided, masked_seqs)
     ```
 
