@@ -35,11 +35,8 @@ class _BlockUNKLogitFormatter(LogitFormatter):
         return logits
 
 
-class ProteinMPNNCondition(TypedDict):
-    """Structure conditioning input for ProteinMPNN.
-
-    All tensors should be unbatched (no leading batch dimension).
-    """
+class _MPNNCondition(TypedDict):
+    """Internal tensor dict produced by _encode_structure."""
 
     X: torch.Tensor  # (L, 37, 3) atom coordinates
     X_m: torch.Tensor  # (L, 37) atom existence mask (bool)
@@ -119,7 +116,7 @@ class ProteinMPNN(TransitionModelWithEmbedding):
     # ── Conditioning ─────────────────────────────────────────────────────
 
     @staticmethod
-    def _encode_structure(structure) -> ProteinMPNNCondition:
+    def _encode_structure(structure) -> _MPNNCondition:
         """Convert a PDBStructure to the internal conditioning dict.
 
         Uses Foundry's MPNN atom encoding with occupancy-based masking,
@@ -163,14 +160,9 @@ class ProteinMPNN(TransitionModelWithEmbedding):
     ) -> dict[str, torch.Tensor]:
         """Encode structure via graph featurization + MPNN encoder.
 
-        Accepts either a :class:`PDBStructure`-based dict or a raw
-        :class:`ProteinMPNNCondition` tensor dict::
-
-            # PDBStructure (preferred)
-            {"structure": pdb_structure, "design_chains": ["B"]}
-
-            # Raw tensor dict (advanced / testing)
-            {"X": ..., "X_m": ..., "R_idx": ..., "chain_labels": ..., "residue_mask": ...}
+        Args:
+            observations: ``{"structure": PDBStructure}`` with optional
+                ``"design_chains": ["B"]`` to restrict designable positions.
 
         Runs the expensive structure processing once. The resulting encoder
         node/edge features and graph topology are cached and reused for
@@ -178,18 +170,15 @@ class ProteinMPNN(TransitionModelWithEmbedding):
         """
         from proteingen.models.utils import PDBStructure
 
-        if "structure" in observations:
-            structure = observations["structure"]
-            assert isinstance(structure, PDBStructure)
-            condition = self._encode_structure(structure)
-            design_chains = observations.get("design_chains")
-            if design_chains is not None:
-                condition["residue_mask"] = torch.tensor(
-                    [c in design_chains for c in structure.chain_ids],
-                    dtype=torch.bool,
-                )
-        else:
-            condition = observations
+        structure = observations["structure"]
+        assert isinstance(structure, PDBStructure)
+        condition = self._encode_structure(structure)
+        design_chains = observations.get("design_chains")
+        if design_chains is not None:
+            condition["residue_mask"] = torch.tensor(
+                [c in design_chains for c in structure.chain_ids],
+                dtype=torch.bool,
+            )
 
         device = self.device
         L = condition["X"].shape[0]

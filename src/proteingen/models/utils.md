@@ -69,8 +69,7 @@ When integrating a new structure-conditioned model, follow the PMPNN pattern:
 
 1. **Accept `PDBStructure` in `preprocess_observations`** — users pass `{"structure": pdb_structure, ...}` to `set_condition_()` / `conditioned_on()`. The model's `preprocess_observations` handles encoding internally.
 2. **Encode inside the model** — call `atom_array_to_encoding(structure.atom_array, YOUR_ENCODING, ...)` to get coords/mask. Derive chain labels, residue indices from the encoded dict. Accept user-facing options like `design_chains` from the observations dict and map them to internal fields (e.g. `residue_mask`).
-3. **Also accept raw tensor dicts** for testing / advanced use — check for `"structure"` key to distinguish the two paths.
-4. **Keep internal conditioning TypedDicts internal** — users interact with `PDBStructure` + options, not raw tensor dicts.
+3. **Keep internal conditioning TypedDicts internal** (prefixed with `_`) — users interact with `PDBStructure` + options, not raw tensor dicts. Tests should also use `PDBStructure` (see `_make_structure()` in `test_protein_mpnn.py` for building synthetic structures with biotite).
 
 See `proteingen.models.mpnn.protein_mpnn` (`preprocess_observations` and `_encode_structure`) for the reference implementation.
 

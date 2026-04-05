@@ -2,26 +2,55 @@
 
 import torch
 import torch.utils.checkpoint
+import numpy as np
+import biotite.structure as bts
 import pytest
 import urllib.request
 from pathlib import Path
 from proteingen.models.mpnn import ProteinMPNN
+from proteingen.models.utils import load_pdb, PDBStructure
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────
 
 
-def _make_structure(L: int = 20):
-    """Create a simple test structure with random backbone coordinates."""
-    X = torch.randn(L, 37, 3)
-    X_m = torch.zeros(L, 37, dtype=torch.bool)
-    X_m[:, :4] = True  # backbone atoms N, CA, C, O
+def _make_structure(L: int = 20, n_chains: int = 1):
+    """Create a synthetic PDBStructure with random backbone coordinates."""
+    atoms_per_res = 4  # N, CA, C, O
+    n_atoms = L * atoms_per_res
+    residues_per_chain = L // n_chains
+
+    atom_array = bts.AtomArray(n_atoms)
+    atom_array.coord = np.random.randn(n_atoms, 3).astype(np.float32)
+    atom_array.res_id = np.repeat(np.arange(1, L + 1), atoms_per_res)
+    atom_array.res_name = np.array(["ALA"] * n_atoms)
+    atom_array.atom_name = np.tile(["N", "CA", "C", "O"], L)
+    atom_array.element = np.tile(["N", "C", "C", "O"], L)
+    atom_array.set_annotation(
+        "occupancy", np.ones(n_atoms, dtype=np.float32)
+    )
+    atom_array.set_annotation(
+        "atomize", np.zeros(n_atoms, dtype=bool)
+    )
+
+    # Assign chain IDs
+    chain_ids_per_res = []
+    for c in range(n_chains):
+        chain_ids_per_res.extend([chr(ord("A") + c)] * residues_per_chain)
+    # Handle remainder
+    chain_ids_per_res.extend([chr(ord("A") + n_chains - 1)] * (L - len(chain_ids_per_res)))
+    atom_array.chain_id = np.repeat(chain_ids_per_res, atoms_per_res)
+
+    residue_starts = bts.get_residue_starts(atom_array)
+    chain_ids = atom_array.chain_id[residue_starts]
+    sequence = "A" * L
+
     return {
-        "X": X,
-        "X_m": X_m,
-        "R_idx": torch.arange(L),
-        "chain_labels": torch.zeros(L, dtype=torch.long),
-        "residue_mask": torch.ones(L, dtype=torch.bool),
+        "structure": PDBStructure(
+            atom_array=atom_array,
+            chain_ids=chain_ids,
+            sequence=sequence,
+        )
     }
 
 
@@ -283,11 +312,7 @@ def test_different_structures(model):
 def test_multi_chain(model):
     """Model should handle multi-chain structures."""
     L = 20
-    structure = _make_structure(L)
-    structure["chain_labels"] = torch.cat(
-        [torch.zeros(10, dtype=torch.long), torch.ones(10, dtype=torch.long)]
-    )
-    structure["R_idx"] = torch.cat([torch.arange(10), torch.arange(10)])
+    structure = _make_structure(L, n_chains=2)
 
     model.set_condition_(structure)
     tokens = model.tokenizer("A" * L)["input_ids"]
@@ -296,6 +321,25 @@ def test_multi_chain(model):
         log_probs = model.get_log_probs(tokens)
     assert log_probs.shape == (1, L, 22)
     assert not torch.any(torch.isnan(log_probs))
+
+
+def test_design_chains(model):
+    """design_chains should restrict which positions are designable."""
+    L = 20
+    structure = _make_structure(L, n_chains=2)
+
+    # All chains designable
+    model.set_condition_(structure)
+    mask_all = model.observations["residue_mask"]
+    assert mask_all.all()
+
+    # Only chain A designable
+    structure_a = {**structure, "design_chains": ["A"]}
+    model.set_condition_(structure_a)
+    mask_a = model.observations["residue_mask"]
+    assert mask_a.sum() == 10  # first 10 residues
+    assert mask_a[:10].all()
+    assert not mask_a[10:].any()
 
 
 # ── Soluble MPNN variant ──────────────────────────────────────────────────
@@ -356,23 +400,29 @@ PDB_1YCR = Path("/tmp/test_1YCR.pdb")
 @pytest.fixture(scope="module")
 def real_multimer_data():
     """Download 1YCR (p53/MDM2, 2 chains, 98 residues) and process via Foundry."""
-    # Download PDB
     if not PDB_1YCR.exists():
         urllib.request.urlretrieve(
             "https://files.rcsb.org/download/1YCR.pdb", str(PDB_1YCR)
         )
 
-    from atomworks.io import parse
-    from mpnn.pipelines.mpnn import build_mpnn_transform_pipeline
-    from mpnn.collate.feature_collator import FeatureCollator
     from mpnn.model.mpnn import ProteinMPNN as _ProteinMPNN
     from mpnn.utils.weights import load_legacy_weights
 
-    # Parse with full annotations
+    # Our API
+    structure = load_pdb(str(PDB_1YCR))
+
+    # Foundry reference logits
+    foundry_model = _ProteinMPNN()
+    load_legacy_weights(foundry_model, "/data/ishan/foundry/proteinmpnn_v_48_020.pt")
+    foundry_model.eval()
+
+    # Need Foundry pipeline for reference logits (ground truth)
+    from mpnn.pipelines.mpnn import build_mpnn_transform_pipeline
+    from mpnn.collate.feature_collator import FeatureCollator
+    from atomworks.io import parse
+
     parsed = parse(str(PDB_1YCR))
     atom_array = parsed["assemblies"]["1"][0]
-
-    # Run Foundry pipeline
     pipeline = build_mpnn_transform_pipeline(
         model_type="protein_mpnn",
         is_inference=True,
@@ -392,15 +442,11 @@ def real_multimer_data():
     )
     network_input = FeatureCollator()([pipeline_output])
 
-    # Run Foundry model
-    foundry_model = _ProteinMPNN()
-    load_legacy_weights(foundry_model, "/data/ishan/foundry/proteinmpnn_v_48_020.pt")
-    foundry_model.eval()
-
     with torch.no_grad():
         foundry_output = foundry_model(network_input)
 
     return {
+        "structure": structure,
         "network_input": network_input,
         "foundry_logits": foundry_output["decoder_features"]["logits"],
     }
@@ -408,28 +454,16 @@ def real_multimer_data():
 
 def test_matches_foundry_on_real_multimer(real_multimer_data):
     """Our wrapper produces identical logits to Foundry on 1YCR (2-chain PDB)."""
+    structure = real_multimer_data["structure"]
     ni = real_multimer_data["network_input"]
     foundry_logits = real_multimer_data["foundry_logits"]
 
     S = ni["input_features"]["S"]
-    X = ni["input_features"]["X"]
-    X_m = ni["input_features"]["X_m"]
-    R_idx = ni["input_features"]["R_idx"]
     chain_labels = ni["input_features"]["chain_labels"]
-    residue_mask = ni["input_features"]["residue_mask"]
-
     assert chain_labels.unique().numel() == 2, "Expected 2 chains in 1YCR"
 
     model = ProteinMPNN("proteinmpnn")
-    model.set_condition_(
-        {
-            "X": X.squeeze(0),
-            "X_m": X_m.squeeze(0),
-            "R_idx": R_idx.squeeze(0),
-            "chain_labels": chain_labels.squeeze(0),
-            "residue_mask": residue_mask.squeeze(0),
-        }
-    )
+    model.set_condition_({"structure": structure})
 
     with torch.no_grad():
         our_logits_22 = model.embedding_to_outputs(model.embed(S))
