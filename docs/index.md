@@ -1,4 +1,82 @@
+ProteinGen is a package for library design with machine learning. It focuses on tools for blending assay-labeled data with pretrained sequence models and sampling libraries using their predictions.
+
+In order to make it easy to compose library design pipelines, we standardized and simplified the normal interfaces needed to run protein design models. For example, see the [before and after](add-link-to-section-here) for inverse-folding with ProteinMPNN below.
+
+
+=== "Before (Original ProteinMPNN)"
+
+    ```python
+    import copy, torch, numpy as np
+    from protein_mpnn_utils import (
+        parse_PDB, StructureDatasetPDB, ProteinMPNN,
+        tied_featurize, _S_to_seq,
+    )
+
+    # Step 1: Parse PDB and build dataset
+    pdb_dict_list = parse_PDB("1YCR.pdb", ca_only=False)
+    dataset = StructureDatasetPDB(pdb_dict_list, truncate=None, max_length=200000)
+
+    # Step 2: Build chain design specification
+    all_chains = [k[-1:] for k in pdb_dict_list[0] if k[:9] == "seq_chain"]
+    chain_id_dict = {pdb_dict_list[0]["name"]: (all_chains, [])}
+
+    # Step 3: Load model with architecture params from checkpoint
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    ckpt = torch.load("vanilla_model_weights/v_48_020.pt", map_location=device)
+    model = ProteinMPNN(
+        ca_only=False, num_letters=21, node_features=128, edge_features=128,
+        hidden_dim=128, num_encoder_layers=3, num_decoder_layers=3,
+        augment_eps=0.0, k_neighbors=ckpt["num_edges"],
+    )
+    model.to(device)
+    model.load_state_dict(ckpt["model_state_dict"])
+    model.eval()
+
+    # Step 4: Featurize — returns 20 tensors
+    batch_clones = [copy.deepcopy(dataset[0]) for _ in range(8)]
+    (X, S, mask, lengths, chain_M, chain_encoding_all, chain_list_list,
+     visible_list_list, masked_list_list, masked_chain_length_list_list,
+     chain_M_pos, omit_AA_mask, residue_idx, dihedral_mask,
+     tied_pos_list_of_lists_list, pssm_coef, pssm_bias,
+     pssm_log_odds_all, bias_by_res_all, tied_beta,
+    ) = tied_featurize(
+        batch_clones, device, chain_id_dict,
+        None, None, None, None, None, ca_only=False,
+    )
+
+    # Step 5: Sample
+    sample_dict = model.sample(
+        X, torch.randn(chain_M.shape, device=device), S, chain_M,
+        chain_encoding_all, residue_idx, mask=mask, temperature=0.1,
+        omit_AAs_np=np.zeros(21), bias_AAs_np=np.zeros(21),
+        chain_M_pos=chain_M_pos, omit_AA_mask=omit_AA_mask,
+        pssm_coef=pssm_coef, pssm_bias=pssm_bias, pssm_multi=0.0,
+        pssm_log_odds_flag=False, pssm_log_odds_mask=None,
+        pssm_bias_flag=False, bias_by_res=bias_by_res_all,
+    )
+
+    # Step 6: Decode token indices to sequences
+    seqs = [_S_to_seq(sample_dict["S"][i], chain_M[i]) for i in range(8)]
+    ```
+
+=== "After (ProteinGen)"
+
+    ```python
+    from proteingen.models.mpnn import ProteinMPNN
+    from proteingen.models.utils import load_pdb
+    from proteingen.sampling import sample_any_order_ancestral
+
+    structure = load_pdb("1YCR.pdb")
+    masked_seqs = ["<mask>" * 98] * 8
+
+    model = ProteinMPNN().conditioned_on({"structure": structure})
+    seqs = sample_any_order_ancestral(model, masked_seqs)
+    ```
+
+
+
 ## What is ProteinGen?
+
 
 ProteinGen makes it easy to use cutting-edge machine learning methods for protein engineering. It provides:
 

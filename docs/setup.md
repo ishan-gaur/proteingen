@@ -30,9 +30,11 @@ After installing, restart your terminal and verify:
 uv --version
 ```
 
-## 2. Install Claude Code
+## 2. (Optional) Install Claude Code
 
-ProteinGen is designed to be used with an AI coding agent. We recommend [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview):
+
+ProteinGen was designed to facilitate the effective use of AI coding agents with our code. We recommend [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview):
+
 
 ```bash
 npm install -g @anthropic-ai/claude-code
