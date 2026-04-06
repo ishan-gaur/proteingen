@@ -335,14 +335,17 @@ def build_metrics_table(data: dict) -> list[dict]:
 
 
 def plot_likelihood_trajectories(metrics: list[dict]):
-    """Plot per-step log-probability curves grouped by mask fraction and model."""
-    fig, axes = plt.subplots(
-        1, len(MASK_FRACTIONS), figsize=(5 * len(MASK_FRACTIONS), 5), sharey=True
-    )
-    if len(MASK_FRACTIONS) == 1:
-        axes = [axes]
+    """Plot per-step log-probability curves grouped by mask fraction and model.
 
-    for ax, mf in zip(axes, MASK_FRACTIONS):
+    2×2 grid, mean curve + shaded ±1 std region only (no individual trajectories).
+    """
+    n = len(MASK_FRACTIONS)
+    nrows, ncols = 2, 2
+    fig, axes = plt.subplots(nrows, ncols, figsize=(12, 10), sharey=True)
+    axes = axes.flatten()
+
+    for idx, mf in enumerate(MASK_FRACTIONS):
+        ax = axes[idx]
         for model_name, color in MODEL_COLORS.items():
             model_rows = [
                 r
@@ -352,45 +355,43 @@ def plot_likelihood_trajectories(metrics: list[dict]):
             if not model_rows:
                 continue
 
-            # Collect all trajectories, normalize to [0, 1] fraction complete
-            for row in model_rows:
-                lps = row["step_log_probs"]
-                if not lps:
-                    continue
-                n = len(lps)
-                xs = np.linspace(0, 1, n)
-                ax.plot(xs, lps, alpha=0.15, color=color, linewidth=0.5)
-
-            # Mean trajectory (interpolate to common grid)
             all_lps = [
                 row["step_log_probs"] for row in model_rows if row["step_log_probs"]
             ]
-            if all_lps:
-                common_grid = np.linspace(0, 1, 50)
-                interp_lps = []
-                for lps in all_lps:
-                    xs = np.linspace(0, 1, len(lps))
-                    interp_lps.append(np.interp(common_grid, xs, lps))
-                mean_lp = np.mean(interp_lps, axis=0)
-                std_lp = np.std(interp_lps, axis=0)
-                ax.plot(
-                    common_grid, mean_lp, color=color, linewidth=2, label=model_name
-                )
-                ax.fill_between(
-                    common_grid,
-                    mean_lp - std_lp,
-                    mean_lp + std_lp,
-                    alpha=0.15,
-                    color=color,
-                )
+            if not all_lps:
+                continue
 
+            common_grid = np.linspace(0, 1, 50)
+            interp_lps = []
+            for lps in all_lps:
+                xs = np.linspace(0, 1, len(lps))
+                interp_lps.append(np.interp(common_grid, xs, lps))
+            mean_lp = np.mean(interp_lps, axis=0)
+            std_lp = np.std(interp_lps, axis=0)
+            ax.plot(common_grid, mean_lp, color=color, linewidth=2, label=model_name)
+            ax.fill_between(
+                common_grid,
+                mean_lp - std_lp,
+                mean_lp + std_lp,
+                alpha=0.2,
+                color=color,
+            )
+
+        ax.set_title(f"Mask = {mf:.0%}", fontsize=12)
         ax.set_xlabel("Fraction of masked positions filled")
-        ax.set_title(f"Mask = {mf:.0%}")
-        if ax == axes[0]:
+        if idx % ncols == 0:
             ax.set_ylabel("Log p(sampled token)")
 
-    axes[-1].legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=8)
-    fig.suptitle("Generation log-likelihood trajectories", fontsize=14, y=1.02)
+    # Hide unused subplots if MASK_FRACTIONS < 4
+    for idx in range(n, nrows * ncols):
+        axes[idx].set_visible(False)
+
+    # Single legend outside the grid
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(
+        handles, labels, loc="center right", bbox_to_anchor=(1.12, 0.5), fontsize=9
+    )
+    fig.suptitle("Generation log-likelihood trajectories", fontsize=14)
     fig.tight_layout()
     fig.savefig(PLOT_DIR / "likelihood_trajectories.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
@@ -400,20 +401,26 @@ def plot_likelihood_trajectories(metrics: list[dict]):
 def plot_metric_vs_masking(
     metrics: list[dict], metric_key: str, ylabel: str, filename: str
 ):
-    """Bar chart of a metric across models and masking levels."""
+    """Boxplot of a metric across models and masking levels."""
     models = list(MODEL_COLORS.keys())
     available_models = [m for m in models if any(r["model"] == m for r in metrics)]
 
-    fig, ax = plt.subplots(figsize=(12, 5))
     n_models = len(available_models)
     n_fracs = len(MASK_FRACTIONS)
-    bar_width = 0.8 / n_models
-    x = np.arange(n_fracs)
+    fig, ax = plt.subplots(figsize=(max(12, n_fracs * 3), 5))
 
-    for i, model_name in enumerate(available_models):
-        means = []
-        stds = []
-        for mf in MASK_FRACTIONS:
+    # Group width and box width
+    group_width = 0.8
+    box_width = group_width / n_models
+    positions_all = []
+    colors_all = []
+    data_all = []
+    tick_positions = []
+
+    for j, mf in enumerate(MASK_FRACTIONS):
+        group_center = j
+        tick_positions.append(group_center)
+        for i, model_name in enumerate(available_models):
             vals = [
                 r[metric_key]
                 for r in metrics
@@ -421,27 +428,40 @@ def plot_metric_vs_masking(
                 and r["mask_fraction"] == mf
                 and not np.isnan(r.get(metric_key, float("nan")))
             ]
-            means.append(np.mean(vals) if vals else 0)
-            stds.append(np.std(vals) if vals else 0)
+            if not vals:
+                vals = [float("nan")]
+            offset = (i - n_models / 2 + 0.5) * box_width
+            positions_all.append(group_center + offset)
+            colors_all.append(MODEL_COLORS[model_name])
+            data_all.append(vals)
 
-        offset = (i - n_models / 2 + 0.5) * bar_width
-        ax.bar(
-            x + offset,
-            means,
-            bar_width,
-            yerr=stds,
-            label=model_name,
-            color=MODEL_COLORS[model_name],
-            alpha=0.85,
-            capsize=3,
-        )
+    bp = ax.boxplot(
+        data_all,
+        positions=positions_all,
+        widths=box_width * 0.85,
+        patch_artist=True,
+        showfliers=False,
+        medianprops={"color": "black", "linewidth": 1.5},
+        whiskerprops={"linewidth": 1},
+        capprops={"linewidth": 1},
+    )
 
-    ax.set_xticks(x)
+    for patch, color in zip(bp["boxes"], colors_all):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.8)
+
+    # Legend: one entry per model
+    legend_handles = [
+        plt.Rectangle((0, 0), 1, 1, facecolor=MODEL_COLORS[m], alpha=0.8)
+        for m in available_models
+    ]
+    ax.legend(legend_handles, available_models, fontsize=8)
+
+    ax.set_xticks(tick_positions)
     ax.set_xticklabels([f"{mf:.0%}" for mf in MASK_FRACTIONS])
     ax.set_xlabel("Mask fraction")
     ax.set_ylabel(ylabel)
     ax.set_title(f"{ylabel} vs. masking level")
-    ax.legend(fontsize=8)
     fig.tight_layout()
     fig.savefig(PLOT_DIR / filename, dpi=150, bbox_inches="tight")
     plt.close(fig)
@@ -449,15 +469,16 @@ def plot_metric_vs_masking(
 
 
 def plot_scaling_analysis(metrics: list[dict]):
-    """How model scaling affects generation quality at different masking levels."""
+    """How model scaling affects generation quality at different masking levels.
+
+    Uses boxplots. All families shown (including single-model families like ESM3).
+    """
     families = defaultdict(list)
     for family, display_name, _, n_params in MODEL_CONFIGS:
         families[family].append((display_name, n_params))
 
-    # Only plot families with > 1 model
-    multi_scale_families = {k: v for k, v in families.items() if len(v) > 1}
-    if not multi_scale_families:
-        print("No multi-scale families found, skipping scaling analysis")
+    if not families:
+        print("No families found, skipping scaling analysis")
         return
 
     for metric_key, ylabel in [
@@ -473,12 +494,12 @@ def plot_scaling_analysis(metrics: list[dict]):
             axes = [axes]
 
         for ax, mf in zip(axes, MASK_FRACTIONS):
-            for family, models in multi_scale_families.items():
+            for family, models in families.items():
+                sorted_models = sorted(models, key=lambda x: x[1])
                 param_counts = []
-                mean_vals = []
-                std_vals = []
+                box_data = []
 
-                for model_name, n_params in sorted(models, key=lambda x: x[1]):
+                for model_name, n_params in sorted_models:
                     vals = [
                         r[metric_key]
                         for r in metrics
@@ -488,28 +509,60 @@ def plot_scaling_analysis(metrics: list[dict]):
                     ]
                     if vals:
                         param_counts.append(n_params)
-                        mean_vals.append(np.mean(vals))
-                        std_vals.append(np.std(vals))
+                        box_data.append(vals)
 
-                if param_counts:
-                    ax.errorbar(
-                        param_counts,
-                        mean_vals,
-                        yerr=std_vals,
-                        marker="o",
-                        label=family.upper(),
-                        color=FAMILY_COLORS[family],
-                        capsize=4,
-                        linewidth=2,
+                if not param_counts:
+                    continue
+
+                color = FAMILY_COLORS[family]
+                # Box width in log-space: fraction of the axis range
+                log_positions = [np.log10(p) for p in param_counts]
+                log_width = 0.08  # width in log10 units
+
+                bp = ax.boxplot(
+                    box_data,
+                    positions=log_positions,
+                    widths=log_width,
+                    patch_artist=True,
+                    showfliers=False,
+                    medianprops={"color": "black", "linewidth": 1.5},
+                    whiskerprops={"color": color, "linewidth": 1},
+                    capprops={"color": color, "linewidth": 1},
+                    manage_ticks=False,
+                )
+                for patch in bp["boxes"]:
+                    patch.set_facecolor(color)
+                    patch.set_alpha(0.7)
+
+                # Connect medians with a line for families with >1 model
+                if len(param_counts) > 1:
+                    medians = [np.median(d) for d in box_data]
+                    ax.plot(
+                        log_positions,
+                        medians,
+                        color=color,
+                        linewidth=1.5,
+                        alpha=0.6,
+                        zorder=0,
                     )
 
-            ax.set_xlabel("Parameters (M)")
-            ax.set_xscale("log")
+            # Format x-axis as log with parameter labels
+            all_params = sorted({p for ms in families.values() for _, p in ms})
+            ax.set_xticks([np.log10(p) for p in all_params])
+            ax.set_xticklabels([f"{p}M" for p in all_params], fontsize=7, rotation=45)
+            ax.set_xlabel("Parameters")
             ax.set_title(f"Mask = {mf:.0%}")
             if ax == axes[0]:
                 ax.set_ylabel(ylabel)
 
-        axes[-1].legend(fontsize=8)
+        # Legend: one entry per family
+        legend_handles = [
+            plt.Rectangle((0, 0), 1, 1, facecolor=FAMILY_COLORS[f], alpha=0.7)
+            for f in families
+        ]
+        legend_labels = [f.upper() for f in families]
+        axes[-1].legend(legend_handles, legend_labels, fontsize=8)
+
         fig.suptitle(f"Scaling: {ylabel}", fontsize=13, y=1.02)
         fig.tight_layout()
         fname = f"scaling_{metric_key}.png"
