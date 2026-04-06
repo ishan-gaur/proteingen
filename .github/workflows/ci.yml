@@ -28,5 +28,5 @@ jobs:
           path: ~/.cache 
           restore-keys: |
             mkdocs-material-
-      - run: pip install mkdocs-material "mkdocstrings[python]" 
+      - run: pip install mkdocs-material "mkdocstrings[python]" "mkdocs-liveedit @ git+https://github.com/ishan-gaur/mkdocs-liveedit.git"
       - run: mkdocs gh-deploy --force
