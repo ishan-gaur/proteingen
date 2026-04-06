@@ -1,9 +1,36 @@
 ProteinGen is a package for library design with machine learning. It focuses on tools for blending assay-labeled data with pretrained sequence models and sampling libraries using their predictions.
 
-In order to make it easy to compose library design pipelines, we standardized and simplified the normal interfaces needed to run protein design models. For example, see the [before and after](add-link-to-section-here) for inverse-folding with ProteinMPNN below.
+In order to make writing [pipelines for library design](workflows/index.md) easier, we [standardized the user interface](reference/design-philosophy.md#design-philosophy) for running protein design models. For example, the original script for inverse-folding with ProteinMPNN is *45 lines* of code whereas the ProteinGen version is only *7 lines*. We similarly provide simplified APIs to a [broad array of protein models](models.md) including ESM3, DPLM2, and ProGen3.
 
 
-=== "Before (Original ProteinMPNN)"
+
+
+
+
+
+
+
+
+
+
+
+
+
+=== "ProteinGen Inverse-Folding"
+
+    ```python
+    from proteingen.models.mpnn import ProteinMPNN
+    from proteingen.models.utils import load_pdb
+    from proteingen.sampling import sample_any_order_ancestral
+
+    structure = load_pdb("1YCR.pdb")
+    masked_seqs = ["<mask>" * 98] * 8
+
+    model = ProteinMPNN().conditioned_on({"structure": structure})
+    seqs = sample_any_order_ancestral(model, masked_seqs)
+    ```
+
+=== "Original ProteinMPNN"
 
     ```python
     import copy, torch, numpy as np
@@ -59,23 +86,18 @@ In order to make it easy to compose library design pipelines, we standardized an
     seqs = [_S_to_seq(sample_dict["S"][i], chain_M[i]) for i in range(8)]
     ```
 
-=== "After (ProteinGen)"
-
-    ```python
-    from proteingen.models.mpnn import ProteinMPNN
-    from proteingen.models.utils import load_pdb
-    from proteingen.sampling import sample_any_order_ancestral
-
-    structure = load_pdb("1YCR.pdb")
-    masked_seqs = ["<mask>" * 98] * 8
-
-    model = ProteinMPNN().conditioned_on({"structure": structure})
-    seqs = sample_any_order_ancestral(model, masked_seqs)
-    ```
+ProteinGen was developed by [Ishan Gaur](https://ishangaur.com) and is maintained by the [Listgarten Lab](http://www.jennifer.listgarten.com/group.html) at UC Berkeley.
 
 
 
-## What is ProteinGen?
+
+
+
+
+## Why ProteinGen?
+
+
+
 
 
 ProteinGen makes it easy to use cutting-edge machine learning methods for protein engineering. It provides:
@@ -85,24 +107,15 @@ ProteinGen makes it easy to use cutting-edge machine learning methods for protei
 
 Our framework *code*-ifies the insights from our recent [theoretical unification](https://arxiv.org/abs/2505.04823) of generative and predictive protein models, ensuring interoperability between various training, sampling, and scoring strategies. It has drastically reduced the work to develop new methods in our own research, and we use it with our [wet-lab collaborators](http://www.jennifer.listgarten.com/group.html#:~:text=Collaborators) as well.
 
-For our computational colleagues, we hope ProteinGen makes your lives easier. For our wet-lab counterparts, we hope it makes the latest ML techniques more accessible. Let's engineer some amazing new proteins together!
+<!-- For our computational colleagues, we hope ProteinGen makes your lives easier. For our wet-lab counterparts, we hope it makes the latest ML techniques more accessible. Let's engineer some amazing new proteins together! -->
 
 <!-- Without ProteinGen, every time you try a different model, training, or sampling algorithm, you basically have to rewrite your existing code from scratch. We dealt with this ourselves when developing new methods in this area. Every experiment and every paper replicated weeks of work. We wanted to hide away in our code complexity that you shouldn't have to know, like that ESM only uses 33 of its 64 output logits, and prevent you from having to read complicated framework code, like the 1500 line ProteinMPNN [input datastructure](https://github.com/RosettaCommons/foundry/blob/c5a9fbefdeb2c9b107c347aee693d5166d73fa70/models/mpnn/src/mpnn/utils/inference.py#L678) -->
 
 <!--TODO[pi] We should put this line somewhere in the conceptual overview of the design; Pipelines written with ProteinGen make it trivial to swap in and out models, training techniques, and inference time algorithms whenever you want. Implementation costs should never stop you from trying the latest and greatest technique for protein design.-->
 
-ProteinGen was developed by [Ishan Gaur](https://ishangaur.com) and is maintained by the [Listgarten Lab](http://www.jennifer.listgarten.com/group.html) at UC Berkeley.
 
-```python
-from proteingen.models.mpnn import ProteinMPNN
-from proteingen.models.utils import load_pdb
-from proteingen.sampling import sample_any_order_ancestral
 
-structure = load_pdb("1YCR.pdb")
-model = ProteinMPNN().conditioned_on({"structure": structure})
 
-seqs = sample_any_order_ancestral(model, ["<mask>" * 98] * 8)
-```
 
 ### Switching Models and Algorithms Made Easy
 
