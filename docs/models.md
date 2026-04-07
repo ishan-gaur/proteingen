@@ -223,6 +223,7 @@ Autoregressive protein language model from [Profluent Bio](https://www.profluent
 
 - **Architecture**: Autoregressive causal LM with sparse MoE layers
 - **Output dim**: 134 (26 amino acid letters + special tokens + 100 span tokens)
+- **Embedding dim**: 384 (112m), 2048 (3b) — set dynamically from model weights
 - **LoRA support**: no (sparse MoE architecture)
 - **Requires**: `pip install git+https://github.com/Profluent-AI/progen3.git` (or `pip install proteingen[progen3]`)
 
@@ -230,7 +231,7 @@ Available checkpoints (HuggingFace hub, `Profluent-Bio/`):
 
 | Checkpoint | Params | Hidden | Layers |
 |---|---|---|---|
-| `Profluent-Bio/progen3-112m` | 112M | 768 | 12 |
+| `Profluent-Bio/progen3-112m` | 112M | 384 | 10 |
 | `Profluent-Bio/progen3-3b` | 3B | 2048 | 40 |
 
 ```python
@@ -239,9 +240,23 @@ from proteingen.models import ProGen3
 model = ProGen3("Profluent-Bio/progen3-112m").cuda()
 ```
 
-#### Unconditional generation
+#### Fixed-length sampling via `sample()`
 
-Generate novel proteins from scratch — the model starts from a BOS + direction token and autoregressively samples amino acids until it produces a stop signal:
+ProGen3 integrates with the standard `sample()` function using `in_order="left_to_right"`. Use `<mask>` tokens as placeholders for positions to be filled:
+
+```python
+from proteingen import sample
+
+init_x = ["<mask>" * 100 for _ in range(5)]
+result = sample(model, init_x, in_order="left_to_right")
+print(result["sequences"])  # 5 proteins, each 100 residues
+```
+
+Internally, the `AutoregressiveLogitFormatter` ensures only the first unfilled position gets non-trivial logits at each step — matching the autoregressive generation order.
+
+#### Open-ended generation (variable length)
+
+For variable-length generation where the model decides when to stop, use `generate()`:
 
 ```python
 result = model.generate(n=5, max_new_tokens=256, temperature=0.8, top_p=0.95)
@@ -271,11 +286,18 @@ print(scores["log_likelihood"])   # tensor of per-sequence log-likelihoods
 print(scores["perplexity"])       # tensor of perplexities
 ```
 
-!!! warning "Hardware requirements"
-    ProGen3 requires Flash Attention and megablocks (GPU-only). The 112M model fits on any modern GPU; the 3B model needs ≥40GB VRAM. Both require bfloat16 support (A100/H100/RTX 40xx).
+#### Embeddings / linear probes
 
-!!! note "Autoregressive vs masked models"
-    ProGen3 is autoregressive — it generates one token at a time, left to right. This means the mask-based sampling functions (`sample()`, `sample_ctmc_linear_interpolation()`), TAG guidance, and `LinearProbe` workflows don't apply. Use `model.generate()` for generation and `model.score()` for evaluation.
+ProGen3 exposes differentiable embeddings via `embed()`. The hidden state at the last real token position is a natural sequence representation — no noisy predictor training needed:
+
+```python
+seq = model.tokenizer(["ACDEFGHIK"])["input_ids"].cuda()
+embeddings = model.embed(seq)  # (1, P, 384) for 112m
+# Use embeddings[:, last_real_pos, :] for a linear probe
+```
+
+!!! warning "Hardware requirements"
+    ProGen3 requires megablocks (GPU-only). The 112M model fits on any modern GPU; the 3B model needs ≥40GB VRAM. Both require bfloat16 support (A100/H100/RTX 40xx).
 
 ---
 
