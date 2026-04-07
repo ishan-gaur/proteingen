@@ -1,11 +1,49 @@
 # Setup
 
-If you find yourself uncomfortable with any of the terminal use, package management, etc. in the guide below, we recommend checking out MIT's ["Missing Semester of Your CS Education"](https://missing.csail.mit.edu/). The first three videos + the lecture on git and version control should get you largely up to speed.
+??? tip "Unfamiliar with the terminal?"
+    If you find yourself having trouble with any of the terminal use or package management in the guide below, we recommend checking out MIT's ["Missing Semester of Your CS Education"](https://missing.csail.mit.edu/). The first three videos + the lecture on git and version control should get you up to speed.
+
+
+
 
 ## 1. (Recommended) Install a Coding Agent
 
-<!-- TODO[pi] add links to these other agents' installation instructions -->
-ProteinGen was designed to facilitate the effective use of AI coding agents with our code. We recommend [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview) (instructions at the bottom of this section). A few other options are Codex, Amp, Pi, and Gemini CLI. These tools typically require a paid plan with a model provider, but we've gotten plenty of mileage for our tasks out of the basic tiers. 
+ProteinGen was designed to facilitate the use of AI coding agents for writing design pipelines.
+
+
+
+We recommend [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview) (installation instructions below). There are several other great options, including: [Pi](https://pi.dev), [Amp](https://ampcode.com/install), [Codex](https://developers.openai.com/codex/quickstart). These tools typically require a paid plan with a model provider, but we've gotten plenty of mileage for our tasks out of the basic tiers. 
+
+
+
+??? note "Installing Claude Code"
+
+    ```bash
+    npm install -g @anthropic-ai/claude-code
+    ```
+
+    This requires Node.js ≥ 18. If you don't have Node.js installed:
+
+    === "macOS / Linux (nvm)"
+
+        ```bash
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+        nvm install node
+        ```
+
+    === "Homebrew"
+
+        ```bash
+        brew install node
+        ```
+
+    Then verify:
+
+    ```bash
+    claude --version
+    ```
+
+    See the [Claude Code quickstart](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview) for authentication setup and first-run instructions.
 
 Once you install the agent, the easiest way to complete the setup is just to copy the link to this guide
 
@@ -22,203 +60,173 @@ and point your model to `proteingen/docs/setup.md`.
 
 If you'd like to continue on manually, we still include the full details to setup ProteinGen below.
 
-
-<!-- TODO [pi] collapse the folling section by default; turn it into an admonition https://squidfunk.github.io/mkdocs-material/reference/admonitions/ -->
-### Installing Claude 
-
-```bash
-npm install -g @anthropic-ai/claude-code
-```
-
-This requires Node.js ≥ 18. If you don't have Node.js installed:
-
-=== "macOS / Linux (nvm)"
-
-    ```bash
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
-    nvm install node
-    ```
-
-=== "Homebrew"
-
-    ```bash
-    brew install node
-    ```
-
-Then verify:
-
-```bash
-claude --version
-```
-
-See the [Claude Code quickstart](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview) for authentication setup and first-run instructions.
-
-<!-- make this a regular collapsed section by default -->
 ## 2. (Optional) Install a Package Manager
 
-[uv](https://docs.astral.sh/uv/) is a fast Python package manager. We use it for all dependency management and running scripts. Some other options include Conda, Poetry, and good ol' venv.
-<!-- TODO[pi] add links to the instructions for conda, poetry, and venv -->
+We use [uv](https://docs.astral.sh/uv/) for all dependency management and running scripts. [Conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html), [Poetry](https://python-poetry.org/docs/#installation), or good ol' [venv](https://docs.python.org/3/library/venv.html) are also popular options.
+
 
 !!! tip
-    `pip` can often be used from within `uv`. If you see something like `uv pip install ...` you can remove uv and use the command just fine. This can be useful, for example, if you choose not to use `uv` but use `conda` instead. You can just run the pip commmand from within the conda environment. That being said, *uv is super cool, and we highly recommend you giving it a try*. If you want to know how *package management* can be an interesting problem, checkout this [talk](https://www.youtube.com/watch?v=gSKTfG1GXYQ) from the `uv` founder.
+    Any `uv pip install ...` command works as plain `pip install ...` from within a conda environment. That being said, *uv is super cool, and we highly recommend giving it a try* — here's a [talk](https://www.youtube.com/watch?v=gSKTfG1GXYQ) from the founder on why package management is an interesting problem.
 
-=== "macOS / Linux"
+=== "uv"
+
+    Install uv according to your OS:
+    
+    === "macOS / Linux"
+
+        ```bash
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        ```
+
+    === "Windows"
+
+        ```powershell
+        powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+        ```
+
+    === "Homebrew"
+
+        ```bash
+        brew install uv
+        ```
+
+    See the [uv installation docs](https://docs.astral.sh/uv/getting-started/installation/) for additional options (pip, conda, Docker, etc.).
+
+    After installing, restart your terminal and verify:
 
     ```bash
-    curl -LsSf https://astral.sh/uv/install.sh | sh
+    uv --version
     ```
 
-=== "Windows"
-
-    ```powershell
-    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-    ```
-
-=== "Homebrew"
+    Create a project:
 
     ```bash
-    brew install uv
+    mkdir my-protein-project
+    cd my-protein-project
+    git init
+    uv init
     ```
 
-See the [uv installation docs](https://docs.astral.sh/uv/getting-started/installation/) for additional options (pip, conda, Docker, etc.).
+=== "conda"
 
-After installing, restart your terminal and verify:
+    We recommend [Miniforge](https://github.com/conda-forge/miniforge#install), which ships with [mamba](https://mamba.readthedocs.io/en/latest/) (a faster drop-in replacement for `conda`):
 
-```bash
-uv --version
-```
+    === "macOS / Linux"
 
-You can create a new project by running:
+        ```bash
+        curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+        bash Miniforge3-$(uname)-$(uname -m).sh
+        ```
 
-```bash
-# Create your project
-mkdir my-protein-project
-cd my-protein-project
-git init
-uv init
-cd ..
-```
+    === "Windows"
+
+        Download and run the [Miniforge installer](https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Windows-x86_64.exe).
+
+    After installing, restart your terminal and verify:
+
+    ```bash
+    conda --version
+    ```
+
+    Create a project:
+
+    ```bash
+    mkdir my-protein-project
+    cd my-protein-project
+    git init
+    conda create -n my-protein-project python=3.12 -y
+    conda activate my-protein-project
+    ```
 
 ## 3. Install ProteinGen
 
-ProteinGen is designed to be a library you own: that you and your agents can adapt as you find what works for you. Accordingly, we recommend doing an editable local install, however you can also install it as a one-off dependency if you'd like.
+ProteinGen is designed to be a library you own: that you and your agents can adapt as you find what works for you. Accordingly, we recommend doing an editable local install, however you can also install it as a dependency directly from GitHub.
 
-### Editable Local Install (Recommended)
+!!! tip "Requirements"
+    **Python 3.12** is required (`>=3.12.0, <3.13`). Check with `python --version`. If you're using uv, it will manage the Python version for you. For conda, specify `python=3.12` when creating the environment.
+    
+    **GPU (CUDA)** is recommended for most models. Smaller models like ProteinMPNN (~1.7M params) run fine on CPU.
 
-```bash
-# Clone ProteinGen
-cd path/to/your/projects/folder && git clone https://github.com/ishan-gaur/proteingen.git
-```
-<!-- TODO[pi] add installation instructions for conda as well -->
-```bash
-# Install ProteinGen and (optional components)
-cd path/to/your
-uv pip install -e .
+=== "Editable Local Install (Recommended)"
 
-# Optional components
-uv run foundry install proteinmpnn
-cd ..
+    === "uv"
 
-# Add ProteinGen as an editable dependency of your project
-uv add --editable ./proteingen
-```
+        ```bash
+        # Clone ProteinGen alongside your project
+        git clone https://github.com/ishan-gaur/proteingen.git
+    
+        # Add ProteinGen as an editable dependency of your project
+        cd my-protein-project
+        uv add --editable ../proteingen
+        ```
 
-## Point your agent at ProteinGen
+    === "conda / pip"
 
-In your **project's** `AGENTS.md` (or `CLAUDE.md`, or whatever your agent reads) tell your agent where to find ProteinGen and that it should use its documentation:
+        ```bash
+        # Ensure your Conda environment is active, can skip if using just pip
+        conda activate name-of-your-env
+    
+        # Clone ProteinGen alongside your project
+        git clone https://github.com/ishan-gaur/proteingen.git
+    
+        # Install
+        cd proteingen
+        pip install -e .
+        ```
+
+=== "Direct Install"
 
 
+    If you don't want to modify ProteinGen's source:
 
-```bash
-cat >> AGENTS.md << 'EOF'
+    === "uv"
 
-## ProteinGen
+        ```bash
+        uv add "proteingen @ git+https://github.com/ishan-gaur/proteingen.git"
+        ```
 
-- Library location: `./proteingen/` (installed as editable package)
-- When using ProteinGen, read `./proteingen/AGENTS.md` for working knowledge about the library's internals, gotchas, and design decisions.
-- Documentation: `./proteingen/docs/` or https://ishan-gaur.github.io/proteingen/
-EOF
-```
+    === "conda / pip"
 
-### Add agent skills
+        ```bash
+        pip install "proteingen @ git+https://github.com/ishan-gaur/proteingen.git"
+        ```
 
-ProteinGen ships with agent skills in `proteingen/.agents/skills/` — step-by-step workflows your coding agent can follow for common tasks (e.g. adding a new generative model). See the [available skills](workflows/index.md#skills) for a full listing. Copy or symlink them to wherever your agent harness expects skills. Since you have an agent, we recommend just asking it to move the skills itself:
-
-> Can you locate where the proteingen package is installed in my {uv, conda, etc.} environment? Then copy the skills inside of proteingen/.agents/skills/ to wherever you store your skills normally?
-
-If you want to do it manually, run:
-```bash
-cp -r /path/to/proteingen/.agents/skills/ /path/to/agent/skills/
-```
-
-Where `path/to/proteingen` might depend on how you installed ProteinGen:
-
-=== "Editable Install (Git Cloned)"
-
-    ```bash
-    /path/to/where/you/cloned/proteingen
-        
-    ```
+### Verify installation
 
 === "uv"
 
     ```bash
-    # from within your uv project directory (ie /path/to/my-protein-project)
-    # first * is a wildcard for the python type
-    # second * is a wildcard for the package version you're installing
-    .venv/lib/*/site-packages/proteingen*/.agents/skills/
+    uv run python -c "import proteingen; print('ProteinGen installed successfully')"
     ```
 
-<!-- TODO[pi] add the instructions for conda -->
-
-and `/path/to/agent/skills/` depends on the coding agent you're using:
-
-=== "Claude Code"
-    
-    ```bash
-    # in your my-protein-project directory
-    ~/.pi/skills/
-    ```
-
-=== "Pi"
+=== "conda / pip"
 
     ```bash
-    ~/.pi/skills/
+    python -c "import proteingen; print('ProteinGen installed successfully')"
     ```
 
-=== "Other agents"
+## 4. Configure Your Agent to Use ProteinGen
 
-    Check your agent's docs for where it discovers skills, then copy the `proteingen/.agents/skills/` directory there.
+Copy this into your **project's** `AGENTS.md` or `CLAUDE.md` (whatever your agent reads). It instructs your agent to find ProteinGen and use its documentation.
 
-But seriously, your agent can probably just do this for you if you do feel familiar with the terminal and all this installation stuff.
+```bash
+## ProteinGen
 
-<!-- TODO[pi]: finalize the recommended project setup flow — should we provide a `proteingen init` CLI command? -->
+Upon your first use of proteingen, complete the following tasks. First, find the path of the installed dependency and add it below. Second, find the .agents/skills/ directory in the proteingen folder and copy that into your main skills folder. The correct location will depend on your agent harness, so look it up or check with your user if unsure.
 
-## 4. Learn the design
-
-Before writing code, read the [Design Philosophy](reference/design-philosophy.md) section to understand the three base classes:
-
-- **`ProbabilityModel`** — shared base for all models (temperature, conditioning, log-probs)
-- **`GenerativeModel`** — wraps generative models (masked LMs, flow matching)
-- **`PredictiveModel`** — wraps predictive models ("does this sequence have property X?")
-
-These classes share a common interface for temperature and conditioning:
-
-```python
-from proteingen.models import ESMC
-
-model = ESMC()
-
-# Temperature control
-model.set_temp_(2.0)               # in-place
-model = model.set_temp(2.0)        # returns self
-with model.with_temp(2.0):         # context manager (reverts after)
-    probs = model.get_log_probs(x)
-
-# Conditioning
-model.set_condition_({"coords_RAX": coords})   # in-place
-with model.conditioned_on({"coords_RAX": coords}):  # context manager
-    probs = model.get_log_probs(x)
+- Library location: {FILL THIS IN}
+- When using ProteinGen, read `../proteingen/AGENTS.md` for working knowledge about the library's internals, gotchas, and design decisions. Make sure to recursively follow the AGENTS.md to the appropriate markdown file discussing the feature of the library you need to use for your task
+- Documentation: `../proteingen/docs/` or https://ishan-gaur.github.io/proteingen/
 ```
 
-Then check out the [Examples](examples/index.md) to see working end-to-end code.
+The above text will instruct your model to look at markdown files we've included throughout the codebase that accumulate fixes to errors and gotchas we've found when using agents with ProteinGen over time. It also installs the agent skills ProteinGen ships with. Skills are step-by-step workflows your coding agent can follow for common tasks (e.g. adding a new generative model). See the [available skills](workflows/index.md#skills) for a full listing.
+
+
+## 5. Next Steps
+
+You're all set! Here's where to go from here:
+
+- **[Design Philosophy](reference/design-philosophy.md)** — understand the three base classes (`ProbabilityModel`, `GenerativeModel`, `PredictiveModel`) and how they compose
+- **[Examples](examples/index.md)** — working end-to-end code for sampling, fine-tuning, and guided generation
+- **[Workflows](workflows/index.md)** — step-by-step recipes for common protein design tasks
+- **[Models](models.md)** — all supported models, their capabilities, and code examples
