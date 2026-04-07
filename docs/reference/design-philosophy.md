@@ -154,19 +154,19 @@ Both are `GenerativeModel` subclasses — they produce guided log-probs that can
 
 ## Sampling
 
-`sample_any_order` generates sequences by unmasking one position at a time in random order, using `model.get_log_probs` at each step:
+`sample` generates sequences by unmasking positions one (or `n_parallel`) at a time, using `model.get_log_probs` at each step. With no `in_order` argument, positions are unmasked in random order:
 
 ```python
-from proteingen import sample_any_order
+from proteingen import sample
 from proteingen.models import ESMC
 
 model = ESMC().cuda()
-sequences = sample_any_order(model, ["<mask>" * 100] * 8)
+sequences = sample(model, ["<mask>" * 100] * 8)["sequences"]
 ```
 
 ### Linear interpolation sampler
 
-`sample_linear_interpolation` generates sequences by interpolating between the current token distribution and the model's predicted distribution over a fixed number of steps. At each step $i$ of $N$ total:
+`sample_ctmc_linear_interpolation` generates sequences by interpolating between the current token distribution and the model's predicted distribution over a fixed number of steps. At each step $i$ of $N$ total:
 
 $$
 p_\text{next}(x) = \frac{N - i - 1}{N - i} \cdot \mathbb{1}[x = x_\text{current}] + \frac{1}{N - i} \cdot p_\text{model}(x)
@@ -175,11 +175,11 @@ $$
 Tokens are resampled from this mixture at every position simultaneously, so the distribution gradually shifts from the initial state (fully masked) to the model's predicted distribution. Unlike ancestral sampling which unmasks one position at a time, linear interpolation updates all positions in parallel at each step.
 
 ```python
-from proteingen.sampling import sample_linear_interpolation
+from proteingen.sampling import sample_ctmc_linear_interpolation
 from proteingen.models import ESMC
 
 model = ESMC().cuda()
-sequences = sample_linear_interpolation(model, ["<mask>" * 100] * 8, n_steps=50)
+sequences = sample_ctmc_linear_interpolation(model, ["<mask>" * 100] * 8, n_steps=50)
 ```
 
 ### Flow-matching Euler sampler

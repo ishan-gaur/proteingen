@@ -133,7 +133,7 @@ def run_generation_for_model(
     """Run ordered ancestral sampling for one model across all configs."""
     import math
 
-    from proteingen.sampling import sample_in_order
+    from proteingen.sampling import sample
 
     print(f"\n{'=' * 60}")
     print(f"Generating with {display_name} ({checkpoint})")
@@ -212,10 +212,10 @@ def run_generation_for_model(
                 # Run ordered ancestral sampling (batch size 1)
                 x_SP = model_masked.unsqueeze(0).to(device)
                 t0 = time.time()
-                trajectory = sample_in_order(
+                trajectory = sample(
                     model=model,
                     x_SP=x_SP,
-                    unmask_orders=[model_unmask_tail],
+                    in_order=[model_unmask_tail],
                 )
                 dt = time.time() - t0
 

@@ -21,7 +21,7 @@ from dfm.models.rocklin_ddg.stability_predictor import (
 from dfm.models.utils import pdb_to_atom37_and_seq
 from dfm.guide import TAG
 from dfm.sampling import (
-    sample_linear_interpolation,
+    sample_ctmc_linear_interpolation,
     sample_flow_matching_legacy,
     build_legacy_predictor_log_prob,
 )
@@ -112,7 +112,7 @@ def main():
     print("Sampling with linear interpolation sampler...")
     torch.manual_seed(seed)
     np.random.seed(seed)
-    guided_linear = sample_linear_interpolation(
+    guided_linear = sample_ctmc_linear_interpolation(
         tag_model,
         masked,
         n_steps=int(1 / dt),

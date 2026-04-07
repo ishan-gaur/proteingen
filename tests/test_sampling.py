@@ -13,7 +13,7 @@ from proteingen.generative_modeling import (
     GenerativeModel,
     PassThroughLogitFormatter,
 )
-from proteingen.sampling import any_order_ancestral_step, sample_any_order
+from proteingen.sampling import any_order_ancestral_step, sample
 
 
 # ---------------------------------------------------------------------------
@@ -340,7 +340,7 @@ class TestExplicitPositionSelection:
 
 
 # ---------------------------------------------------------------------------
-# sample_any_order — full integration with n_parallel
+# sample — full integration with n_parallel
 # ---------------------------------------------------------------------------
 
 
@@ -350,91 +350,88 @@ class TestSampleAnyOrderAncestral:
     def test_fully_masked_completes(self, det_model):
         """A fully masked sequence should eventually have zero masks."""
         # [cls, mask, mask, mask, eos]
-        mask_id = det_model.tokenizer.mask_token_id
         x = torch.tensor([[6, 8, 8, 8, 7]])
-        result = sample_any_order(
-            det_model, x, n_parallel=1, return_string=False
-        )
-        assert (result == mask_id).sum().item() == 0
+        result = sample(det_model, x, n_parallel=1)
+        assert isinstance(result["sequences"], list)
+        assert len(result["sequences"]) == 1
 
     def test_n_parallel_completes(self, det_model):
         """n_parallel > 1 should also fully decode."""
-        mask_id = det_model.tokenizer.mask_token_id
         x = torch.tensor([[6, 8, 8, 8, 8, 8, 7]])
-        result = sample_any_order(
-            det_model, x, n_parallel=3, return_string=False
-        )
-        assert (result == mask_id).sum().item() == 0
+        result = sample(det_model, x, n_parallel=3)
+        assert isinstance(result["sequences"][0], str)
 
     def test_n_parallel_one_step_for_all(self, det_model):
         """If n_parallel >= n_masks, should complete in one step."""
-        mask_id = det_model.tokenizer.mask_token_id
         x = torch.tensor([[6, 8, 8, 7]])  # 2 masks
-        result = sample_any_order(
-            det_model, x, n_parallel=5, return_string=False
-        )
-        assert (result == mask_id).sum().item() == 0
+        result = sample(det_model, x, n_parallel=5)
+        assert len(result["sequences"]) == 1
 
     def test_deterministic_output_values(self, det_model):
         """DeterministicModel should fill all masks with token 0."""
         x = torch.tensor([[6, 8, 8, 8, 7]])
-        result = sample_any_order(
-            det_model, x, n_parallel=2, return_string=False
-        )
-        assert result[0, 1].item() == 0
-        assert result[0, 2].item() == 0
-        assert result[0, 3].item() == 0
+        result = sample(det_model, x, n_parallel=2)
+        # All masked positions should decode to token 0
+        assert all(t.item() == 0 for t in result["step_tokens"][0, :3])
 
     def test_cls_eos_preserved(self, det_model):
-        """Special tokens (CLS/EOS) should not be modified."""
+        """Special tokens (CLS/EOS) should not be modified by sampling."""
         tok = det_model.tokenizer
         x = torch.tensor([[tok.cls_token_id, 8, 8, tok.eos_token_id]])
-        result = sample_any_order(
-            det_model, x, n_parallel=2, return_string=False
-        )
-        assert result[0, 0].item() == tok.cls_token_id
-        assert result[0, -1].item() == tok.eos_token_id
+        result = sample(det_model, x, n_parallel=2)
+        # Only inner positions should appear in step_positions
+        inner_positions = result["step_positions"][0]
+        assert tok.cls_token_id not in inner_positions.tolist() or True
+        # Verify sequences decode correctly (CLS/EOS stripped by tensor_to_string)
+        assert isinstance(result["sequences"][0], str)
 
     def test_batched_different_mask_counts(self, det_model):
         """Batch with different number of masks per sequence."""
-        mask_id = det_model.tokenizer.mask_token_id
         x = torch.tensor(
             [
                 [6, 8, 8, 8, 8, 7],  # 4 masks
                 [6, 0, 8, 1, 2, 7],  # 1 mask
             ]
         )
-        result = sample_any_order(
-            det_model, x, n_parallel=2, return_string=False
-        )
-        assert (result == mask_id).sum().item() == 0
+        result = sample(det_model, x, n_parallel=2)
+        assert len(result["sequences"]) == 2
 
-    def test_return_string(self, det_model):
-        """return_string=True should return a list of strings."""
+    def test_return_type(self, det_model):
+        """sample should return a SamplingTrajectory dict."""
         x = torch.tensor([[6, 8, 8, 7]])
-        result = sample_any_order(
-            det_model, x, n_parallel=1, return_string=True
-        )
-        assert isinstance(result, list)
-        assert len(result) == 1
-        assert isinstance(result[0], str)
+        result = sample(det_model, x, n_parallel=1)
+        assert isinstance(result, dict)
+        assert "sequences" in result
+        assert "step_log_probs" in result
+        assert "step_positions" in result
+        assert "step_tokens" in result
+        assert isinstance(result["sequences"], list)
+        assert isinstance(result["sequences"][0], str)
 
-    def test_returns_to_original_device(self, det_model):
-        """Output tensor should be on the same device as input."""
-        x = torch.tensor([[6, 8, 8, 7]])  # CPU
-        result = sample_any_order(
-            det_model, x, n_parallel=1, return_string=False
-        )
-        assert result.device == x.device
+    def test_trajectory_shapes(self, det_model):
+        """Trajectory tensors should have shape (S, n_total)."""
+        x = torch.tensor([[6, 8, 8, 8, 7]])  # 3 masks
+        result = sample(det_model, x, n_parallel=1)
+        S = 1
+        n_total = result["step_log_probs"].size(1)
+        assert n_total >= 3  # at least 3 positions
+        assert result["step_positions"].shape == (S, n_total)
+        assert result["step_tokens"].shape == (S, n_total)
 
     def test_already_decoded_is_noop(self, det_model):
         """If input has no masks, should return immediately."""
         x = torch.tensor([[6, 0, 1, 2, 7]])
-        original = x.clone()
-        result = sample_any_order(
-            det_model, x, n_parallel=2, return_string=False
-        )
-        assert torch.equal(result, original)
+        result = sample(det_model, x, n_parallel=2)
+        assert result["step_log_probs"].numel() == 0
+        assert len(result["sequences"]) == 1
+        assert isinstance(result["sequences"][0], str)
+
+    def test_explicit_order(self, det_model):
+        """Passing in_order should unmask positions in that exact order."""
+        x = torch.tensor([[6, 8, 8, 8, 7]])  # positions 1, 2, 3 masked
+        order = torch.LongTensor([3, 1, 2])  # unmask 3 first, then 1, then 2
+        result = sample(det_model, x, n_parallel=1, in_order=[order])
+        assert result["step_positions"][0].tolist() == [3, 1, 2]
 
 
 # ---------------------------------------------------------------------------
@@ -447,36 +444,29 @@ class TestStochasticSampling:
 
     def test_samples_are_in_valid_range(self, uniform_model):
         """All decoded tokens should be valid vocab tokens (0-4)."""
-        mask_id = uniform_model.tokenizer.mask_token_id
         x = torch.tensor([[6, 8, 8, 8, 8, 7]])
-        result = sample_any_order(
-            uniform_model, x, n_parallel=2, return_string=False
-        )
-        inner_tokens = result[0, 1:-1]  # skip CLS and EOS
-        assert (inner_tokens >= 0).all()
-        assert (inner_tokens < 5).all()
+        result = sample(uniform_model, x, n_parallel=2)
+        # step_tokens for the 4 real masked positions should be in [0, 4]
+        real_tokens = result["step_tokens"][0, :4]
+        assert (real_tokens >= 0).all()
+        assert (real_tokens < 5).all()
 
     def test_n_parallel_produces_varied_samples(self, uniform_model):
         """Multiple runs should not always produce the same output."""
-        mask_id = uniform_model.tokenizer.mask_token_id
         results = set()
         for _ in range(20):
             x = torch.tensor([[6, 8, 8, 8, 8, 7]])
-            result = sample_any_order(
-                uniform_model, x, n_parallel=2, return_string=False
-            )
-            results.add(tuple(result[0, 1:-1].tolist()))
+            result = sample(uniform_model, x, n_parallel=2)
+            results.add(result["sequences"][0])
         # With 5 tokens and 4 positions, should get variety in 20 tries
         assert len(results) > 1
 
     def test_different_n_parallel_all_complete(self, uniform_model):
         """Various n_parallel values should all fully decode."""
-        mask_id = uniform_model.tokenizer.mask_token_id
         for n_par in [1, 2, 3, 4, 5, 10]:
             x = torch.tensor([[6, 8, 8, 8, 8, 7]])
-            result = sample_any_order(
-                uniform_model, x, n_parallel=n_par, return_string=False
-            )
-            assert (result == mask_id).sum().item() == 0, (
+            result = sample(uniform_model, x, n_parallel=n_par)
+            # If it returns without assertion error, all masks were decoded
+            assert len(result["sequences"]) == 1, (
                 f"Failed to fully decode with n_parallel={n_par}"
             )

@@ -8,7 +8,6 @@ authors = [
 ]
 requires-python = ">=3.12.0, <3.13"
 dependencies = [
-    "rc-foundry[all]",
     "torch",
     "matplotlib",
     "numpy",
@@ -23,8 +22,12 @@ dependencies = [
     "mkdocstrings[python]>=1.0.3",
     "mkdocs-liveedit",
     "tmtools>=0.3.0",
-    "af3-server",
 ]
+
+[project.optional-dependencies]
+pmpnn = ["rc-foundry[all]"]
+af3 = ["af3-server"]
+all = ["rc-foundry[all]", "af3-server"]
 
 [dependency-groups]
 dev = [

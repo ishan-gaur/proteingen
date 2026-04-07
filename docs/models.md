@@ -45,7 +45,7 @@ ESM3 accepts atom37-format coordinates as conditioning input, enabling structure
 
 ```python
 from proteingen.models import ESM3
-from proteingen.sampling import sample_linear_interpolation
+from proteingen.sampling import sample_ctmc_linear_interpolation
 
 model = ESM3("esm3-open").cuda()
 coords = ...  # atom37 format, shape (L, 37, 3)
@@ -55,7 +55,7 @@ model.set_condition_({"coords_RAX": coords})
 
 # Sample sequences conditioned on the structure
 init_tokens = tokenizer(["<mask>" * L], return_tensors="pt")["input_ids"].cuda()
-sequences = sample_linear_interpolation(model, init_tokens, n_steps=100)
+sequences = sample_ctmc_linear_interpolation(model, init_tokens, n_steps=100)
 
 # Or use a context manager (reverts conditioning on exit)
 with model.conditioned_on({"coords_RAX": coords}):
@@ -112,10 +112,10 @@ log_probs = model.get_log_probs_from_string(["ACDEFGHIK"])
 DPLM-2 works with the same sampling, guidance, and probe infrastructure as the ESM models:
 
 ```python
-from proteingen.sampling import sample_linear_interpolation
+from proteingen.sampling import sample_ctmc_linear_interpolation
 
 init_tokens = model.tokenizer(["<mask>" * 100], return_tensors="pt")["input_ids"].cuda()
-sequences = sample_linear_interpolation(model, init_tokens, n_steps=100)
+sequences = sample_ctmc_linear_interpolation(model, init_tokens, n_steps=100)
 ```
 
 !!! warning "Untied embedding weights"

@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from proteingen.guide import DEG
 from proteingen.models.esm import ESMC
-from proteingen.sampling import sample_any_order
+from proteingen.sampling import sample
 from examples.trpb_linear_probe import (
     TrpBFitnessPredictor,
     find_variable_positions,
@@ -168,12 +168,12 @@ def main():
                         s[p] = random.choice(aas)
                     seqs.append("".join(s))
             elif mode == "gen":
-                seqs = sample_any_order(gen_model, make_masked(n), return_string=True)
+                seqs = sample(gen_model, make_masked(n))["sequences"]
                 seqs = [s.replace(" ", "") for s in seqs]
             elif mode == "deg":
                 predictor.set_temp_(pred_temp)
                 deg = DEG(gen_model, predictor, argmax_masked_positions=True)
-                seqs = sample_any_order(deg, make_masked(n), return_string=True)
+                seqs = sample(deg, make_masked(n))["sequences"]
                 seqs = [s.replace(" ", "") for s in seqs]
                 predictor.set_temp_(1.0)
             gen_model.set_temp_(1.0)

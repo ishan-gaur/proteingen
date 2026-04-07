@@ -6,11 +6,11 @@ Generate protein sequences from scratch using ESMC as a masked language model.
 
 ```python
 from proteingen.models import ESMC
-from proteingen import sample_any_order
+from proteingen import sample
 
 model = ESMC().cuda()
 initial_x = ["<mask>" * 256 for _ in range(5)]
-sequences = sample_any_order(model, initial_x)
+sequences = sample(model, initial_x)["sequences"]
 ```
 
 ```bash

@@ -30,13 +30,13 @@ We similarly provide simplified APIs to a broad array of protein [models](models
     ```python
     from proteingen.models.mpnn import ProteinMPNN
     from proteingen.models.utils import load_pdb
-    from proteingen.sampling import sample_any_order
+    from proteingen.sampling import sample
 
     structure = load_pdb("1YCR.pdb")
     masked_seqs = ["<mask>" * 98] * 8 # placeholders to be designed
 
     model = ProteinMPNN().conditioned_on({"structure": structure}) # configure inverse-folding
-    seqs = sample_any_order(model, masked_seqs) # generate sequences
+    seqs = sample(model, masked_seqs)["sequences"] # generate sequences
     ```
 
 === "Original ProteinMPNN"
@@ -136,7 +136,7 @@ Take the stability optimization experiment from [ProteinGuide](https://arxiv.org
     ```python hl_lines="2 3 13 17"
     from proteingen.models import PMPNN, StabilityPredictor
     from proteingen.guide import TAG
-    from proteingen.sampling import sample_linear_interpolation
+    from proteingen.sampling import sample_ctmc_linear_interpolation
     from proteingen.models.utils import load_pdb
 
     structure = load_pdb("1YCR.pdb")
@@ -150,7 +150,7 @@ Take the stability optimization experiment from [ProteinGuide](https://arxiv.org
 
     # Sample 8 stability-optimized variants starting from fully masked sequences
     masked_seqs = ["<mask>" * 98] * 8
-    seqs = sample_linear_interpolation(guided, masked_seqs)
+    seqs = sample_ctmc_linear_interpolation(guided, masked_seqs)
     ```
 
 === "DEG + PMPNN"
@@ -158,7 +158,7 @@ Take the stability optimization experiment from [ProteinGuide](https://arxiv.org
     ```python hl_lines="2 3 13 17"
     from proteingen.models import PMPNN, StabilityPredictor
     from proteingen.guide import DEG
-    from proteingen.sampling import sample_any_order
+    from proteingen.sampling import sample
     from proteingen.models.utils import load_pdb
 
     structure = load_pdb("1YCR.pdb")
@@ -172,7 +172,7 @@ Take the stability optimization experiment from [ProteinGuide](https://arxiv.org
 
     # Sample 8 stability-optimized variants starting from fully masked sequences
     masked_seqs = ["<mask>" * 98] * 8
-    seqs = sample_any_order(guided, masked_seqs)
+    seqs = sample(guided, masked_seqs)["sequences"]
     ```
 
 === "DEG + ESM3"
@@ -180,7 +180,7 @@ Take the stability optimization experiment from [ProteinGuide](https://arxiv.org
     ```python hl_lines="1 9"
     from proteingen.models import ESM3, StabilityPredictor
     from proteingen.guide import DEG
-    from proteingen.sampling import sample_any_order
+    from proteingen.sampling import sample
     from proteingen.models.utils import load_pdb
 
     structure = load_pdb("1YCR.pdb")
@@ -194,7 +194,7 @@ Take the stability optimization experiment from [ProteinGuide](https://arxiv.org
 
     # Sample 8 stability-optimized variants starting from fully masked sequences
     masked_seqs = ["<mask>" * 98] * 8
-    seqs = sample_any_order(guided, masked_seqs)
+    seqs = sample(guided, masked_seqs)["sequences"]
     ```
 
 ### Built with Agents in Mind
@@ -209,10 +209,11 @@ We want to make it easy for you to get your work out there. Our [Contributing](c
 
 With ProteinGen, designing libraries to optimize some property of a protein requires the use of four modules:
 
-1. [Data](reference/data.md): assay labeled variants or homolog datasets
-2. [Models](reference/models.md): sequence generative models, property predictive models, and how to train them with your data
+1. [Data](reference/data.md): assay labeled variants or homologous sequences stores as a `ProteinDataset`
+2. [Models](reference/models.md): sequence `GenerativeModels`, property `PredictiveModels`, and how to train them with your data
 3. [Sampling](reference/sampling.md): generating a library to optimize your property using the models
 4. [Evaluation](reference/evaluation.md): various tools to sanity check the pipeline at each of the 3 preceding stages
+
 
 The simplest possible pipeline is to just sample from a pretrained model. To be clear, this doesn't involve any wet-lab data, nor does it optimize any functional property, but it demonstrates the `GenerativeModel`, `PredictiveModel`, and `Sampling` APIs.
 

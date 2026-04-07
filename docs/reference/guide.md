@@ -71,7 +71,7 @@ with deg.at_position(positions_to_score_S):
     log_probs = deg.get_log_probs(seq_SP)
 ```
 
-`positions_to_score_S` is a list of length B — one position index per sequence (or `None` to skip). The `sample_any_order` sampler handles this automatically.
+`positions_to_score_S` is a list of length B — one position index per sequence (or `None` to skip). The `sample` function handles this automatically.
 
 ### When to use DEG
 

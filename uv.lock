@@ -1937,7 +1937,6 @@ name = "proteingen"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "af3-server" },
     { name = "datasets" },
     { name = "esm" },
     { name = "matplotlib" },
@@ -1948,11 +1947,22 @@ dependencies = [
     { name = "pandas" },
     { name = "peft" },
     { name = "python-lsp-server" },
-    { name = "rc-foundry", extra = ["all"] },
     { name = "tmtools" },
     { name = "torch" },
     { name = "transformers" },
     { name = "wandb" },
+]
+
+[package.optional-dependencies]
+af3 = [
+    { name = "af3-server" },
+]
+all = [
+    { name = "af3-server" },
+    { name = "rc-foundry", extra = ["all"] },
+]
+pmpnn = [
+    { name = "rc-foundry", extra = ["all"] },
 ]
 
 [package.dev-dependencies]
@@ -1963,7 +1973,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "af3-server", git = "https://github.com/ishan-gaur/af3-server.git" },
+    { name = "af3-server", marker = "extra == 'af3'", git = "https://github.com/ishan-gaur/af3-server.git" },
+    { name = "af3-server", marker = "extra == 'all'", git = "https://github.com/ishan-gaur/af3-server.git" },
     { name = "datasets", specifier = ">=2.14.4" },
     { name = "esm", specifier = ">=3.2.3" },
     { name = "matplotlib" },
@@ -1974,12 +1985,14 @@ requires-dist = [
     { name = "pandas" },
     { name = "peft", specifier = ">=0.13.0" },
     { name = "python-lsp-server", specifier = ">=1.14.0" },
-    { name = "rc-foundry", extras = ["all"] },
+    { name = "rc-foundry", extras = ["all"], marker = "extra == 'all'" },
+    { name = "rc-foundry", extras = ["all"], marker = "extra == 'pmpnn'" },
     { name = "tmtools", specifier = ">=0.3.0" },
     { name = "torch" },
     { name = "transformers", specifier = "<4.48.2" },
     { name = "wandb", specifier = ">=0.25.0" },
 ]
+provides-extras = ["pmpnn", "af3", "all"]
 
 [package.metadata.requires-dev]
 dev = [

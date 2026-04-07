@@ -179,10 +179,10 @@ Generate candidate sequences using one of the available samplers.
 === "Ancestral (any-order)"
 
     ```python
-    from proteingen import sample_any_order
+    from proteingen import sample
 
     masked = ["<mask>" * 100] * 8
-    sequences = sample_any_order(guided, masked)
+    sequences = sample(guided, masked)["sequences"]
     ```
 
     Unmasks positions one at a time in random order. Simple and effective. DEG-aware — automatically passes position info.
@@ -190,9 +190,9 @@ Generate candidate sequences using one of the available samplers.
 === "Linear interpolation"
 
     ```python
-    from proteingen import sample_linear_interpolation
+    from proteingen import sample_ctmc_linear_interpolation
 
-    sequences = sample_linear_interpolation(guided, masked, n_steps=100)
+    sequences = sample_ctmc_linear_interpolation(guided, masked, n_steps=100)
     ```
 
     Euler integration in token-probability space. Interpolates between noise and signal.

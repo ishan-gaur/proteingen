@@ -32,7 +32,7 @@ from proteingen.models.rocklin_ddg.stability_predictor import (
     PreTrainedStabilityPredictor,
 )
 from proteingen.guide import TAG
-from proteingen.sampling import sample_linear_interpolation
+from proteingen.sampling import sample_ctmc_linear_interpolation
 
 esm_model = ESM3().cuda()
 esm_model.set_condition_({"coords_RAX": coords})
@@ -42,7 +42,7 @@ classifier.set_condition_(stability_cond)
 classifier.set_temp_(0.03)  # lower = stronger guidance
 
 guided_model = TAG(esm_model, classifier)
-sequences = sample_linear_interpolation(guided_model, init_tokens, n_steps=100)
+sequences = sample_ctmc_linear_interpolation(guided_model, init_tokens, n_steps=100)
 ```
 
 ## Key Parameters

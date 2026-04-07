@@ -17,7 +17,7 @@ import argparse
 import torch
 
 from proteingen.models.esm import ESM3
-from proteingen.sampling import sample_any_order
+from proteingen.sampling import sample
 
 
 def main():
@@ -59,7 +59,7 @@ def main():
 
     print(f"\nSampling {args.n_samples} sequences (temp={args.temp})...")
     model.set_temp_(args.temp)
-    sequences = sample_any_order(model, masked_batch, return_string=True)
+    sequences = sample(model, masked_batch)["sequences"]
 
     print("\nGenerated sequences:")
     for i, seq in enumerate(sequences):

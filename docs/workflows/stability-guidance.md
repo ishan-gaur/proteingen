@@ -68,14 +68,14 @@ classifier.set_temp_(0.03)  # lower = stronger guidance
 ### 3. Sample — unguided vs. guided
 
 ```python
-from proteingen.sampling import sample_linear_interpolation
+from proteingen.sampling import sample_ctmc_linear_interpolation
 from proteingen.guide import TAG
 
 # Fully masked starting point
 init_tokens = tokenizer(["<mask>" * len(wt_seq)])["input_ids"].to(device)
 
 # Unguided: ESM3 inverse folding alone
-unguided_seqs = sample_linear_interpolation(
+unguided_seqs = sample_ctmc_linear_interpolation(
     esm_model, init_tokens.expand(100, -1),
     n_steps=100, return_string=True,
 )
@@ -85,7 +85,7 @@ guided_model = TAG(
     esm_model, classifier, use_clean_classifier=False,
 ).to(device)
 
-guided_seqs = sample_linear_interpolation(
+guided_seqs = sample_ctmc_linear_interpolation(
     guided_model, init_tokens.expand(100, -1),
     n_steps=100, return_string=True,
 )
@@ -160,4 +160,4 @@ uv run python examples/stability_guidance/main.py
 
 Requires a GPU with ~24 GB memory (ESM3 + classifier + oracle). Outputs are saved to `examples/stability_guidance/outputs/`.
 
-The example also includes `compare_legacy_sampler.py`, which runs a head-to-head comparison between the `sample_linear_interpolation` sampler and the legacy flow-matching rate sampler to verify they produce equivalent results.
+The example also includes `compare_legacy_sampler.py`, which runs a head-to-head comparison between the `sample_ctmc_linear_interpolation` sampler and the legacy flow-matching rate sampler to verify they produce equivalent results.

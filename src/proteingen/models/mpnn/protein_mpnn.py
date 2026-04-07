@@ -93,12 +93,20 @@ class ProteinMPNN(GenerativeModelWithEmbedding):
     def __init__(self, checkpoint: str = "proteinmpnn"):
         self._checkpoint = checkpoint
 
-        # Resolve checkpoint path from Foundry registry
-        checkpoint_path = str(REGISTERED_CHECKPOINTS[checkpoint].get_default_path())
+        # Resolve checkpoint path from Foundry registry, auto-download if missing
+        checkpoint_info = REGISTERED_CHECKPOINTS[checkpoint]
+        checkpoint_path = checkpoint_info.get_default_path()
+        if not checkpoint_path.exists():
+            from foundry_cli.download_checkpoints import install_model
+            from foundry.inference_engines.checkpoint_registry import (
+                get_default_checkpoint_dirs,
+            )
+
+            install_model(checkpoint, get_default_checkpoint_dirs()[0])
 
         # Load model with legacy weights
         mpnn = _ProteinMPNN()
-        load_legacy_weights(mpnn, checkpoint_path)
+        load_legacy_weights(mpnn, str(checkpoint_path))
         mpnn.eval()
 
         self.EMB_DIM = mpnn.hidden_dim  # 128

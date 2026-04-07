@@ -31,7 +31,7 @@ from proteingen.models.rocklin_ddg.stability_predictor import (
 )
 from proteingen.models.rocklin_ddg.data_utils import compute_seq_id
 from proteingen.models.utils import pdb_to_atom37_and_seq
-from proteingen.sampling import sample_linear_interpolation
+from proteingen.sampling import sample_ctmc_linear_interpolation
 from proteingen.guide import TAG
 
 # -------------------------------------------------------------------------
@@ -85,7 +85,7 @@ def sample_batched(model, init_tokens, *, num_samples, batch_size, n_steps):
     while remaining > 0:
         bs = min(batch_size, remaining)
         batch_init = init_tokens.expand(bs, -1).clone()
-        seqs = sample_linear_interpolation(model, batch_init, n_steps=n_steps, return_string=True)
+        seqs = sample_ctmc_linear_interpolation(model, batch_init, n_steps=n_steps, return_string=True)
         all_seqs.extend(seqs)
         remaining -= bs
         print(f"  {len(all_seqs)} / {num_samples} generated")

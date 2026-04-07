@@ -54,7 +54,7 @@ forward(seq_SP):
 
 - Requires position info via `at_position(positions_to_score_S)` context manager
 - `positions_to_score_S` is a list of length B — one position index per sequence (or `None` to skip)
-- `sample_any_order` passes this automatically
+- `sample` passes this automatically
 
 ### Forward
 

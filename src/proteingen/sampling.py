@@ -1,3 +1,5 @@
+import math
+
 import torch
 from torch.nn import functional as F
 from typing import Callable, Optional, List, TypedDict
@@ -6,12 +8,15 @@ from tqdm import tqdm
 
 
 class SamplingTrajectory(TypedDict):
-    """Per-step data recorded during ordered ancestral sampling.
+    """Per-step data recorded during ancestral sampling.
 
     sequences: (S,) list of generated sequences (strings).
-    step_log_probs: (S, n_steps) — log p(sampled_token) at each generation step.
-    step_positions: (S, n_steps) — which position was unmasked at each step.
-    step_tokens: (S, n_steps) — which token was sampled at each step.
+    step_log_probs: (S, n_total) — log p(sampled_token) at each sampling step.
+        Padding entries (from order padding with position 0) will have the
+        log-prob of re-sampling the existing BOS token (0.0 if formatted correctly).
+    step_positions: (S, n_total) — which position was sampled at each step.
+        Padding entries are 0 (the BOS position).
+    step_tokens: (S, n_total) — which token was sampled at each step.
     """
 
     sequences: list[str]
@@ -43,7 +48,7 @@ def tensor_to_string(x_SP, tokenizer):
     return seq_SP
 
 
-def sample_linear_interpolation(
+def sample_ctmc_linear_interpolation(
     model: GenerativeModel,
     x_SP: torch.LongTensor | List[str],
     n_steps: int,
@@ -73,43 +78,129 @@ def sample_linear_interpolation(
         return x_SP.to(x_device)
 
 
-def sample_any_order(
+@torch.no_grad()
+def sample(
     model: GenerativeModel,
     x_SP: torch.LongTensor | List[str],
     n_parallel: int = 1,
-    return_string: bool = True,
-):
-    mask_token_id = model.tokenizer.mask_token_id
-    pad_token_id = model.tokenizer.pad_token_id
+    in_order: Optional[list[torch.LongTensor] | str] = None,
+) -> SamplingTrajectory:
+    """Ancestral sampling for masked generative models.
 
-    # TODO[pi] generally we won't do this kind of coddling in our code, but this is the
-    # main high level interface most users will interact with, so we're making an exception
+    Unmasks positions n_parallel at a time, sampling from the model's predicted
+    distribution at each step. If ``in_order`` is not provided, a random
+    permutation of masked positions is generated for each sequence.
+
+    **Sharp edge**: unmask orders are padded to uniform length across sequences
+    with position 0 (typically BOS/CLS). At padding steps, ALL sequences are
+    still sampled at their designated positions — including the padding position.
+    If the model's logit formatter is correctly configured, special-token
+    positions predict only themselves, making the padding a no-op. If logits
+    are NOT properly formatted, the token at position 0 may be mutated.
+
+    Args:
+        model: a GenerativeModel (or guided TAG/DEG model).
+        x_SP: (S, P) partially masked token IDs, or list of strings.
+        n_parallel: number of positions to unmask per step. Default 1.
+        in_order: controls the unmask order. Can be:
+            - None (default): random permutation of masked positions per sequence.
+            - ``"left_to_right"``: masked positions in ascending index order.
+            - ``list[LongTensor]``: one tensor per sequence giving explicit
+              positions to unmask (first element = first revealed).
+
+    Returns:
+        SamplingTrajectory with generated sequences and per-step data.
+    """
+    mask_token_id = model.tokenizer.mask_token_id
+
     if isinstance(x_SP, list):
         x_SP = model.tokenizer(x_SP, padding=True, return_tensors="pt")["input_ids"]
-    x_device = x_SP.device
-    x_SP = x_SP.to(model.device)
+    x_SP = x_SP.clone().to(model.device)
+    S, P = x_SP.shape
 
-    t_st, t_end = (
-        0.0,
-        1.0,
-    )  # TODO[pi] t_st should be the min of the fraction positions masked
-    pbar = tqdm(total=t_end)
+    # Build unmask orders
+    if in_order is None:
+        in_order = []
+        for s in range(S):
+            masked = (x_SP[s] == mask_token_id).nonzero().flatten()
+            in_order.append(masked[torch.randperm(len(masked))])
+    elif in_order == "left_to_right":
+        in_order = []
+        for s in range(S):
+            in_order.append((x_SP[s] == mask_token_id).nonzero().flatten())
 
-    t = t_st
-    while t != t_end:
-        x_SP = any_order_ancestral_step(model, x_SP, n_parallel, mask_token_id)
-        len_S = x_SP.size(1) - (x_SP == pad_token_id).sum(dim=1)
-        t_S = 1 - (x_SP == mask_token_id).sum(dim=1) / len_S
-        t_new = t_S.min().item()
-        pbar.update(t_new - t)
-        # TODO[pi]: print out the matrix with the pbar updates so you can see it changing in place (this shouldn't print the matrix again an again causing vertical scrolling)
-        t = t_new
-    pbar.close()
-    assert (x_SP == model.tokenizer.mask_token_id).sum() == 0
-    if return_string:
-        return tensor_to_string(x_SP, model.tokenizer)
+    assert len(in_order) == S, f"Expected {S} orders, got {len(in_order)}"
+
+    # Pad orders to uniform length with position 0, then chunk by n_parallel
+    max_positions = max((len(o) for o in in_order), default=0)
+    n_steps = math.ceil(max_positions / n_parallel) if max_positions > 0 else 0
+    padded_len = n_steps * n_parallel
+
+    # order_flat: (S, padded_len) — padded with position 0
+    order_flat = torch.zeros(S, padded_len, dtype=torch.long)
+    for s, order in enumerate(in_order):
+        order_flat[s, : len(order)] = order
+
+    # (S, n_steps, n_parallel) — positions to unmask at each step
+    if n_steps > 0:
+        order_steps = order_flat.reshape(S, n_steps, n_parallel).to(model.device)
     else:
-        return x_SP.to(x_device)
+        order_steps = order_flat.reshape(S, 0, n_parallel).to(model.device)
+
+    # Trajectory storage — flat (S, padded_len)
+    step_log_probs = torch.full((S, padded_len), float("nan"))
+    step_positions = order_flat.clone()
+    step_tokens = torch.full((S, padded_len), -1, dtype=torch.long)
+
+    for step in tqdm(range(n_steps)):
+        positions = order_steps[:, step, :]  # (S, n_parallel)
+
+        # DEG needs position info before computing log probs
+        if hasattr(model, "at_position"):
+            if n_parallel > 1:
+                raise NotImplementedError("DEG with n_parallel > 1 not implemented")
+            positions_per_seq: List[Optional[int]] = [
+                pos[0].item() for pos in positions
+            ]
+            with model.at_position(positions_per_seq):
+                log_probs_SPT = model.get_log_probs(x_SP)
+        else:
+            log_probs_SPT = model.get_log_probs(x_SP)
+
+        T = log_probs_SPT.size(-1)
+        probs_SPT = torch.exp(log_probs_SPT)
+
+        # Gather probs at selected positions
+        pos_expanded = positions.unsqueeze(-1).expand(S, n_parallel, T)  # (S, n_parallel, T)
+        probs_at_pos = probs_SPT.gather(1, pos_expanded)  # (S, n_parallel, T)
+
+        # Sample tokens
+        tokens = torch.multinomial(
+            probs_at_pos.reshape(S * n_parallel, T), num_samples=1
+        ).reshape(S, n_parallel)  # (S, n_parallel)
+
+        # Update sequences
+        x_SP.scatter_(1, positions, tokens)
+
+        # Record trajectory
+        flat_start = step * n_parallel
+        flat_end = flat_start + n_parallel
+        log_probs_at_pos = log_probs_SPT.gather(1, pos_expanded)  # (S, n_parallel, T)
+        token_log_probs = log_probs_at_pos.gather(
+            2, tokens.unsqueeze(-1)
+        ).squeeze(-1)  # (S, n_parallel)
+        step_log_probs[:, flat_start:flat_end] = token_log_probs.cpu()
+        step_tokens[:, flat_start:flat_end] = tokens.cpu()
+
+    assert (x_SP == mask_token_id).sum() == 0, "Some positions remain masked"
+    sequences = tensor_to_string(x_SP, model.tokenizer)
+
+    return SamplingTrajectory(
+        sequences=sequences,
+        step_log_probs=step_log_probs,
+        step_positions=step_positions,
+        step_tokens=step_tokens,
+    )
 
 
 def any_order_ancestral_step(
@@ -224,8 +315,6 @@ def mask_by_order(
         (P,) masked token IDs. The order of unmasking during generation should
         be order[n_keep:] (i.e. the masked positions, in unmask order).
     """
-    import math
-
     n_maskable = len(order)
     n_to_mask = math.ceil(mask_fraction * n_maskable)
     n_keep = n_maskable - n_to_mask
@@ -234,94 +323,6 @@ def mask_by_order(
     positions_to_mask = order[n_keep:]
     masked[positions_to_mask] = mask_token_id
     return masked
-
-
-@torch.no_grad()
-def sample_in_order(
-    model: GenerativeModel,
-    x_SP: torch.LongTensor,
-    unmask_orders: list[torch.LongTensor],
-) -> SamplingTrajectory:
-    """Ancestral sampling with explicit unmask order, recording per-step log probs.
-
-    Unmasks one position at a time per sequence following the given order.
-    At each step records the log probability the model assigned to the sampled token.
-
-    Args:
-        model: a GenerativeModel.
-        x_SP: (S, P) partially masked token IDs (already on the right device or CPU).
-        unmask_orders: list of S LongTensors, each giving the positions to unmask
-            in order. Only positions that are currently masked will be unmasked;
-            positions in the order that are already unmasked are skipped.
-
-    Returns:
-        SamplingTrajectory with generated sequences and per-step log probs.
-    """
-    mask_token_id = model.tokenizer.mask_token_id
-    x_SP = x_SP.clone().to(model.device)
-    S = x_SP.size(0)
-
-    # Figure out actual steps needed per sequence (only masked positions in the order)
-    steps_per_seq = []
-    for s in range(S):
-        order_s = unmask_orders[s]
-        masked_in_order = [p.item() for p in order_s if x_SP[s, p] == mask_token_id]
-        steps_per_seq.append(masked_in_order)
-
-    max_steps = max(len(steps) for steps in steps_per_seq)
-    step_log_probs = torch.full((S, max_steps), float("nan"))
-    step_positions = torch.full((S, max_steps), -1, dtype=torch.long)
-    step_tokens = torch.full((S, max_steps), -1, dtype=torch.long)
-
-    for step_idx in tqdm(range(max_steps), desc="Ordered ancestral sampling"):
-        # Build next_pos_idx for this step (only sequences that still have work)
-        next_pos_idx = []
-        seq_to_local = {}  # maps index in next_pos_idx to (seq_idx, position)
-        for s in range(S):
-            if step_idx < len(steps_per_seq[s]):
-                pos = steps_per_seq[s][step_idx]
-                assert x_SP[s, pos] == mask_token_id, (
-                    f"Position {pos} in seq {s} at step {step_idx} is not masked"
-                )
-                idx = len(next_pos_idx)
-                next_pos_idx.append([s, pos])
-                seq_to_local[idx] = (s, pos)
-
-        if not next_pos_idx:
-            break
-
-        next_pos_idx_t = torch.LongTensor(next_pos_idx)
-
-        # Get log probs from model
-        log_probs_SPT = model.get_log_probs(x_SP)
-        probs_SPT = torch.exp(log_probs_SPT)
-
-        # Sample from selected positions
-        p_x_NT = torch.stack(
-            [probs_SPT[s_idx, p_idx, :] for s_idx, p_idx in next_pos_idx_t]
-        )
-        sampled_N = torch.multinomial(p_x_NT, num_samples=1).squeeze(-1)
-
-        # Record and update
-        for local_idx, (s_idx, p_idx) in enumerate(next_pos_idx_t):
-            s, p = s_idx.item(), p_idx.item()
-            token = sampled_N[local_idx].item()
-            log_p = log_probs_SPT[s, p, token].item()
-
-            x_SP[s, p] = token
-            step_log_probs[s, step_idx] = log_p
-            step_positions[s, step_idx] = p
-            step_tokens[s, step_idx] = token
-
-    assert (x_SP == mask_token_id).sum() == 0, "Some positions remain masked"
-    sequences = tensor_to_string(x_SP, model.tokenizer)
-
-    return SamplingTrajectory(
-        sequences=sequences,
-        step_log_probs=step_log_probs,
-        step_positions=step_positions,
-        step_tokens=step_tokens,
-    )
 
 
 # For legacy code comparison

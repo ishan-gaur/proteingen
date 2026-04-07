@@ -34,8 +34,7 @@ from .predictive_modeling import (
 )
 
 from .sampling import (
-    sample_any_order,
-    sample_in_order,
+    sample,
     generate_unmask_orders,
     mask_by_order,
     SamplingTrajectory,
@@ -66,8 +65,7 @@ __all__ = [
     "OneHotMLP",
     "EmbeddingMLP",
     "PairwiseLinearModel",
-    "sample_any_order",
-    "sample_in_order",
+    "sample",
     "generate_unmask_orders",
     "mask_by_order",
     "SamplingTrajectory",

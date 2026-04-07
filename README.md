@@ -33,7 +33,7 @@ src/proteingen/
 ├── predictive_modeling.py  # PredictiveModel, binary logit functions, LinearProbe, OneHotMLP,
 │                           #   EmbeddingMLP, PairwiseLinearModel
 ├── guide.py                # TAG, DEG, TokenizerTranslator
-├── sampling.py             # sample_any_order
+├── sampling.py             # sample
 ├── data.py                 # GuidanceDataset, NoiseSchedule, schedule functions
 └── models/
     ├── esm.py              # ESMC, ESM3 (GenerativeModelWithEmbedding subclasses)
@@ -115,7 +115,7 @@ Template subclasses (all ABC — user implements `format_raw_to_logits`):
 
 ### Sampling
 
-`sample_any_order` — any-order ancestral sampling using `model.get_log_probs`.
+`sample` — ancestral sampling (random or explicit order) using `model.get_log_probs`. Returns a `SamplingTrajectory` with sequences and per-step data.
 
 ## Usage
 

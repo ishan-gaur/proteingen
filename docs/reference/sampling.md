@@ -4,32 +4,27 @@ Sampling algorithms that generate sequences from `GenerativeModel` instances (in
 
 ## Samplers
 
-### `sample_any_order`
+### `sample`
 
-The main high-level sampler. Unmasks positions one (or `n_parallel`) at a time in random order.
+The main unified sampler. Unmasks positions `n_parallel` at a time, either in random order (default) or in an explicit order.
 
 ```python
-sample_any_order(model, x_SP, n_parallel=1, return_string=True)
+sample(model, x_SP, n_parallel=1, in_order=None) -> SamplingTrajectory
 ```
 
 - Accepts `x_SP` as token IDs or a list of strings (auto-tokenizes)
+- `in_order`: optional `list[LongTensor]` — one per sequence, giving positions to unmask in order. If None, a random permutation of masked positions is sampled.
+- Returns a `SamplingTrajectory` dict with `sequences` (strings), `step_log_probs`, `step_positions`, and `step_tokens`.
 - If the model is DEG, automatically passes position info via `model.at_position()` before computing log probs
-- Shows a progress bar tracking the fraction of positions unmasked
-- Asserts no mask tokens remain at completion
 
-Each step:
+**Sharp edge**: orders are padded to uniform length across sequences with position 0 (BOS/CLS). At padding steps, all sequences are sampled at their designated positions — including padding. If the model's logit formatter is correctly configured, special-token positions predict only themselves, making the padding a no-op. If logits are NOT properly formatted, the token at position 0 may be mutated.
 
-1. Pick `n_parallel` random masked positions per sequence
-2. If DEG, wrap `get_log_probs` in `model.at_position(...)` — positions are picked **before** calling the model
-3. Sample from the categorical distribution at selected positions
-4. Update `x_SP` in-place
-
-### `sample_linear_interpolation`
+### `sample_ctmc_linear_interpolation`
 
 Euler integration for flow-matching / linear interpolation:
 
 ```python
-sample_linear_interpolation(model, x_SP, n_steps, return_string=True)
+sample_ctmc_linear_interpolation(model, x_SP, n_steps, return_string=True)
 ```
 
 Each step: `X_1 = ((steps_left - 1) / steps_left) * X_0 + (1 / steps_left) * exp(log_probs)`, then sample from the interpolated distribution.
@@ -46,8 +41,8 @@ Legacy flow-matching sampler with `dt` and `x1_temp` parameters. Kept for reprod
 ## Gotchas
 
 - **DEG + `n_parallel > 1`**: not yet implemented — raises `NotImplementedError`.
-- **In-place mutation**: `any_order_ancestral_step` modifies `x_SP` in-place.
-- **Device handling**: `sample_any_order` and `sample_linear_interpolation` move input to `model.device` and return on the original device (or as strings).
+- **In-place mutation**: `any_order_ancestral_step` modifies `x_SP` in-place. `sample` clones first.
+- **Device handling**: `sample` and `sample_ctmc_linear_interpolation` move input to `model.device`.
 
 ---
 

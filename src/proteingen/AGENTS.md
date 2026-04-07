@@ -19,7 +19,7 @@ ProbabilityModel (ABC)          — temp, conditioning, get_log_probs
 
 Guidance: `TAG` (gradient-based) and `DEG` (enumeration-based) consume a `PredictiveModel` and modify a `GenerativeModel`'s log probs during sampling.
 
-Sampling: `sample_any_order`, `sample_flow_matching_legacy`, etc. orchestrate the generation loop, calling `get_log_probs` on the (optionally guided) generative model.
+Sampling: `sample`, `sample_flow_matching_legacy`, etc. orchestrate the generation loop, calling `get_log_probs` on the (optionally guided) generative model.
 
 ## Component Design Docs
 
