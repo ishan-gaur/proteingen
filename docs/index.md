@@ -1,6 +1,15 @@
-ProteinGen is a package for library design with machine learning. It focuses on tools for blending assay-labeled data with pretrained sequence models and sampling libraries using their predictions.
+ProteinGen is a package for library design with machine learning. It focuses on leveraging assay-labeled data to improve libraries sampled using protein sequence models.
 
-In order to make writing [pipelines for library design](workflows/index.md) easier, we [standardized the user interface](reference/design-philosophy.md#design-philosophy) for running protein design models. For example, the original script for inverse-folding with ProteinMPNN is *45 lines* of code whereas the ProteinGen version is only *7 lines*. We similarly provide simplified APIs to a [broad array of protein models](models.md) including ESM3, DPLM2, and ProGen3.
+
+In order to make writing library design [pipelines](workflows/index.md) easier, we created a simplified [interface](reference/design-philosophy.md#design-philosophy) for using sequence models. Below is an example of inverse-folding with ProteinMPNN using ProteinGen. On the other tab, you can see the *forty-five lines* needed for the original codebase.
+
+
+
+
+
+We similarly provide simplified APIs to a broad array of protein [models](models.md) including ESM3, DPLM2, and ProGen3.
+
+
 
 
 
@@ -24,10 +33,10 @@ In order to make writing [pipelines for library design](workflows/index.md) easi
     from proteingen.sampling import sample_any_order_ancestral
 
     structure = load_pdb("1YCR.pdb")
-    masked_seqs = ["<mask>" * 98] * 8
+    masked_seqs = ["<mask>" * 98] * 8 # placeholders to be designed
 
-    model = ProteinMPNN().conditioned_on({"structure": structure})
-    seqs = sample_any_order_ancestral(model, masked_seqs)
+    model = ProteinMPNN().conditioned_on({"structure": structure}) # configure inverse-folding
+    seqs = sample_any_order_ancestral(model, masked_seqs) # generate sequences
     ```
 
 === "Original ProteinMPNN"
@@ -85,6 +94,7 @@ In order to make writing [pipelines for library design](workflows/index.md) easi
     # Step 6: Decode token indices to sequences
     seqs = [_S_to_seq(sample_dict["S"][i], chain_M[i]) for i in range(8)]
     ```
+
 
 ProteinGen was developed by [Ishan Gaur](https://ishangaur.com) and is maintained by the [Listgarten Lab](http://www.jennifer.listgarten.com/group.html) at UC Berkeley.
 
