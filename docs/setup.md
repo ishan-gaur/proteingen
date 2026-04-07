@@ -33,7 +33,8 @@ uv --version
 ## 2. (Optional) Install Claude Code
 
 
-ProteinGen was designed to facilitate the effective use of AI coding agents with our code. We recommend [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview):
+ProteinGen was designed to facilitate the effective use of AI coding agents with our code. We recommend [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code/overview). These tools typically require a paid plan, but we've gotten plenty of mileage for our tasks out of the basic tiers.
+
 
 
 ```bash
@@ -94,7 +95,9 @@ uv add --editable ./proteingen
 
 ### Point your agent at ProteinGen
 
-Add ProteinGen's location to your project's `AGENTS.md` (or `CLAUDE.md`, or whatever your agent reads) so it knows where to find the library and its docs:
+In your **project's** `AGENTS.md` (or `CLAUDE.md`, or whatever your agent reads) tell your agent where to find ProteinGen and that it should use its documentation:
+
+
 
 ```bash
 cat >> AGENTS.md << 'EOF'
@@ -109,7 +112,7 @@ EOF
 
 ### Add agent skills
 
-ProteinGen ships with agent skills in `proteingen/.agents/skills/` — step-by-step workflows your coding agent can follow for common tasks (e.g. adding a new generative model). See the [available skills](workflows/index.md#agent-skills) for a full listing. Copy or symlink them to wherever your agent harness expects skills:
+ProteinGen ships with agent skills in `proteingen/.agents/skills/` — step-by-step workflows your coding agent can follow for common tasks (e.g. adding a new generative model). See the [available skills](workflows/index.md#skills) for a full listing. Copy or symlink them to wherever your agent harness expects skills:
 
 === "Claude Code"
 

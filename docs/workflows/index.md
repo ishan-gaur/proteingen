@@ -1,6 +1,19 @@
 # Workflows
 
-Workflows are step-by-step recipes for common protein design tasks. Each workflow is designed to be followed with an AI coding agent — the instructions include prompts you can give directly to Claude Code.
+Workflows are step-by-step recipes for common protein design tasks. You can follow them yourself or with an agent. If using an agent, we recommend using Skills and having the agent reproduce the plots we have in the workflows so that you can check that everything looks right.
+
+## Skills
+
+Skills are structured instructions that AI coding agents can load on-demand to perform specific tasks. They live in [`.agents/skills/`](https://github.com/ishan-gaur/proteingen/tree/main/.agents/skills) and follow the [Agent Skills standard](https://agentskills.io/specification). Feel free to write your own when making your own workflows and sharing them with the community by [contributing](contributing/index.md) to ProteinGen.
+
+!!! tip "Setup"
+    To setup skills, make sure to follow the [setup instructions](../setup.md#add-agent-skills), making sure to adapt them to the particular of what your model provider, e.g. Anthropic, OpenAI, Z.ai, etc. expect.
+
+| Skill | Description |
+|-------|-------------|
+| [`add-generative-model`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/add-generative-model/SKILL.md) | Integrate a new generative (transition) model into the library |
+| [`add-predictive-model`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/add-predictive-model/SKILL.md) | Integrate a new predictive model into the library |
+| [`likelihood-curves`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/likelihood-curves/SKILL.md) | Evaluate and plot log-likelihood trajectories for transition models |
 
 ## Available Workflows
 
@@ -25,13 +38,3 @@ Measure model quality by tracking log-probability trajectories under progressive
 Redesign a protein backbone for thermodynamic stability using ESM3 + a noisy stability classifier via TAG. Walks through the full pipeline from structure conditioning through evaluation, with results on the Rocklin cluster 146 topology.
 
 ---
-
-## Agent Skills
-
-Skills are structured instructions that AI coding agents can load on-demand to perform specific tasks with the library. They live in [`.agents/skills/`](https://github.com/ishan-gaur/proteingen/tree/main/.agents/skills) and follow the [Agent Skills standard](https://agentskills.io/specification).
-
-| Skill | Description |
-|-------|-------------|
-| [`add-generative-model`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/add-generative-model/SKILL.md) | Integrate a new generative (transition) model into the library |
-| [`add-predictive-model`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/add-predictive-model/SKILL.md) | Integrate a new predictive model into the library |
-| [`likelihood-curves`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/likelihood-curves/SKILL.md) | Evaluate and plot log-likelihood trajectories for transition models |
