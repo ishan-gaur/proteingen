@@ -130,7 +130,7 @@ Create `tests/test_<name>.py` covering:
 
 ### Documentation
 
-- Add the model to the table and write a section in [Models](models.md) with code examples
+- Add the model to the table in [Models](models/index.md) and create a dedicated page in `docs/models/` with code examples
 - Document conditioning `TypedDict`s (fields, types, meaning) if applicable
 - Write a design doc at `src/proteingen/models/<provider>/<provider>.md`
 - Update `src/proteingen/models/AGENTS.md`

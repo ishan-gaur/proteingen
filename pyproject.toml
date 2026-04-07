@@ -20,8 +20,8 @@ dependencies = [
     "peft>=0.13.0",
     "mkdocs-material>=9.7.5",
     "mkdocstrings[python]>=1.0.3",
-    "mkdocs-liveedit",
     "tmtools>=0.3.0",
+    "mkdocs-liveedit",
 ]
 
 [project.optional-dependencies]
@@ -40,5 +40,5 @@ requires = ["uv_build>=0.9.22,<0.10.0"]
 build-backend = "uv_build"
 
 [tool.uv.sources]
-mkdocs-liveedit = { git = "https://github.com/ishan-gaur/mkdocs-liveedit.git" }
 af3-server = { git = "https://github.com/ishan-gaur/af3-server.git" }
+mkdocs-liveedit = { git = "https://github.com/ishan-gaur/mkdocs-liveedit.git" }

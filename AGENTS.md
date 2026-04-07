@@ -43,7 +43,7 @@ Available skills:
   - Per-component design docs co-located with source (e.g. `probability_model.md` next to `probability_model.py`)
   - `models/` — each model in its own subdirectory with a `.md` (e.g. `models/esm/`, `models/rocklin_ddg/`)
 - `examples/` — end-to-end usage examples (sampling, guidance, probes, PCA init). See → [examples/AGENTS.md](examples/AGENTS.md)
-- `tests/` — pytest suite (current status: 222/222 passing). See → [tests/AGENTS.md](tests/AGENTS.md)
+- `tests/` — pytest suite (current status: 318/319 passing, 1 pre-existing failure in `test_esmc_temperature`). See → [tests/AGENTS.md](tests/AGENTS.md)
 - `scripts/` — one-off experiment scripts (embedding computation, guidance experiments)
 - `docs/` — MkDocs documentation site. See → [docs/AGENTS.md](docs/AGENTS.md)
 - `TODO.md`, `PLAN.md`, `DESIGN.md` — roadmap and design docs
@@ -51,9 +51,14 @@ Available skills:
 
 ## AF3 Server
 
-- **Separate repo**: `~/af3-server/` (GitHub: `ishan-gaur/af3-server`) — FastAPI server + Python client for persistent AF3 inference
+- **Separate repo**: `~/af3-server/` (GitHub: `ishan-gaur/af3-server`, public) — FastAPI server + Python client for persistent AF3 inference
 - Installed from GitHub: `af3-server @ git+https://github.com/ishan-gaur/af3-server.git`
 - Import: `from af3_server import AF3Client`
+- Package structure: `src/af3_server/` (client, pip-installable), `server/` (server.py + .def, runs inside container)
+- **Server's real value is cross-environment access** — AF3 runs in JAX/Apptainer container, proteingen code runs in PyTorch env. The HTTP boundary bridges them. For batch-only workflows, a simpler in-container script would suffice.
+- **Official AF3 codebase is a full Python library** — `ModelRunner`, `predict_structure()`, `folding_input.Input` etc. are all importable, not just CLI. Our server wraps these same functions.
+- **Server config**: `num_diffusion_samples` (default 5) and `num_recycles` (default 10) are per-server env vars (`AF3_NUM_DIFFUSION_SAMPLES`, `AF3_NUM_RECYCLES`), NOT per-request — model config is set once at startup
+- **Single GPU only** — processes jobs sequentially. For multi-GPU, run multiple server instances on different ports/GPUs.
 - **Apptainer** installed at user level: `~/bin/apptainer` v1.4.5, `~/lib/libfuse3.so.3`, `~/libexec/apptainer/bin/squashfuse_ll` (wrapper for libfuse3)
 - **SIF image**: `/data/apptainer_images/alphafold3_server.sif` (alphafold3 Docker image + FastAPI/uvicorn)
 - **Model weights**: `/data/af3/af3.bin`
@@ -70,6 +75,21 @@ Available skills:
 - Importing from `atomworks` prints env var warnings (CCD_MIRROR_PATH, PDB_MIRROR_PATH) — harmless
 - **Repo renamed to `proteingen`** — display name is **ProteinGen**, URLs/paths/package-slug stay lowercase `proteingen`
 - Git remote: `git@github.com:ishan-gaur/proteingen.git`
+
+## Optional Dependency Extras
+
+- `proteingen[pmpnn]` → `rc-foundry[all]`, `proteingen[af3]` → `af3-server`, `proteingen[all]` → both
+- `models/__init__.py` guards ProteinMPNN and PreTrainedStabilityPredictor imports with `try/except ImportError` so base `import proteingen` works without optional extras
+- ProteinMPNN weights auto-download on first use via `foundry_cli.download_checkpoints.install_model` — no manual `foundry install proteinmpnn` step needed
+- `af3-server` is not imported anywhere in proteingen source — purely a convenience dependency for users
+- `mkdocs-liveedit` and `af3-server` both resolve via `[tool.uv.sources]` git URLs — pip users without uv can't resolve these from PyPI (af3-server: `pip install git+https://github.com/ishan-gaur/af3-server.git`)
+- Dev/docs dependencies (mkdocs, ruff, pytest, python-lsp-server) stay in base package — users are contributors by default
+
+## Docs Conventions
+
+- Setup docs use tab pairs: always show both "uv" and "conda / pip" paths
+- Conda tab recommends Miniforge (ships with mamba) but calls everything "conda" to avoid confusing users
+- `??? note` admonition = collapsed by default (used for Installing Claude Code section)
 
 ## ProteinDataset Design Decisions
 
@@ -103,6 +123,14 @@ Replaces old `GuidanceDataset`. Key design choices from discussion:
 - `7KPM_atom37_295.pt` — preprocessed atom37 coords (295, 37, 3) for ESM3. Same file as in `kortemme_tyrosine_kinase_design/structures/`. Built by renaming PTR→TYR, filtering ADP ligand.
 - `pdb_to_atom37_and_seq()` crashes on raw 7KPM.pdb due to PTR (phosphotyrosine) and ADP ligand — use the preprocessed .pt file.
 
+## Worktree Cleanup Notes
+
+- `dfm-worktrees/` may contain orphaned directories not tracked by `git worktree list` — check with `ls` not just `git worktree list`
+- Remaining active worktrees: `spawn/pbrr-walkthrough` (3 commits ahead of main, not yet merged)
+- Deleted branches that still have stale local/remote refs: `spawn/cinderdrella`, `spawn/likelihood-curves` — can be cleaned with `git branch -d` / `git push origin --delete`
+- One stash exists on `spawn/landing-page` branch: `WIP on spawn/landing-page: 1d4d90d`
+- `dfm-worktrees/landing-page-copy/` also exists — status unknown
+
 ## AlphaFold 3 Setup
 
 - Docker image `alphafold3:latest` available on this machine
@@ -112,6 +140,19 @@ Replaces old `GuidanceDataset`. Key design choices from discussion:
 - Run pattern: `docker run -v /data/af3:/app/models -v /data/af3db:/public_databases -v <input>:/app/af_input -v <output>:/app/af_output alphafold3 python run_alphafold.py --json_path=... --model_dir=/app/models --output_dir=/app/af_output`
 - `--norun_data_pipeline` flag skips MSA search (for pre-computed MSAs)
 - User hanlun runs it regularly; last successful run was via docker
+
+## Refactoring Tools
+
+- **Jedi for Python renames**: `jedi` is installed in the project. Use `jedi.Script(path=..., project=jedi.Project('.')).rename(line, col, new_name=...)` for project-wide symbol renames (imports, type hints, inheritance). Call `.apply()` to write changes. Handles Python symbols only — docstrings, comments, `__all__` entries, and markdown must be updated separately with sed.
+- **Rename ordering**: when renaming `Foo` and `FooBar`, always rename the longer name first to avoid partial matches with sed.
+- **Test temperature on masked positions**: logit formatting makes non-mask positions one-hot, so temperature scaling is a no-op there. Temperature tests must use mask tokens to see any effect.
+
+## Sampling API
+
+- `sample()` is the unified sampler — replaces old `sample_any_order` and `sample_in_order`. Returns `SamplingTrajectory` (TypedDict with `sequences`, `step_log_probs`, `step_positions`, `step_tokens`).
+- `in_order` parameter: `None` (random), `"left_to_right"`, or `list[LongTensor]` (explicit per-sequence orders).
+- Orders are padded to uniform length with position 0 (BOS) — no-op if logit formatter is correct.
+- `sample_ctmc_linear_interpolation` — the `sample_ctmc_` prefix is for CTMC-based continuous-time sampling methods.
 
 ## Kortemme Tyrosine Kinase Project Reference
 

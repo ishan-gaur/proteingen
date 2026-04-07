@@ -73,7 +73,14 @@ nav:
     - Fine-tuning Inverse Folding: examples/finetune-inverse-folding.md
     - Stability-Guided Generation: examples/stability-guided-generation.md
     - PCA Embedding Init: examples/pca-embedding-init.md
-  - Models: models.md
+  - Models:
+    - Overview: models/index.md
+    - ESMC: models/esmc.md
+    - ESM3: models/esm3.md
+    - DPLM-2: models/dplm2.md
+    - ESM Forge API: models/esm-forge-api.md
+    - ProteinMPNN: models/proteinmpnn.md
+    - StabilityPMPNN: models/stability-pmpnn.md
   - Workflows:
     - Overview: workflows/index.md
     - ProteinGuide: workflows/protein-guide.md

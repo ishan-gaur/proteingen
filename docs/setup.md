@@ -229,4 +229,4 @@ You're all set! Here's where to go from here:
 - **[Design Philosophy](reference/design-philosophy.md)** — understand the three base classes (`ProbabilityModel`, `GenerativeModel`, `PredictiveModel`) and how they compose
 - **[Examples](examples/index.md)** — working end-to-end code for sampling, fine-tuning, and guided generation
 - **[Workflows](workflows/index.md)** — step-by-step recipes for common protein design tasks
-- **[Models](models.md)** — all supported models, their capabilities, and code examples
+- **[Models](models/index.md)** — all supported models, their capabilities, and code examples

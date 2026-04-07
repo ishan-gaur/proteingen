@@ -4,7 +4,7 @@ Pytest test suite for proteingen. Run with `uv run python -m pytest tests/ -v`.
 
 ## Current Status
 
-222 tests, all passing.
+320 tests, all passing (1 skipped: SolubleMPNN checkpoint).
 
 ## Test Files
 

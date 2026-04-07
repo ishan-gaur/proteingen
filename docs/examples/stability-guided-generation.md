@@ -57,6 +57,6 @@ sequences = sample_ctmc_linear_interpolation(guided_model, init_tokens, n_steps=
 ## Related
 
 - [ProteinGuide workflow](../workflows/protein-guide.md) — the guided sampling framework
-- [Models → Rocklin Stability](../models.md) — the stability predictor architecture
+- [Models → StabilityPMPNN](../models/stability-pmpnn.md) — the stability predictor architecture
 
 **Source**: [`examples/stability_guidance/`](https://github.com/ishan-gaur/proteingen/blob/main/examples/stability_guidance/)

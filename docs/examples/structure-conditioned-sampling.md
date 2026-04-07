@@ -17,6 +17,6 @@ This is useful for **inverse folding** — given a desired 3D structure, generat
 !!! warning "Fixed-length sequences"
     ESM3 structure conditioning requires all sequences in a batch to match the structure length. Structure tokens are `(L+2,)` with BOS/EOS tokens.
 
-See [Models → ESM3](../models.md) for details on structure conditioning.
+See [Models → ESM3](../models/esm3.md) for details on structure conditioning.
 
 **Source**: [`examples/esm3_structure_conditioned_sampling.py`](https://github.com/ishan-gaur/proteingen/blob/main/examples/esm3_structure_conditioned_sampling.py)
