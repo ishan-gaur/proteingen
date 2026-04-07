@@ -11,6 +11,7 @@ Generate protein sequences using masked language models with different condition
 - **[Unconditional Sampling](unconditional-sampling.md)** — generate sequences from scratch with ESMC
 - **[Structure-Conditioned Sampling](structure-conditioned-sampling.md)** — inverse folding with ESM3 backbone conditioning
 - **[Guided Sampling (TrpB)](trpb-linear-probe.md)** — train a fitness probe, then use DEG guidance to steer generation
+- **[Stability-Guided Generation](stability-guided-generation.md)** — TAG-guided ESM3 inverse folding with a learned stability predictor
 
 ## Evaluation
 
@@ -32,7 +33,4 @@ Build lightweight predictors on top of pretrained representations.
 
 - **[PCA Embedding Initialization](pca-embedding-init.md)** — compress ESMC embeddings via PCA for small predictors
 
-## Coming Soon
 
-!!! note "Stability-Guided Generation"
-    The `examples/stability_guidance/` directory contains a work-in-progress reimplementation of stability-guided protein generation using the ProteinMPNN stability predictor and ESM3 as the generative model.

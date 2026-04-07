@@ -68,6 +68,7 @@ nav:
     - Benchmark — Model Families: examples/benchmark-model-families.md
     - Fine-tuning ESM3 (MLM): examples/finetune-esm3-mlm.md
     - Fine-tuning Inverse Folding: examples/finetune-inverse-folding.md
+    - Stability-Guided Generation: examples/stability-guided-generation.md
     - PCA Embedding Init: examples/pca-embedding-init.md
   - Models: models.md
   - Workflows:
