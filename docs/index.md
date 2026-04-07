@@ -1,92 +1,205 @@
-New here? Start with: [**Setup**](setup.md) · [**Examples**](examples/index.md) · [**Workflows**](workflows/index.md) · [**Design Philosophy**](reference/design-philosophy.md)
+ProteinGen is a package for library design with machine learning. It focuses on tools for blending assay-labeled data with pretrained sequence models and sampling libraries using their predictions.
 
----
+In order to make writing [pipelines for library design](workflows/index.md) easier, we [standardized the user interface](reference/design-philosophy.md#design-philosophy) for running protein design models. For example, the original script for inverse-folding with ProteinMPNN is *45 lines* of code whereas the ProteinGen version is only *7 lines*. We similarly provide simplified APIs to a [broad array of protein models](models.md) including ESM3, DPLM2, and ProGen3.
 
-## What is ProteinGen?
 
-Today, every time you need to try a different model, training, or sampling algorithm, you basically have to rewrite your existing code from scratch. Even worse to use the latest sampling and design techniques you might have to wade through hundreds of lines of library code to figure out, for example, that ESM only uses 33 of their 64 output logits or exactly how you were supposed to format conditioning inputs for ProteinMPNN. 
 
-Pipelines written with ProteinGen make it trivial to swap in and out models, training techniques, and inference time algorithms whenever you want. Implementation costs should never stop you from trying the latest and greatest technique for protein design.
 
-ProteinGen centralizes common models and computational workflows for sequence-based protein design in one place. We provide a unified interface that makes models from different organizations--ESM, Evodiff, DPLM, ProteinMPNN--interoperate. This lets us implement training, sampling, and guidance algorithms on top of them as part of a single ecosystem. Our goal is to accelerate the development of new methods for drylab practitioners and to make modern statistical and deep learning methods for protein design more accessible for the wetlab community as well.
+
+
+
+
+
+
+
+
+
+
+
+=== "ProteinGen Inverse-Folding"
+
+    ```python
+    from proteingen.models.mpnn import ProteinMPNN
+    from proteingen.models.utils import load_pdb
+    from proteingen.sampling import sample_any_order_ancestral
+
+    structure = load_pdb("1YCR.pdb")
+    masked_seqs = ["<mask>" * 98] * 8
+
+    model = ProteinMPNN().conditioned_on({"structure": structure})
+    seqs = sample_any_order_ancestral(model, masked_seqs)
+    ```
+
+=== "Original ProteinMPNN"
+
+    ```python
+    import copy, torch, numpy as np
+    from protein_mpnn_utils import (
+        parse_PDB, StructureDatasetPDB, ProteinMPNN,
+        tied_featurize, _S_to_seq,
+    )
+
+    # Step 1: Parse PDB and build dataset
+    pdb_dict_list = parse_PDB("1YCR.pdb", ca_only=False)
+    dataset = StructureDatasetPDB(pdb_dict_list, truncate=None, max_length=200000)
+
+    # Step 2: Build chain design specification
+    all_chains = [k[-1:] for k in pdb_dict_list[0] if k[:9] == "seq_chain"]
+    chain_id_dict = {pdb_dict_list[0]["name"]: (all_chains, [])}
+
+    # Step 3: Load model with architecture params from checkpoint
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    ckpt = torch.load("vanilla_model_weights/v_48_020.pt", map_location=device)
+    model = ProteinMPNN(
+        ca_only=False, num_letters=21, node_features=128, edge_features=128,
+        hidden_dim=128, num_encoder_layers=3, num_decoder_layers=3,
+        augment_eps=0.0, k_neighbors=ckpt["num_edges"],
+    )
+    model.to(device)
+    model.load_state_dict(ckpt["model_state_dict"])
+    model.eval()
+
+    # Step 4: Featurize — returns 20 tensors
+    batch_clones = [copy.deepcopy(dataset[0]) for _ in range(8)]
+    (X, S, mask, lengths, chain_M, chain_encoding_all, chain_list_list,
+     visible_list_list, masked_list_list, masked_chain_length_list_list,
+     chain_M_pos, omit_AA_mask, residue_idx, dihedral_mask,
+     tied_pos_list_of_lists_list, pssm_coef, pssm_bias,
+     pssm_log_odds_all, bias_by_res_all, tied_beta,
+    ) = tied_featurize(
+        batch_clones, device, chain_id_dict,
+        None, None, None, None, None, ca_only=False,
+    )
+
+    # Step 5: Sample
+    sample_dict = model.sample(
+        X, torch.randn(chain_M.shape, device=device), S, chain_M,
+        chain_encoding_all, residue_idx, mask=mask, temperature=0.1,
+        omit_AAs_np=np.zeros(21), bias_AAs_np=np.zeros(21),
+        chain_M_pos=chain_M_pos, omit_AA_mask=omit_AA_mask,
+        pssm_coef=pssm_coef, pssm_bias=pssm_bias, pssm_multi=0.0,
+        pssm_log_odds_flag=False, pssm_log_odds_mask=None,
+        pssm_bias_flag=False, bias_by_res=bias_by_res_all,
+    )
+
+    # Step 6: Decode token indices to sequences
+    seqs = [_S_to_seq(sample_dict["S"][i], chain_M[i]) for i in range(8)]
+    ```
 
 ProteinGen was developed by [Ishan Gaur](https://ishangaur.com) and is maintained by the [Listgarten Lab](http://www.jennifer.listgarten.com/group.html) at UC Berkeley.
 
-### Trying new models is dead simple
 
-For example, this is all the machine learning code you need to replicate the stability optimization experiments from our recent [ProteinGuide preprint](https://arxiv.org/abs/2505.04823). In that paper we present two guidance algorithms: TAG (fast, gradient-based) and DEG (exact, enumeration-based). With ProteinGen, switching between algorithms or swapping in a completely different generative model is as easy as changing the imports:
 
-=== "TAG + ESM3"
 
-    ```python hl_lines="2 3 11 15"
-    from proteingen.models import ESM3, StabilityPredictor
+
+
+
+## Why ProteinGen?
+
+
+
+
+
+ProteinGen makes it easy to use cutting-edge machine learning methods for protein engineering. It provides:
+
+1. the latest workflows for leveraging your wet-lab data to design new libraries, and
+2. all the common protein sequence models (incl. inverse-folding), reimplemented to work with our workflows out-of-the-box.
+
+Our framework *code*-ifies the insights from our recent [theoretical unification](https://arxiv.org/abs/2505.04823) of generative and predictive protein models, ensuring interoperability between various training, sampling, and scoring strategies. It has drastically reduced the work to develop new methods in our own research, and we use it with our [wet-lab collaborators](http://www.jennifer.listgarten.com/group.html#:~:text=Collaborators) as well.
+
+<!-- For our computational colleagues, we hope ProteinGen makes your lives easier. For our wet-lab counterparts, we hope it makes the latest ML techniques more accessible. Let's engineer some amazing new proteins together! -->
+
+<!-- Without ProteinGen, every time you try a different model, training, or sampling algorithm, you basically have to rewrite your existing code from scratch. We dealt with this ourselves when developing new methods in this area. Every experiment and every paper replicated weeks of work. We wanted to hide away in our code complexity that you shouldn't have to know, like that ESM only uses 33 of its 64 output logits, and prevent you from having to read complicated framework code, like the 1500 line ProteinMPNN [input datastructure](https://github.com/RosettaCommons/foundry/blob/c5a9fbefdeb2c9b107c347aee693d5166d73fa70/models/mpnn/src/mpnn/utils/inference.py#L678) -->
+
+<!--TODO[pi] We should put this line somewhere in the conceptual overview of the design; Pipelines written with ProteinGen make it trivial to swap in and out models, training techniques, and inference time algorithms whenever you want. Implementation costs should never stop you from trying the latest and greatest technique for protein design.-->
+
+
+
+
+
+### Switching Models and Algorithms Made Easy
+
+Take the stability optimization experiment from [ProteinGuide](https://arxiv.org/abs/2505.04823) as an example. The paper presents two guidance algorithms — TAG (gradient-based) and DEG (enumeration-based) — and originally used TAG with PMPNN. With ProteinGen, switching to DEG or swapping in ESM3 is just a change of imports:
+
+=== "TAG + PMPNN"
+
+    ```python hl_lines="2 3 13 17"
+    from proteingen.models import PMPNN, StabilityPredictor
     from proteingen.guide import TAG
-    from proteingen.sampling import sample_euler
+    from proteingen.sampling import sample_linear_interpolation
+    from proteingen.models.utils import load_pdb
+
+    structure = load_pdb("1YCR.pdb")
 
     # Load the models
-    coords = ... # load backbone structure from pdb file
-    gen_model = ESM3("esm3-small").conditioned_on({"structure": coords})
-    predictor = StabilityPredictor()
+    gen_model = PMPNN().conditioned_on({"structure": structure}) # inverse-folding model
+    predictor = StabilityPredictor() # ddg predictor trained on the Megascale dataset
 
-    # Get the stability guided models
-    tag = TAG(gen_model, predictor).cuda()
+    # Get the stability guided conditional generative model
+    guided = TAG(gen_model, predictor).cuda()
 
-    # Have it generate 8 stability-optimized sequences of length 100.
-    masked_seqs = ["<mask>" * 100] * 8
-    seqs = sample_euler_integration(tag, masked_seqs)
-    ```
-
-=== "DEG + ESM3"
-
-    ```python hl_lines="2 3 11 15"
-    from proteingen.models import ESM3, StabilityPredictor
-    from proteingen.guide import DEG
-    from proteingen.sampling import sample_ancestral
-
-    # Load the models
-    coords = ... # load backbone structure from pdb file
-    gen_model = ESM3("esm3-small").conditioned_on({"structure": coords})
-    predictor = StabilityPredictor()
-
-    # Get the stability guided models
-    tag = DEG(gen_model, predictor).cuda()
-
-    # Have it generate 8 stability-optimized sequences of length 100.
-    masked_seqs = ["<mask>" * 100] * 8
-    seqs = sample_ancestral(tag, masked_seqs)
+    # Sample 8 stability-optimized variants starting from fully masked sequences
+    masked_seqs = ["<mask>" * 98] * 8
+    seqs = sample_linear_interpolation(guided, masked_seqs)
     ```
 
 === "DEG + PMPNN"
 
-    ```python hl_lines="1 7"
+    ```python hl_lines="2 3 13 17"
     from proteingen.models import PMPNN, StabilityPredictor
     from proteingen.guide import DEG
-    from proteingen.sampling import sample_ancestral
+    from proteingen.sampling import sample_any_order_ancestral
+    from proteingen.models.utils import load_pdb
+
+    structure = load_pdb("1YCR.pdb")
 
     # Load the models
-    coords = ... # load backbone structure from pdb file
-    gen_model = PMPNN.conditioned_on({"structure": coords})
-    predictor = StabilityPredictor()
+    gen_model = PMPNN().conditioned_on({"structure": structure}) # inverse-folding model
+    predictor = StabilityPredictor() # ddg predictor trained on the Megascale dataset
 
     # Get the stability guided models
-    tag = DEG(gen_model, predictor).cuda()
+    guided = DEG(gen_model, predictor).cuda()
 
-    # Have it generate 8 stability-optimized sequences of length 100.
-    masked_seqs = ["<mask>" * 100] * 8
-    seqs = sample_ancestral(tag, masked_seqs)
+    # Sample 8 stability-optimized variants starting from fully masked sequences
+    masked_seqs = ["<mask>" * 98] * 8
+    seqs = sample_any_order_ancestral(guided, masked_seqs)
     ```
 
-### Use coding agents with confidence
+=== "DEG + ESM3"
 
-As part of minimizing implementation overhead, we're obviously excited about the future of AI coding agents but recognize that it can be hard to balance their use with doing science that you trust. 
+    ```python hl_lines="1 9"
+    from proteingen.models import ESM3, StabilityPredictor
+    from proteingen.guide import DEG
+    from proteingen.sampling import sample_any_order_ancestral
+    from proteingen.models.utils import load_pdb
 
-We have structured our codebase and documentation to empower you to develop new design pipelines as effectively as possible. We provide resources for you to understand the algorithms in our repo, make sure your agents avoid common mistakes, and give you the evaluation tools to verify the quality of the pipelines your agents create. Specifically, when developing this repo we focused on the following three things:
+    structure = load_pdb("1YCR.pdb")
 
-1. [Workflows](workflows/index.md): these guides walk you through common training, sampling, and conditional generation pipelines step-by-step. They provide conceptual overviews, agent prompts, and the evals/sanity checks we run when writing code ourselves to make sure everything looks good in our own wetlab collaborations.
+    # Load the models
+    gen_model = ESM3("esm3-small").conditioned_on({"structure": structure}) # inverse-folding model
+    predictor = StabilityPredictor() # ddg predictor trained on the Megascale dataset
 
-2. We teach your coding agents how to use our code. Having Claude Code read through our repo shouldn't torch your token budget. We include AGENTS.md files and SKILLS.md files to help your models understand our design philosophy, common gotchas, and best practices without you having to manually intervene.
+    # Get the stability guided models
+    guided = DEG(gen_model, predictor).cuda()
 
-3. [Contributing](contributing.md): we want to make it easy for people to use cutting edge models and design algorithms. A key part of this is making it easy for you to get your own work out there. We include SKILLS.md files that help your coding agents make your research code ProteinGen compatible and submit pull requests to add your work to the next release. We want to make this possible even if you've never contributed to open source before.
+    # Sample 8 stability-optimized variants starting from fully masked sequences
+    masked_seqs = ["<mask>" * 98] * 8
+    seqs = sample_any_order_ancestral(guided, masked_seqs)
+    ```
+
+### Built with Agents in Mind
+
+We're excited about AI coding agents but, as scientists, recognize it's tricky to trust their results. Our [Workflows](workflows/index.md) include algorithm guides and evaluation checklists at each step — the same ones we use with our collaborators, continuously updated as we learn more. Follow the [Setup](setup/index.md) instructions to give your agents our AGENTS.md and SKILLS.md files so they avoid common mistakes we uncovered during testing.
+
+### Share Your Work on ProteinGen
+
+We want to make it easy for you to get your work out there. Our [Contributing](contributing/index.md) section has instructions for submitting new models or sampling algorithms to be included in the next release. We've also created SKILL.md files that walk your coding agents through the process. We'd love to include your work, even if you've never contributed to open source before!
+
+### Are We Missing a Model?
+
+No problem. Our Contributing section includes an agent workflow that autonomously integrated ProteinMPNN into the codebase with minimal intervention on our part. If there's a model you want, all you have to do is ask:
+
+> "Read the skill file at `.agents/skills/add-generative-model/SKILL.md` and follow it to add **[model name]** to ProteinGen."
 
 <!-- TODO[pi]: flesh out home page with a diagram showing the generative + predictive model combination via Bayes' rule -->
 <!-- TODO[pi]: add a quick "5-line example" code block showing unconditional sampling -->
