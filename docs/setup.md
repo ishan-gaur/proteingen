@@ -109,7 +109,7 @@ EOF
 
 ### Add agent skills
 
-ProteinGen ships with agent skills in `proteingen/.agents/skills/` — step-by-step workflows your coding agent can follow for common tasks (e.g. adding a new generative model). Copy or symlink them to wherever your agent harness expects skills:
+ProteinGen ships with agent skills in `proteingen/.agents/skills/` — step-by-step workflows your coding agent can follow for common tasks (e.g. adding a new generative model). See the [available skills](workflows/index.md#agent-skills) for a full listing. Copy or symlink them to wherever your agent harness expects skills:
 
 === "Claude Code"
 
