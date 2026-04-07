@@ -1,6 +1,55 @@
 # Workflows
 
-Workflows are step-by-step recipes for common protein design tasks. You can follow them yourself or with an agent. If using an agent, we recommend using Skills and having the agent reproduce the plots we have in the workflows so that you can check that everything looks right.
+ProteinGen organizes its guides into **workflows** and **modules**.
+
+**Workflows** are end-to-end recipes at the level of a paper's method — they compose multiple modules into a complete pipeline. **Modules** are the reusable building blocks, each implementing a specific mathematical or engineering idea. Modules are organized by the four library design areas: Data, Models, Sampling, and Evaluation.
+
+## Workflows
+
+Paper-level compositions that combine modules into complete pipelines.
+
+| Workflow | Description | Key Modules |
+|----------|-------------|-------------|
+| [ProteinGuide](protein-guide.md) | Guided generation using Bayes' rule to combine a generative model with a property predictor | Fine-tuning, Noisy Predictor Training, Guidance (TAG/DEG), Likelihood Curves |
+| [Continued Pretraining](continued-pretraining.md) | Specialize a pretrained model to a protein family using sequence or structural homologs | MSA Acquisition, Fine-tuning, Likelihood Curves |
+
+<!-- Future workflows (not yet documented):
+| CbAS | Conditioning by Adaptive Sampling — importance-weighted retraining of a generative model (Brookes et al.) |
+| ProteinDPO | Direct Preference Optimization — train a generative model on preference pairs |
+| MLDE | Machine Learning-guided Directed Evolution — MCMC in sequence space with a predictor |
+| DADO | Data-Augmented Directed Optimization (Bowden et al.) |
+-->
+
+## Modules
+
+Reusable building blocks organized by the four library design areas. Workflows reference these modules as sub-steps.
+
+### Data
+
+| Module | Description |
+|--------|-------------|
+| [MSA → Dataset](msa-to-dataset.md) | Turn an MSA into a training-ready dataset (gap stripping, AF3 folding, structure encoding) |
+| [Data Splits](data-splits.md) | Split assay data by mutational distance, activity range, or position for train/eval |
+| [MSA Acquisition](msa-acquisition.md) | Tools for obtaining sequence and structure-based MSAs |
+
+### Models
+
+| Module | Description |
+|--------|-------------|
+| [Fine-tuning Generative Models](finetune-generative.md) | LoRA fine-tuning of ESM3/ESMC for sequence-only or structure-conditioned prediction |
+| [Training Predictors](training-predictors.md) | Train oracle and noisy predictive models from assay data |
+
+### Sampling
+
+Sampler selection and configuration is covered in the [sampling reference](../reference/sampling.md). Key decision: use `sample` (discrete-time ancestral) for DEG guidance, `sample_ctmc_linear_interpolation` for TAG guidance.
+
+### Evaluation
+
+| Module | Description |
+|--------|-------------|
+| [Likelihood Curves](likelihood-curves.md) | Evaluate model quality by tracking log-probability under progressive unmasking |
+
+---
 
 ## Skills
 
@@ -14,27 +63,3 @@ Skills are structured instructions that AI coding agents can load on-demand to p
 | [`add-generative-model`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/add-generative-model/SKILL.md) | Integrate a new generative (transition) model into the library |
 | [`add-predictive-model`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/add-predictive-model/SKILL.md) | Integrate a new predictive model into the library |
 | [`likelihood-curves`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/likelihood-curves/SKILL.md) | Evaluate and plot log-likelihood trajectories for generative models |
-
-## Available Workflows
-
-### [ProteinGuide](protein-guide.md)
-
-The main workflow: go from a fitness function or dataset to guided protein sequence generation. Covers data organization, training a predictive model, combining it with a generative model via TAG or DEG, and sampling candidates.
-
-### [MSA → Sequence + Structure Dataset](msa-to-dataset.md)
-
-Turn a multiple sequence alignment into a training-ready dataset. Covers loading FASTA files, stripping gaps, folding with AF3, and encoding ESM3 structure tokens.
-
-### [Fine-tuning a Generative Model](finetune-generative.md)
-
-Fine-tune ESM3 or ESMC with LoRA for sequence-only MLM or structure-conditioned inverse folding. Includes training loop patterns, example results, and checkpoint management.
-
-### [Evaluating with Likelihood Curves](likelihood-curves.md)
-
-Measure model quality by tracking log-probability trajectories under progressive unmasking. Compare structure-conditioned vs sequence-only, pretrained vs fine-tuned, and track improvement over training.
-
-### [Stability-Guided Inverse Folding](stability-guidance.md)
-
-Redesign a protein backbone for thermodynamic stability using ESM3 + a noisy stability classifier via TAG. Walks through the full pipeline from structure conditioning through evaluation, with results on the Rocklin cluster 146 topology.
-
----
