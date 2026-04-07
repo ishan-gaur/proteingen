@@ -23,3 +23,15 @@ Measure model quality by tracking log-probability trajectories under progressive
 ### [Stability-Guided Inverse Folding](stability-guidance.md)
 
 Redesign a protein backbone for thermodynamic stability using ESM3 + a noisy stability classifier via TAG. Walks through the full pipeline from structure conditioning through evaluation, with results on the Rocklin cluster 146 topology.
+
+---
+
+## Agent Skills
+
+Skills are structured instructions that AI coding agents can load on-demand to perform specific tasks with the library. They live in [`.agents/skills/`](https://github.com/ishan-gaur/proteingen/tree/main/.agents/skills) and follow the [Agent Skills standard](https://agentskills.io/specification).
+
+| Skill | Description |
+|-------|-------------|
+| [`add-generative-model`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/add-generative-model/SKILL.md) | Integrate a new generative (transition) model into the library |
+| [`add-predictive-model`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/add-predictive-model/SKILL.md) | Integrate a new predictive model into the library |
+| [`likelihood-curves`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/likelihood-curves/SKILL.md) | Evaluate and plot log-likelihood trajectories for transition models |
