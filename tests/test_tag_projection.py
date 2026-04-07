@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import torch
 from torch import nn
 
-from proteingen.generative_modeling import TransitionModel, PassThroughLogitFormatter
+from proteingen.generative_modeling import GenerativeModel, PassThroughLogitFormatter
 from proteingen.predictive_modeling import PredictiveModel, binary_logits
 from proteingen.guide import TAG, LinearGuidanceProjection
 
@@ -140,7 +140,7 @@ def test_grad_to_gen_delta_implements_linear_taylor_term():
 
 def test_tag_with_projection_returns_gen_space_logits():
     gen_tokenizer, pred_tokenizer, projection = _make_projection_setup()
-    gen_model = TransitionModel(
+    gen_model = GenerativeModel(
         model=ConstantBackbone(output_dim=6),
         tokenizer=gen_tokenizer,
         logit_formatter=PassThroughLogitFormatter(),

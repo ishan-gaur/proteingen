@@ -5,7 +5,7 @@ from torch import nn
 from typing import Any, Optional
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from proteingen.generative_modeling import TransitionModelWithEmbedding
+from proteingen.generative_modeling import GenerativeModelWithEmbedding
 from proteingen.probability_model import ProbabilityModel
 from transformers import PreTrainedTokenizerBase
 
@@ -138,7 +138,7 @@ class PredictiveModel(ProbabilityModel, ABC):
 
         Runs ``get_log_probs`` (which creates and stashes the OHE),
         backprops, and returns ``self._ohe.grad`` of shape (B, P, K).
-        This is the gradient signal TAG adds to transition model logits.
+        This is the gradient signal TAG adds to generative model logits.
         """
         with torch.enable_grad():
             log_p = self.get_log_probs(seq_SP)
@@ -231,7 +231,7 @@ class LinearProbe(PredictiveModel, ABC):
 
     def __init__(
         self,
-        embed_model: TransitionModelWithEmbedding,
+        embed_model: GenerativeModelWithEmbedding,
         output_dim: int,
         pooling_fn: Optional[callable] = None,
         freeze_embed_model: bool = True,

@@ -5,7 +5,7 @@ import torch.utils.checkpoint
 from typing import TypedDict
 
 from proteingen.generative_modeling import (
-    TransitionModelWithEmbedding,
+    GenerativeModelWithEmbedding,
     LogitFormatter,
     MPNNTokenizer,
 )
@@ -45,10 +45,10 @@ class _MPNNCondition(TypedDict):
     residue_mask: torch.Tensor  # (L,) valid residues (bool)
 
 
-class ProteinMPNN(TransitionModelWithEmbedding):
+class ProteinMPNN(GenerativeModelWithEmbedding):
     """ProteinMPNN structure-conditioned sequence design model.
 
-    Wraps Foundry's ProteinMPNN as a TransitionModelWithEmbedding for use
+    Wraps Foundry's ProteinMPNN as a GenerativeModelWithEmbedding for use
     with proteingen's sampling, guidance, and probe infrastructure.
 
     Structure conditioning is **required** — call ``set_condition_()`` or
@@ -279,7 +279,7 @@ class ProteinMPNN(TransitionModelWithEmbedding):
         )
         return torch.cat([logits_21, pad], dim=-1)
 
-    # ── TransitionModelWithEmbedding interface ───────────────────────────
+    # ── GenerativeModelWithEmbedding interface ───────────────────────────
 
     def differentiable_embedding(
         self, ohe_seq_SPT: torch.FloatTensor

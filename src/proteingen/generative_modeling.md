@@ -1,23 +1,23 @@
 # Generative Modeling — Design Notes
 
-TransitionModel hierarchy, LogitFormatter protocol, MPNNTokenizer, and LoRA support.
+GenerativeModel hierarchy, LogitFormatter protocol, MPNNTokenizer, and LoRA support.
 
 ## Dependencies
 
-- [probability_model.md](probability_model.md) — `TransitionModel(ProbabilityModel)`, inherits conditioning/checkpointing/temp
+- [probability_model.md](probability_model.md) — `GenerativeModel(ProbabilityModel)`, inherits conditioning/checkpointing/temp
 
 ## Used By
 
-- [predictive_modeling.md](predictive_modeling.md) — `LinearProbe` wraps `TransitionModelWithEmbedding`
-- [guide.md](guide.md) — TAG/DEG subclass `TransitionModel`
-- [sampling.md](sampling.md) — sampling functions call `get_log_probs` on TransitionModel instances
-- [models/AGENTS.md](models/AGENTS.md) — ESMC, ESM3 subclass `TransitionModelWithEmbedding`
+- [predictive_modeling.md](predictive_modeling.md) — `LinearProbe` wraps `GenerativeModelWithEmbedding`
+- [guide.md](guide.md) — TAG/DEG subclass `GenerativeModel`
+- [sampling.md](sampling.md) — sampling functions call `get_log_probs` on GenerativeModel instances
+- [models/AGENTS.md](models/AGENTS.md) — ESMC, ESM3 subclass `GenerativeModelWithEmbedding`
 
 ## File Notes
 
-- `from __future__ import annotations` at top — needed because `TransitionModel` references `LogitFormatter` which is defined later in the file
+- `from __future__ import annotations` at top — needed because `GenerativeModel` references `LogitFormatter` which is defined later in the file
 
-## TransitionModel
+## GenerativeModel
 
 **Concrete class** (not ABC), uses composition pattern.
 
@@ -44,9 +44,9 @@ def format_raw_to_logits(self, raw_output, seq_SP, **kwargs):
     return self.logit_formatter(logits, seq_SP)
 ```
 
-## TransitionModelWithEmbedding
+## GenerativeModelWithEmbedding
 
-**ABC** extending TransitionModel — adds a differentiable embedding path for TAG gradients and LinearProbe.
+**ABC** extending GenerativeModel — adds a differentiable embedding path for TAG gradients and LinearProbe.
 
 ### Abstract methods (MUST implement)
 
@@ -61,7 +61,7 @@ def format_raw_to_logits(self, raw_output, seq_SP, **kwargs):
 |--------|----------|
 | `embed(seq_SP)` | Token IDs → OHE → `differentiable_embedding()` → deep embeddings |
 | `forward(seq_SP)` | `embed()` → `embedding_to_outputs()` |
-| `format_raw_to_logits` | Applies logit_formatter (inherited from TransitionModel) |
+| `format_raw_to_logits` | Applies logit_formatter (inherited from GenerativeModel) |
 
 ### Subclass requirements
 
@@ -109,7 +109,7 @@ Wraps ProteinMPNN's amino acid vocabulary. HF-compatible interface.
 
 ## LoRA
 
-LoRA adapter support lives on `TransitionModel`:
+LoRA adapter support lives on `GenerativeModel`:
 
 - `apply_lora(target_modules, r, lora_alpha, lora_dropout, bias, **kwargs)` — constructs `peft.LoraConfig` internally
 - `target_modules=None` auto-discovers all `nn.Linear` modules
@@ -120,8 +120,8 @@ LoRA adapter support lives on `TransitionModel`:
 
 ### LoRA + Checkpointing
 
-- `TransitionModel.save()` writes `lora_adapter/` if LoRA present
-- `TransitionModel.from_checkpoint()` loads LoRA adapter if `lora_adapter/` exists
+- `GenerativeModel.save()` writes `lora_adapter/` if LoRA present
+- `GenerativeModel.from_checkpoint()` loads LoRA adapter if `lora_adapter/` exists
 
 ## Structure Conditioning
 
@@ -135,7 +135,7 @@ The PMPNN implementation in [models/mpnn/mpnn.md](models/mpnn/mpnn.md) is the re
 
 ## Maintenance
 
-If changes are made to `TransitionModel` or `TransitionModelWithEmbedding` interfaces (abstract methods, LoRA API, LogitFormatter protocol), update the `add-generative-model` skill (`.agents/skills/add-generative-model/SKILL.md`) to reflect the new contract.
+If changes are made to `GenerativeModel` or `GenerativeModelWithEmbedding` interfaces (abstract methods, LoRA API, LogitFormatter protocol), update the `add-generative-model` skill (`.agents/skills/add-generative-model/SKILL.md`) to reflect the new contract.
 
 ### LoRA Gotchas
 

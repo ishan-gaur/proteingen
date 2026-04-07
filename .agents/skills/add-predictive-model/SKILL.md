@@ -1,6 +1,6 @@
 ---
 name: add-predictive-model
-description: Step-by-step workflow for integrating a new predictive model into the proteingen library. Covers decomposing a pretrained predictor into four layers (raw model, binary logit function, template model class, PredictiveModel subclass), identifying what already exists vs what's missing, and only building the missing pieces. This skill is for predictive models only — not TransitionModel subclasses.
+description: Step-by-step workflow for integrating a new predictive model into the proteingen library. Covers decomposing a pretrained predictor into four layers (raw model, binary logit function, template model class, PredictiveModel subclass), identifying what already exists vs what's missing, and only building the missing pieces. This skill is for predictive models only — not GenerativeModel subclasses.
 ---
 
 # Add a Predictive Model

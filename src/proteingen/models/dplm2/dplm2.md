@@ -1,6 +1,6 @@
 # DPLM-2 — Design Notes
 
-ByteDance's discrete diffusion protein language model (DPLM-2), wrapped as a `TransitionModelWithEmbedding`.
+ByteDance's discrete diffusion protein language model (DPLM-2), wrapped as a `GenerativeModelWithEmbedding`.
 
 **Paper**: [DPLM-2: A Multimodal Diffusion Protein Language Model](https://arxiv.org/abs/2410.13782) (ICLR'25)
 **Repo**: [bytedance/dplm](https://github.com/bytedance/dplm) — commit `8a2e15e`
@@ -8,7 +8,7 @@ ByteDance's discrete diffusion protein language model (DPLM-2), wrapped as a `Tr
 
 ## Dependencies
 
-- [generative_modeling.md](../../generative_modeling.md) — `TransitionModelWithEmbedding`, `MaskedModelLogitFormatter`
+- [generative_modeling.md](../../generative_modeling.md) — `GenerativeModelWithEmbedding`, `MaskedModelLogitFormatter`
 - `transformers` — `AutoModelForMaskedLM`, `AutoConfig`, `EsmTokenizer`
 
 ## Used By

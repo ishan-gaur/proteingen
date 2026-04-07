@@ -4,15 +4,15 @@ import torch
 from torch.nn import functional as F
 
 from proteingen.generative_modeling import (
-    TransitionModelWithEmbedding,
+    GenerativeModelWithEmbedding,
     MaskedModelLogitFormatter,
 )
 from esm.models.esmc import ESMC as _ESMC
 from esm.tokenization.sequence_tokenizer import EsmSequenceTokenizer
 
 
-class ESMC(TransitionModelWithEmbedding):
-    """ESM-C masked language model as a TransitionModelWithEmbedding.
+class ESMC(GenerativeModelWithEmbedding):
+    """ESM-C masked language model as a GenerativeModelWithEmbedding.
 
     Tensor Index Legend:
         S: sequence index in batch

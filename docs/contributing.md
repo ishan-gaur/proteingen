@@ -17,7 +17,7 @@ or for predictive models:
 
 ### What the agent does
 
-**Generative models** (9 phases): The agent reads the original source, chooses the right base class (`TransitionModel` vs `TransitionModelWithEmbedding`), scaffolds the directory, implements the wrapper, writes tests, updates docs, and opens a PR.
+**Generative models** (9 phases): The agent reads the original source, chooses the right base class (`GenerativeModel` vs `GenerativeModelWithEmbedding`), scaffolds the directory, implements the wrapper, writes tests, updates docs, and opens a PR.
 
 **Predictive models** (9 phases): The agent decomposes the pretrained predictor into four separable layers — the raw model, the binary logit function, an optional template class, and the final `PredictiveModel` subclass — then identifies which layers already exist in the library and only builds what's missing. See [the four layers](#the-four-layers) below.
 
@@ -45,18 +45,18 @@ If you're adding a model without an agent, here's what you need to know.
 
 ProteinGen has two generative model base classes (see [generative_modeling](reference/generative_modeling.md) for the full API):
 
-**[`TransitionModel`](reference/generative_modeling.md#transitionmodel)** — wraps any `nn.Module` via composition. You pass in the model, tokenizer, and a logit formatter. Use this when you don't need gradient access to the embedding layer.
+**[`GenerativeModel`](reference/generative_modeling.md#generativemodel)** — wraps any `nn.Module` via composition. You pass in the model, tokenizer, and a logit formatter. Use this when you don't need gradient access to the embedding layer.
 
 ```python
-from proteingen import TransitionModel, MaskedModelLogitFormatter
+from proteingen import GenerativeModel, MaskedModelLogitFormatter
 
 model = load_my_model(checkpoint)
 tokenizer = load_my_tokenizer()
 formatter = MaskedModelLogitFormatter(tokenizer, output_dim=model.output_dim)
-tm = TransitionModel(model, tokenizer, formatter)
+tm = GenerativeModel(model, tokenizer, formatter)
 ```
 
-**[`TransitionModelWithEmbedding`](reference/generative_modeling.md#transitionmodelwithembedding)** — an ABC extending `TransitionModel` for models that expose a differentiable embedding path. Required for TAG guidance (backprop through embeddings) and `LinearProbe` (cached deep embeddings). Most protein language models should use this.
+**[`GenerativeModelWithEmbedding`](reference/generative_modeling.md#generativemodelwithembedding)** — an ABC extending `GenerativeModel` for models that expose a differentiable embedding path. Required for TAG guidance (backprop through embeddings) and `LinearProbe` (cached deep embeddings). Most protein language models should use this.
 
 You implement two abstract methods:
 

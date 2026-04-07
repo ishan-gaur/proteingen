@@ -74,7 +74,7 @@ All template classes are ABCs — you implement `format_raw_to_logits` using the
 
 ### LinearProbe
 
-Frozen `TransitionModelWithEmbedding` + trainable `nn.Linear` head.
+Frozen `GenerativeModelWithEmbedding` + trainable `nn.Linear` head.
 
 ```python
 LinearProbe(embed_model, output_dim, pooling_fn=None, freeze_embed_model=True)
@@ -106,7 +106,7 @@ Linear model on single + pairwise OHE features. Computes pairwise outer products
 
 ```python
 model.init_embed_from_pretrained_pca(
-    source=esmc_model,           # TransitionModelWithEmbedding
+    source=esmc_model,           # GenerativeModelWithEmbedding
     source_vocab=esmc_tokenizer.vocab,
     target_vocab=model.tokenizer.vocab,
 )

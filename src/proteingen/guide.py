@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from proteingen.generative_modeling import TransitionModel
+from proteingen.generative_modeling import GenerativeModel
 from proteingen.predictive_modeling import PredictiveModel
 from transformers import PreTrainedTokenizerBase
 from contextlib import contextmanager
@@ -221,10 +221,10 @@ def _fill_masked_with_argmax(seq_SP, logp_gen_SPT, mask_token_id, vocab_size):
     return filled
 
 
-class TAG(TransitionModel):
+class TAG(GenerativeModel):
     """Token-level Autoregressive Guidance.
 
-    Combines a generative transition model with a predictive model via Bayes' rule.
+    Combines a generative model with a predictive model via Bayes' rule.
     Uses gradients through the predictive model's OHE to shift transition logits.
 
     Guidance projection is handled by a ``GuidanceProjection`` object, keeping
@@ -233,7 +233,7 @@ class TAG(TransitionModel):
 
     def __init__(
         self,
-        gen_model: TransitionModel,
+        gen_model: GenerativeModel,
         pred_model: PredictiveModel,
         use_clean_classifier: bool = False,
         projection: Optional[GuidanceProjection] = None,
@@ -280,12 +280,12 @@ class TAG(TransitionModel):
         return logp_xtilde_g_x_SPT + delta_gen_SPT / guidance_temp
 
 
-class DEG(TransitionModel):
+class DEG(GenerativeModel):
     # TAG and DEG are basically ways to efficiently compute the vector p(y|x_const)
     # Therefore, we don't make the predictive models deal with that kind of query
     def __init__(
         self,
-        gen_model: TransitionModel,
+        gen_model: GenerativeModel,
         pred_model: PredictiveModel,
         argmax_masked_positions: bool = False,
     ):

@@ -1,6 +1,6 @@
-"""Tests for TransitionModel.
+"""Tests for GenerativeModel.
 
-TransitionModel is a concrete class that wraps an nn.Module backbone,
+GenerativeModel is a concrete class that wraps an nn.Module backbone,
 a tokenizer, and a LogitFormatter into a ready-to-use ProbabilityModel.
 """
 
@@ -10,7 +10,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from proteingen.generative_modeling import (
-    TransitionModel,
+    GenerativeModel,
     LogitFormatter,
     PassThroughLogitFormatter,
     MaskedModelLogitFormatter,
@@ -71,7 +71,7 @@ def tokenizer():
 def model(tokenizer):
     backbone = RandomBackbone(output_dim=OUTPUT_DIM)
     formatter = PassThroughLogitFormatter()
-    return TransitionModel(backbone, tokenizer, formatter)
+    return GenerativeModel(backbone, tokenizer, formatter)
 
 
 @pytest.fixture
@@ -82,7 +82,7 @@ def recording_backbone():
 @pytest.fixture
 def recording_model(tokenizer, recording_backbone):
     formatter = PassThroughLogitFormatter()
-    return TransitionModel(recording_backbone, tokenizer, formatter)
+    return GenerativeModel(recording_backbone, tokenizer, formatter)
 
 
 # ---------------------------------------------------------------------------
@@ -92,7 +92,7 @@ def recording_model(tokenizer, recording_backbone):
 
 class TestConstruction:
     def test_instantiates(self, model):
-        assert isinstance(model, TransitionModel)
+        assert isinstance(model, GenerativeModel)
         assert isinstance(model, nn.Module)
 
     def test_tokenizer_set_by_init(self, model, tokenizer):
@@ -102,14 +102,14 @@ class TestConstruction:
         fmt = PassThroughLogitFormatter()
         tok = FakeTokenizer()
         backbone = RandomBackbone()
-        m = TransitionModel(backbone, tok, fmt)
+        m = GenerativeModel(backbone, tok, fmt)
         assert m.logit_formatter is fmt
 
     def test_model_set_by_init(self):
         backbone = RandomBackbone()
         tok = FakeTokenizer()
         fmt = PassThroughLogitFormatter()
-        m = TransitionModel(backbone, tok, fmt)
+        m = GenerativeModel(backbone, tok, fmt)
         assert m.model is backbone
 
 
@@ -272,14 +272,14 @@ class TestGetLogProbsFromString:
 
 
 class TestFormatLogitsIntegration:
-    """Verify that TransitionModel + MaskedModelLogitFormatter work together."""
+    """Verify that GenerativeModel + MaskedModelLogitFormatter work together."""
 
     @pytest.fixture
     def esm_like_model(self, tokenizer):
         """Model using MaskedModelLogitFormatter, like the real ESM class."""
         backbone = RandomBackbone(output_dim=OUTPUT_DIM)
         formatter = MaskedModelLogitFormatter(tokenizer, output_dim=OUTPUT_DIM)
-        return TransitionModel(backbone, tokenizer, formatter)
+        return GenerativeModel(backbone, tokenizer, formatter)
 
     def test_mask_positions_block_special_tokens(self, esm_like_model, tokenizer):
         mask_id = tokenizer.vocab["<mask>"]
@@ -396,7 +396,7 @@ class TestModuleIntegration:
         formatter = MaskedModelLogitFormatter(tokenizer, output_dim=OUTPUT_DIM)
         backbone = RandomBackbone()
 
-        class SubmoduleModel(TransitionModel):
+        class SubmoduleModel(GenerativeModel):
             def __init__(self):
                 super().__init__(backbone, tokenizer, formatter)
                 # Register formatter as a named submodule so .to() propagates

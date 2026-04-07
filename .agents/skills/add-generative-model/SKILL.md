@@ -1,11 +1,11 @@
 ---
 name: add-generative-model
-description: Step-by-step workflow for integrating a new generative (transition) model into the proteingen library. Covers choosing between TransitionModel and TransitionModelWithEmbedding, implementing abstract methods, writing tests, and avoiding common gotchas. This skill is for generative models only — not PredictiveModel subclasses.
+description: Step-by-step workflow for integrating a new generative (transition) model into the proteingen library. Covers choosing between GenerativeModel and GenerativeModelWithEmbedding, implementing abstract methods, writing tests, and avoiding common gotchas. This skill is for generative models only — not PredictiveModel subclasses.
 ---
 
 # Add a Generative Model
 
-Workflow for wrapping a new pretrained generative model (e.g. a protein language model) into proteingen's `TransitionModel` hierarchy. This skill covers `TransitionModel` (composition) and `TransitionModelWithEmbedding` (ABC with differentiable embeddings). It does **not** cover `PredictiveModel` subclasses — those are a separate concern.
+Workflow for wrapping a new pretrained generative model (e.g. a protein language model) into proteingen's `GenerativeModel` hierarchy. This skill covers `GenerativeModel` (composition) and `GenerativeModelWithEmbedding` (ABC with differentiable embeddings). It does **not** cover `PredictiveModel` subclasses — those are a separate concern.
 
 **Progress tracking**: When returning control to the user, include a status line showing all phases and which one you're currently on. Example:
 
@@ -40,7 +40,7 @@ With access to the source code, gather:
 
 Before writing any implementation code, present a summary to the user:
 
-- **Which base class** (`TransitionModel` vs `TransitionModelWithEmbedding`) and why
+- **Which base class** (`GenerativeModel` vs `GenerativeModelWithEmbedding`) and why
 - **Directory/file layout** — where the model files will live, what each file contains
 - **Interface design** — constructor signature, what conditioning looks like, any limitations
 - **What the example script will look like** end-to-end
@@ -82,11 +82,11 @@ Update `src/proteingen/models/AGENTS.md` to add the model to the registry.
 
 ## Phase 5: Implement
 
-### Step 1: Choose between TransitionModel and TransitionModelWithEmbedding
+### Step 1: Choose between GenerativeModel and GenerativeModelWithEmbedding
 
 Read the design docs to understand the two options:
 
-- `src/proteingen/generative_modeling.md` — TransitionModel and TransitionModelWithEmbedding contracts
+- `src/proteingen/generative_modeling.md` — GenerativeModel and GenerativeModelWithEmbedding contracts
 - `src/proteingen/probability_model.md` — ProbabilityModel base (conditioning, checkpointing) that both inherit from
 
 ```
@@ -94,16 +94,16 @@ Can you access the model's embedding layer weights,
 and does the model need to support TAG guidance, LinearProbe,
 or any workflow requiring gradients through the embedding step?
 
-  YES → TransitionModelWithEmbedding (ABC)
+  YES → GenerativeModelWithEmbedding (ABC)
         You implement: differentiable_embedding, embedding_to_outputs
         You get for free: forward, embed, format_raw_to_logits
 
-  NO  → TransitionModel (concrete, composition)
+  NO  → GenerativeModel (concrete, composition)
         You pass in: model, tokenizer, logit_formatter
         You may override: format_raw_to_logits (if raw output isn't a tensor)
 ```
 
-Most protein language models should use `TransitionModelWithEmbedding` — TAG guidance and embedding-based probes are core use cases.
+Most protein language models should use `GenerativeModelWithEmbedding` — TAG guidance and embedding-based probes are core use cases.
 
 ### TypedDicts for structured inputs/outputs
 
@@ -115,7 +115,7 @@ Define `TypedDict`s for:
 Place these in the model's `.py` file alongside the class, or in `utils.py` if shared
 across models in the family. Export them from the directory's `__init__.py` (the `models/__init__.py` export was already set up in Phase 4).
 
-### Step 2a: TransitionModelWithEmbedding (most common path)
+### Step 2a: GenerativeModelWithEmbedding (most common path)
 
 Use ESMC as the reference implementation: `src/proteingen/models/esm/esmc.py`.
 
@@ -168,17 +168,17 @@ def format_raw_to_logits(self, raw_output, seq_SP, **kwargs):
 
 **`_save_args`** — implement for checkpointing support.
 
-### Step 2b: TransitionModel (composition)
+### Step 2b: GenerativeModel (composition)
 
 For simpler cases where you just wrap an existing model without needing embedding access:
 
 ```python
-from proteingen import TransitionModel, MaskedModelLogitFormatter
+from proteingen import GenerativeModel, MaskedModelLogitFormatter
 
 model = load_my_model(checkpoint)
 tokenizer = load_my_tokenizer()
 formatter = MaskedModelLogitFormatter(tokenizer, output_dim=model.output_dim)
-tm = TransitionModel(model, tokenizer, formatter)
+tm = GenerativeModel(model, tokenizer, formatter)
 ```
 
 Override `format_raw_to_logits` if the model's forward returns something other than a logit tensor.
@@ -196,7 +196,7 @@ Create `tests/test_<name>.py`. Required test categories:
 - Assert logits match within floating-point tolerance (`torch.allclose` with appropriate `atol`/`rtol`)
 - This is the single most important test — it proves the wrapper faithfully reproduces the original model's behavior
 
-### Embedding path (TransitionModelWithEmbedding only)
+### Embedding path (GenerativeModelWithEmbedding only)
 - `embed(seq_SP)` returns shape `(S, P, EMB_DIM)`
 - Embedding path matches forward path: `embedding_to_outputs(embed(seq))` ≈ `forward(seq)` (within float tolerance)
 - Gradients flow through `embed()` — `_ohe.grad` is not None after backward
@@ -296,7 +296,7 @@ Use the following template for the PR description — copy it directly into the 
 <!-- What model is being added? Link to paper/repo. What capabilities does this enable for proteingen users? -->
 
 ## Implementation
-- **Base class**: <!-- TransitionModel / TransitionModelWithEmbedding — why? -->
+- **Base class**: <!-- GenerativeModel / GenerativeModelWithEmbedding — why? -->
 - **Conditioning**: <!-- What observation variables are supported? Link to the conditioning TypedDict. -->
 - **New dependencies**: <!-- Packages added to pyproject.toml, with versions -->
 

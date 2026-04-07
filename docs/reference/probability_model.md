@@ -125,7 +125,7 @@ Subclasses participate via:
 - Override `save()` to write additional state (weights, LoRA adapters), then call `super().save()`
 - Override `from_checkpoint()` to load additional state after construction
 
-For example, `TransitionModel.save` writes a `lora_adapter/` directory if LoRA is present, and `LinearProbe.save` writes `head.pt` plus delegates to `embed_model.save()`.
+For example, `GenerativeModel.save` writes a `lora_adapter/` directory if LoRA is present, and `LinearProbe.save` writes `head.pt` plus delegates to `embed_model.save()`.
 
 ## Gotchas
 

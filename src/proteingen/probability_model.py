@@ -104,7 +104,7 @@ class ProbabilityModel(nn.Module, ABC):
     ) -> torch.FloatTensor:
         """Convert raw forward output to logits suitable for log_softmax.
 
-        Examples: output masking (transition models), coarse-graining classes,
+        Examples: output masking (generative models), coarse-graining classes,
         turning ensemble predictions into per-class logits, etc.
         """
         ...

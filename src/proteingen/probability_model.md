@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`ProbabilityModel(nn.Module, ABC)` is the shared base for **all** models in the library — both generative (TransitionModel) and predictive (PredictiveModel). It provides temperature scaling, conditioning, log probability computation, and checkpointing.
+`ProbabilityModel(nn.Module, ABC)` is the shared base for **all** models in the library — both generative (GenerativeModel) and predictive (PredictiveModel). It provides temperature scaling, conditioning, log probability computation, and checkpointing.
 
 ## Dependencies
 
@@ -11,7 +11,7 @@
 
 ## Used By
 
-- [generative_modeling.md](generative_modeling.md) — `TransitionModel(ProbabilityModel)`, `TransitionModelWithEmbedding`
+- [generative_modeling.md](generative_modeling.md) — `GenerativeModel(ProbabilityModel)`, `GenerativeModelWithEmbedding`
 - [predictive_modeling.md](predictive_modeling.md) — `PredictiveModel(ProbabilityModel)`
 - [sampling.md](sampling.md) — sampling functions call `get_log_probs`
 - [guide.md](guide.md) — guidance modifies log probs from this interface
@@ -73,7 +73,7 @@ Protocol for save/load:
 - `from_checkpoint(path)` — reads `config.json`, calls `cls(**args)`. Subclasses override to load additional state.
 
 Concrete examples:
-- `TransitionModel.save` adds `lora_adapter/` if LoRA is present
+- `GenerativeModel.save` adds `lora_adapter/` if LoRA is present
 - `LinearProbe.save` adds `head.pt` + delegates to `embed_model.save(path/embed_model/)`
 - ESMC/ESM3 stash checkpoint names (`self._esmc_checkpoint`, `self._esm3_checkpoint`) for `_save_args()`
 
@@ -85,6 +85,6 @@ If changes are made to `ProbabilityModel`'s interface (abstract methods, conditi
 
 - **`device` property** uses `next(self.parameters()).device` — will fail on models with no parameters. All current subclasses have parameters.
 - **`forward` returns `Any`**, not just tensors. This is intentional — ESM models return dataclass outputs. The `format_raw_to_logits` step is where you extract the tensor.
-- **`format_raw_to_logits` receives `x_B` and `**kwargs`** — this gives it full context. E.g. `TransitionModel` needs `seq_SP` for logit formatting; `PredictiveModel` doesn't use the kwargs.
+- **`format_raw_to_logits` receives `x_B` and `**kwargs`** — this gives it full context. E.g. `GenerativeModel` needs `seq_SP` for logit formatting; `PredictiveModel` doesn't use the kwargs.
 - **Conditioning is mutable state** — `set_condition_()` modifies `self.observations` in place. The `conditioned_on()` context manager handles revert, but be careful with concurrent usage.
 - **`collate_observations` default assumes all values are tensors or scalars** — if you store non-tensor observations (e.g. lists, strings), override this method.

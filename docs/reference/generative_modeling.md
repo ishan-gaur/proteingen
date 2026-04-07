@@ -1,13 +1,13 @@
 # generative_modeling
 
-This module contains the `TransitionModel` class hierarchy, `LogitFormatter` protocol, `MPNNTokenizer`, and LoRA support. These are the building blocks for wrapping any generative model (masked LMs, flow-matching models, ProteinMPNN) into ProteinGen's interface.
+This module contains the `GenerativeModel` class hierarchy, `LogitFormatter` protocol, `MPNNTokenizer`, and LoRA support. These are the building blocks for wrapping any generative model (masked LMs, flow-matching models, ProteinMPNN) into ProteinGen's interface.
 
-## TransitionModel
+## GenerativeModel
 
 A **concrete** `ProbabilityModel` subclass that wraps any `nn.Module` via composition:
 
 ```python
-TransitionModel(model: nn.Module, tokenizer, logit_formatter: LogitFormatter)
+GenerativeModel(model: nn.Module, tokenizer, logit_formatter: LogitFormatter)
 ```
 
 - `forward(seq_SP, **kwargs)` delegates to `self.model(seq_SP, **kwargs)`
@@ -16,7 +16,7 @@ TransitionModel(model: nn.Module, tokenizer, logit_formatter: LogitFormatter)
 
 ### Conditioning
 
-`TransitionModel` inherits two conditioning patterns from `ProbabilityModel`:
+`GenerativeModel` inherits two conditioning patterns from `ProbabilityModel`:
 
 - **Inference** — `set_condition_()` / `conditioned_on()` caches a single observation and tiles it to the batch via `collate_observations`
 - **Training** — a collator prepares per-sample observations and the training loop passes them directly to `model.forward(input_ids, **observations)`
@@ -33,9 +33,9 @@ def format_raw_to_logits(self, raw_output, seq_SP, **kwargs):
     return self.logit_formatter(logits, seq_SP)
 ```
 
-## TransitionModelWithEmbedding
+## GenerativeModelWithEmbedding
 
-An **ABC** extending `TransitionModel` for models that expose a differentiable embedding path. This is needed for two features:
+An **ABC** extending `GenerativeModel` for models that expose a differentiable embedding path. This is needed for two features:
 
 1. **TAG gradients** — backpropagation from predictive model through generative model embeddings
 2. **LinearProbe** — extracting and caching deep embeddings for probe training
@@ -86,7 +86,7 @@ Wraps ProteinMPNN's amino acid vocabulary with an HF-compatible interface.
 
 ## LoRA support
 
-LoRA adapter support lives on `TransitionModel`:
+LoRA adapter support lives on `GenerativeModel`:
 
 ```python
 model.apply_lora(target_modules=None, r=8, lora_alpha=16)

@@ -5,7 +5,7 @@ import torch
 from torch import nn
 
 from proteingen.generative_modeling import (
-    TransitionModel,
+    GenerativeModel,
     MaskedModelLogitFormatter,
 )
 from esm.sdk.api import (
@@ -17,7 +17,7 @@ from esm.sdk.api import (
 from esm.tokenization.sequence_tokenizer import EsmSequenceTokenizer
 
 
-class ESMForgeAPI(TransitionModel):
+class ESMForgeAPI(GenerativeModel):
     """ESM model accessed via the EvolutionaryScale Forge API.
 
     Wraps a Forge inference client to provide the same ``get_log_probs``
@@ -55,7 +55,7 @@ class ESMForgeAPI(TransitionModel):
     ):
         tokenizer = EsmSequenceTokenizer()
         logit_formatter = MaskedModelLogitFormatter(tokenizer, self.OUTPUT_DIM)
-        # TransitionModel expects an nn.Module for self.model; use an empty module
+        # GenerativeModel expects an nn.Module for self.model; use an empty module
         # since inference is remote. We override forward() to use self.client.
         super().__init__(
             model=nn.Module(), tokenizer=tokenizer, logit_formatter=logit_formatter

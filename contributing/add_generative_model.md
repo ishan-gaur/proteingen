@@ -4,8 +4,8 @@ Checklist for integrating a new generative (transition) model into ProteinGen. F
 
 ## Choose a Base Class
 
-- **`TransitionModel`** — wraps any `nn.Module` via composition. Use when you don't need gradient access to the embedding layer.
-- **`TransitionModelWithEmbedding`** — ABC extending `TransitionModel` with a differentiable embedding path. Required for TAG guidance, `LinearProbe`, and any workflow needing gradients through the embedding step. **Most protein language models should use this.**
+- **`GenerativeModel`** — wraps any `nn.Module` via composition. Use when you don't need gradient access to the embedding layer.
+- **`GenerativeModelWithEmbedding`** — ABC extending `GenerativeModel` with a differentiable embedding path. Required for TAG guidance, `LinearProbe`, and any workflow needing gradients through the embedding step. **Most protein language models should use this.**
 
 ## Directory Layout
 
@@ -19,7 +19,7 @@ src/proteingen/models/<provider>/
 
 ## Implementation Checklist
 
-### TransitionModelWithEmbedding (most common)
+### GenerativeModelWithEmbedding (most common)
 
 Reference: `src/proteingen/models/esm/esmc.py`
 
@@ -30,7 +30,7 @@ Reference: `src/proteingen/models/esm/esmc.py`
 - [ ] Override `preprocess_observations` / `collate_observations` if model accepts conditioning (e.g. structure)
 - [ ] Implement `_save_args()` for checkpointing support
 
-### TransitionModel (composition)
+### GenerativeModel (composition)
 
 - [ ] Pass `model`, `tokenizer`, `logit_formatter` to constructor
 - [ ] Override `format_raw_to_logits` if the model's forward returns non-tensor output
@@ -47,7 +47,7 @@ Create `tests/test_<name>.py`:
 
 - [ ] **Construction & forward** — model loads, `forward()` returns expected shape
 - [ ] **Output matching** — same real protein input through original library AND ProteinGen wrapper, `torch.allclose` on outputs ← most important test
-- [ ] **Embedding path** (TransitionModelWithEmbedding only) — `embed()` shape, `embedding_to_outputs(embed(seq))` ≈ `forward(seq)`, gradients flow
+- [ ] **Embedding path** (GenerativeModelWithEmbedding only) — `embed()` shape, `embedding_to_outputs(embed(seq))` ≈ `forward(seq)`, gradients flow
 - [ ] **Log probabilities** — valid (all ≤ 0, sum to ~1 after exp), temperature scaling works
 - [ ] **Batching** — single vs batched results are consistent
 - [ ] **Conditioning** — if applicable: `set_condition_()`, `conditioned_on()`, `collate_observations`

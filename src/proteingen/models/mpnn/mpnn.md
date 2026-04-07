@@ -4,7 +4,7 @@ Structure-conditioned autoregressive sequence design model from the Foundry (`rc
 
 ## Dependencies
 
-- **Core abstractions**: `TransitionModelWithEmbedding`, `MaskedModelLogitFormatter`, `MPNNTokenizer` from `proteingen.generative_modeling`
+- **Core abstractions**: `GenerativeModelWithEmbedding`, `MaskedModelLogitFormatter`, `MPNNTokenizer` from `proteingen.generative_modeling`
 - **Structure loading**: `load_pdb`, `PDBStructure` from `proteingen.models.utils` — see [../utils.md](../utils.md) for the two-layer API
 - **External**: `mpnn` package (via `rc-foundry[all]`) — provides `ProteinMPNN` model, `load_legacy_weights`, `cat_neighbors_nodes`, `gather_nodes`
 - **Checkpoint registry**: `foundry.inference_engines.checkpoint_registry.REGISTERED_CHECKPOINTS`
@@ -15,7 +15,7 @@ Structure-conditioned autoregressive sequence design model from the Foundry (`rc
 - All tests use `PDBStructure`-based conditioning (synthetic via `_make_structure()` or real via `load_pdb`)
 - Includes a Foundry reference test on PDB 1YCR (p53/MDM2, 2 chains, 98 residues) — produces bitwise-identical logits (0.0 max diff, 100% argmax match)
 - `test_design_chains` verifies `design_chains` restricts `residue_mask` to specified chains
-- Sampling, TAG guidance, LinearProbe via `TransitionModelWithEmbedding` interface
+- Sampling, TAG guidance, LinearProbe via `GenerativeModelWithEmbedding` interface
 
 ## Structure Conditioning
 

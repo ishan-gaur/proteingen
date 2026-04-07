@@ -56,14 +56,14 @@ Subclasses implement `_save_args()` to return JSON-serializable constructor kwar
 
 ---
 
-### TransitionModel
+### GenerativeModel
 
 A **concrete** `ProbabilityModel` subclass that wraps any `nn.Module` generative model via composition:
 
 ```python
-from proteingen import TransitionModel, MaskedModelLogitFormatter
+from proteingen import GenerativeModel, MaskedModelLogitFormatter
 
-model = TransitionModel(
+model = GenerativeModel(
     model=my_nn_module,
     tokenizer=my_tokenizer,
     logit_formatter=MaskedModelLogitFormatter(my_tokenizer, output_dim=64),
@@ -76,9 +76,9 @@ model = TransitionModel(
 
 **LoRA support** is built in: `apply_lora()`, `save_lora()`, `load_lora()`.
 
-#### TransitionModelWithEmbedding
+#### GenerativeModelWithEmbedding
 
-An ABC extending `TransitionModel` for models that support differentiable embedding extraction. Subclasses implement:
+An ABC extending `GenerativeModel` for models that support differentiable embedding extraction. Subclasses implement:
 
 - `differentiable_embedding(ohe) → embeddings` — OHE through embedding layer + transformer
 - `embedding_to_outputs(embeddings) → raw_output` — embeddings through the output head
@@ -127,7 +127,7 @@ grad = model.grad_log_prob(seq_SP)  # ∂log p(target|x) / ∂OHE, shape (B, L, 
 
 #### Template subclasses
 
-- **`LinearProbe`** — frozen `TransitionModelWithEmbedding` + `nn.Linear` head
+- **`LinearProbe`** — frozen `GenerativeModelWithEmbedding` + `nn.Linear` head
 - **`EmbeddingMLP`** — learnable embeddings + MLP, with PCA initialization from pretrained models
 - **`OneHotMLP`** — flattened one-hot + MLP
 
@@ -143,7 +143,7 @@ $$
 p_\text{guided}(x_t | x_{<t}) \propto p_\text{gen}(x_t | x_{<t}) \cdot p_\text{pred}(\text{target} | x)^\gamma
 $$
 
-Both are `TransitionModel` subclasses — they produce guided log-probs that can be passed directly to any sampler.
+Both are `GenerativeModel` subclasses — they produce guided log-probs that can be passed directly to any sampler.
 
 - **TAG** uses first-order Taylor expansion of the predictive model's log-prob. Works well when gradients are reliable.
 - **DEG** enumerates all 20 amino acids at each position and reweights. More robust for frozen-LM probes where gradients through the transformer are unreliable.
@@ -154,14 +154,14 @@ Both are `TransitionModel` subclasses — they produce guided log-probs that can
 
 ## Sampling
 
-`sample_any_order_ancestral` generates sequences by unmasking one position at a time in random order, using `model.get_log_probs` at each step:
+`sample_any_order` generates sequences by unmasking one position at a time in random order, using `model.get_log_probs` at each step:
 
 ```python
-from proteingen import sample_any_order_ancestral
+from proteingen import sample_any_order
 from proteingen.models import ESMC
 
 model = ESMC().cuda()
-sequences = sample_any_order_ancestral(model, ["<mask>" * 100] * 8)
+sequences = sample_any_order(model, ["<mask>" * 100] * 8)
 ```
 
 ### Linear interpolation sampler

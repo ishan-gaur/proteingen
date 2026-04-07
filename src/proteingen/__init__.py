@@ -13,8 +13,8 @@ from .data import (
 )
 
 from .generative_modeling import (
-    TransitionModel,
-    TransitionModelWithEmbedding,
+    GenerativeModel,
+    GenerativeModelWithEmbedding,
     LogitFormatter,
     MaskedModelLogitFormatter,
 )
@@ -34,8 +34,8 @@ from .predictive_modeling import (
 )
 
 from .sampling import (
-    sample_any_order_ancestral,
-    sample_ordered_ancestral,
+    sample_any_order,
+    sample_in_order,
     generate_unmask_orders,
     mask_by_order,
     SamplingTrajectory,
@@ -53,8 +53,8 @@ __all__ = [
     "read_fasta",
     "aligned_sequences_to_raw",
     "ProbabilityModel",
-    "TransitionModel",
-    "TransitionModelWithEmbedding",
+    "GenerativeModel",
+    "GenerativeModelWithEmbedding",
     "LogitFormatter",
     "MaskedModelLogitFormatter",
     "PredictiveModel",
@@ -66,8 +66,8 @@ __all__ = [
     "OneHotMLP",
     "EmbeddingMLP",
     "PairwiseLinearModel",
-    "sample_any_order_ancestral",
-    "sample_ordered_ancestral",
+    "sample_any_order",
+    "sample_in_order",
     "generate_unmask_orders",
     "mask_by_order",
     "SamplingTrajectory",

@@ -4,7 +4,7 @@ import torch
 from transformers import AutoConfig, AutoModelForMaskedLM, EsmTokenizer
 
 from proteingen.generative_modeling import (
-    TransitionModelWithEmbedding,
+    GenerativeModelWithEmbedding,
     MaskedModelLogitFormatter,
 )
 
@@ -114,11 +114,11 @@ class DPLM2Tokenizer:
         return result
 
 
-class DPLM2(TransitionModelWithEmbedding):
+class DPLM2(GenerativeModelWithEmbedding):
     """DPLM-2 discrete diffusion protein language model.
 
     Wraps ByteDance's DPLM-2 (multimodal diffusion protein LM) as a
-    TransitionModelWithEmbedding for use with proteingen's sampling,
+    GenerativeModelWithEmbedding for use with proteingen's sampling,
     guidance, and probe infrastructure.
 
     Currently supports sequence-only mode: input is [<cls_aa>, AA..., <eos_aa>].

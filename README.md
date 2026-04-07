@@ -7,7 +7,7 @@ A library for guided protein sequence generation using discrete generative model
 
 Combines predictive models and generative models via Bayes' rule to sample sequences conditioned on desired properties. Supports ESM-family masked language models, ProteinMPNN, and custom predictive heads.
 
-> **CAUTION**: Under active development. Core abstractions (`ProbabilityModel`, `TransitionModel`, `PredictiveModel`) are stable. Guided sampling works end-to-end (see TrpB example). Some modules (`guide.py`, `sampling.py`) have stale imports — fixing in progress.
+> **CAUTION**: Under active development. Core abstractions (`ProbabilityModel`, `GenerativeModel`, `PredictiveModel`) are stable. Guided sampling works end-to-end (see TrpB example). Some modules (`guide.py`, `sampling.py`) have stale imports — fixing in progress.
 
 ## Install
 
@@ -28,15 +28,15 @@ uv run foundry install proteinmpnn
 ```
 src/proteingen/
 ├── probability_model.py    # ProbabilityModel — shared ABC for all models
-├── generative_modeling.py  # TransitionModel, TransitionModelWithEmbedding, LogitFormatter,
+├── generative_modeling.py  # GenerativeModel, GenerativeModelWithEmbedding, LogitFormatter,
 │                           #   MaskedModelLogitFormatter, PassThroughLogitFormatter, MPNNTokenizer
 ├── predictive_modeling.py  # PredictiveModel, binary logit functions, LinearProbe, OneHotMLP,
 │                           #   EmbeddingMLP, PairwiseLinearModel
 ├── guide.py                # TAG, DEG, TokenizerTranslator
-├── sampling.py             # sample_any_order_ancestral
+├── sampling.py             # sample_any_order
 ├── data.py                 # GuidanceDataset, NoiseSchedule, schedule functions
 └── models/
-    ├── esm.py              # ESMC, ESM3 (TransitionModelWithEmbedding subclasses)
+    ├── esm.py              # ESMC, ESM3 (GenerativeModelWithEmbedding subclasses)
     ├── rocklin_ddg/         # Stability predictor (StabilityPMPNN, PreTrainedStabilityPredictor)
     └── utils.py            # pdb_to_atom37_and_seq (WIP)
 
@@ -50,7 +50,7 @@ examples/
 
 tests/
 ├── test_logit_formatter.py   # 24 tests
-├── test_transition_model.py
+├── test_generative_model.py
 ├── test_embedding_mlp.py     # 49 tests
 ├── test_pca_embed_init.py    # 21 tests
 ├── test_esm3.py              # 21 tests
@@ -74,16 +74,16 @@ Shared base class (`nn.Module`, ABC) for all models. Provides:
 
 Two abstract methods: `forward` and `format_raw_to_logits`. `preprocess_observations` and `collate_observations` have sensible defaults (pass-through and tile-to-batch).
 
-### TransitionModel
+### GenerativeModel
 
 **Concrete** `ProbabilityModel` subclass that wraps any `nn.Module` generative model via composition. Takes `model`, `tokenizer`, and `logit_formatter`.
 
 - **LoRA support** — `apply_lora()`, `save_lora()`, `load_lora()`, `lora_target_modules()`
 - Override `format_raw_to_logits` when the wrapped model returns non-tensor output (e.g. ESM dataclasses)
 
-### TransitionModelWithEmbedding
+### GenerativeModelWithEmbedding
 
-ABC extending `TransitionModel` with differentiable embedding support. Subclasses implement two methods:
+ABC extending `GenerativeModel` with differentiable embedding support. Subclasses implement two methods:
 
 - `differentiable_embedding(ohe_SPT) → emb_SPD` — OHE through embedding + transformer
 - `embedding_to_outputs(emb_SPD) → Any` — embeddings through output head
@@ -99,14 +99,14 @@ ABC extending `ProbabilityModel` for models that answer "what is log p(target | 
 - **Binary logit functions** — `categorical_binary_logits`, `binary_logits`, `point_estimate_binary_logits`, `gaussian_binary_logits`
 
 Template subclasses (all ABC — user implements `format_raw_to_logits`):
-- **`LinearProbe`** — frozen `TransitionModelWithEmbedding` + `nn.Linear` head
+- **`LinearProbe`** — frozen `GenerativeModelWithEmbedding` + `nn.Linear` head
 - **`OneHotMLP`** — flattened one-hot encoding through an MLP
 - **`EmbeddingMLP`** — differentiable embedding lookup + MLP, with `init_embed_from_pretrained_pca()` for PCA initialization from pretrained models
 - **`PairwiseLinearModel`** — pairwise position interactions
 
 ### Guidance (TAG / DEG)
 
-`guide.py` implements Taylor-Approximate Guidance and Discrete-time Exact Guidance. Both are `TransitionModel` subclasses that combine a generative model with a predictive model using Bayes' rule. `TokenizerTranslator` bridges different tokenizer vocabularies.
+`guide.py` implements Taylor-Approximate Guidance and Discrete-time Exact Guidance. Both are `GenerativeModel` subclasses that combine a generative model with a predictive model using Bayes' rule. `TokenizerTranslator` bridges different tokenizer vocabularies.
 
 ### Models
 
@@ -115,7 +115,7 @@ Template subclasses (all ABC — user implements `format_raw_to_logits`):
 
 ### Sampling
 
-`sample_any_order_ancestral` — any-order ancestral sampling using `model.get_log_probs`.
+`sample_any_order` — any-order ancestral sampling using `model.get_log_probs`.
 
 ## Usage
 

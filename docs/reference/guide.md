@@ -10,7 +10,7 @@ $$
 p_\text{guided}(x_t | x_{<t}) \propto p_\text{gen}(x_t | x_{<t}) \cdot p_\text{pred}(\text{target} | x)^\gamma
 $$
 
-Since TAG and DEG are `TransitionModel` subclasses, they produce guided log-probs that plug directly into any sampler — no special handling needed.
+Since TAG and DEG are `GenerativeModel` subclasses, they produce guided log-probs that plug directly into any sampler — no special handling needed.
 
 ## TAG (Taylor-Approximate Guidance)
 
@@ -71,7 +71,7 @@ with deg.at_position(positions_to_score_S):
     log_probs = deg.get_log_probs(seq_SP)
 ```
 
-`positions_to_score_S` is a list of length B — one position index per sequence (or `None` to skip). The `sample_any_order_ancestral` sampler handles this automatically.
+`positions_to_score_S` is a list of length B — one position index per sequence (or `None` to skip). The `sample_any_order` sampler handles this automatically.
 
 ### When to use DEG
 

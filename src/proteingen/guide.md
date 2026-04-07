@@ -4,7 +4,7 @@ TAG (gradient-based) and DEG (enumeration-based) guidance algorithms, plus the c
 
 ## Dependencies
 
-- [generative_modeling.md](generative_modeling.md) — TAG/DEG subclass `TransitionModel`
+- [generative_modeling.md](generative_modeling.md) — TAG/DEG subclass `GenerativeModel`
 - [predictive_modeling.md](predictive_modeling.md) — TAG/DEG consume `PredictiveModel` (call `get_log_probs`, `grad_log_prob`)
 
 ## Used By
@@ -15,7 +15,7 @@ TAG (gradient-based) and DEG (enumeration-based) guidance algorithms, plus the c
 
 ## TAG
 
-`TAG(TransitionModel)` — combines gen model + pred model via Bayes' rule using first-order Taylor expansion of predictor gradients.
+`TAG(GenerativeModel)` — combines gen model + pred model via Bayes' rule using first-order Taylor expansion of predictor gradients.
 
 ### Constructor
 
@@ -44,7 +44,7 @@ forward(seq_SP):
 
 ## DEG
 
-`DEG(TransitionModel)` — enumeration-based guidance. Evaluates the predictor at all vocab tokens for a given position.
+`DEG(GenerativeModel)` — enumeration-based guidance. Evaluates the predictor at all vocab tokens for a given position.
 
 ### Constructor
 
@@ -54,7 +54,7 @@ forward(seq_SP):
 
 - Requires position info via `at_position(positions_to_score_S)` context manager
 - `positions_to_score_S` is a list of length B — one position index per sequence (or `None` to skip)
-- `sample_any_order_ancestral` passes this automatically
+- `sample_any_order` passes this automatically
 
 ### Forward
 

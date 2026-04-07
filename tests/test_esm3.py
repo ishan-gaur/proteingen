@@ -1,4 +1,4 @@
-"""Tests for proteingen.models.esm.ESM3 (TransitionModelWithEmbedding)."""
+"""Tests for proteingen.models.esm.ESM3 (GenerativeModelWithEmbedding)."""
 
 import pytest
 import torch

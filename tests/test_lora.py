@@ -1,4 +1,4 @@
-"""Tests for LoRA adapter support on TransitionModel."""
+"""Tests for LoRA adapter support on GenerativeModel."""
 
 import json
 import torch
@@ -7,8 +7,8 @@ from torch import nn
 from peft import PeftModel
 
 from proteingen.generative_modeling import (
-    TransitionModel,
-    TransitionModelWithEmbedding,
+    GenerativeModel,
+    GenerativeModelWithEmbedding,
     PassThroughLogitFormatter,
 )
 from proteingen.probability_model import ProbabilityModel
@@ -55,7 +55,7 @@ def tokenizer():
 def tiny_model(tokenizer):
     backbone = TinyTransformer()
     fmt = PassThroughLogitFormatter()
-    return TransitionModel(backbone, tokenizer, fmt)
+    return GenerativeModel(backbone, tokenizer, fmt)
 
 
 @pytest.fixture
@@ -98,7 +98,7 @@ class TestLoraTargetModules:
             def forward(self, x, **kwargs):
                 return x
 
-        model = TransitionModel(RepeatedBlocks(), tokenizer, PassThroughLogitFormatter())
+        model = GenerativeModel(RepeatedBlocks(), tokenizer, PassThroughLogitFormatter())
         targets = model.lora_target_modules()
         # blocks.*.attn, blocks.*.ffn collapsed to 2 patterns + _dummy
         assert "blocks.*.attn" in targets
@@ -197,7 +197,7 @@ class TestSaveLoadLora:
         # Use seeded base weights so both models match
         torch.manual_seed(42)
         backbone1 = TinyTransformer()
-        m = TransitionModel(backbone1, tokenizer, PassThroughLogitFormatter())
+        m = GenerativeModel(backbone1, tokenizer, PassThroughLogitFormatter())
 
         m.apply_lora(target_modules=["q_proj", "v_proj"], r=4)
         out_before = m(seq).detach()
@@ -216,7 +216,7 @@ class TestSaveLoadLora:
         # Load onto a fresh model with same base weights
         torch.manual_seed(42)
         backbone2 = TinyTransformer()
-        fresh = TransitionModel(backbone2, tokenizer, PassThroughLogitFormatter())
+        fresh = GenerativeModel(backbone2, tokenizer, PassThroughLogitFormatter())
         fresh.load_lora(tmp_path / "adapter")
         out_loaded = fresh(seq).detach()
         assert torch.allclose(out_after_train, out_loaded, atol=1e-5)
@@ -228,7 +228,7 @@ class TestSaveLoadLora:
             tiny_model.load_lora(tmp_path / "adapter")
 
 
-# ── Checkpointing tests (ProbabilityModel / TransitionModel) ────────────────
+# ── Checkpointing tests (ProbabilityModel / GenerativeModel) ────────────────
 
 
 class TestCheckpointing:
@@ -252,10 +252,10 @@ class TestCheckpointing:
         with pytest.raises(NotImplementedError):
             m._save_args()
 
-    def test_transition_model_save_creates_config(self, tmp_path, tokenizer):
-        """A TransitionModel subclass with _save_args can save."""
+    def test_generative_model_save_creates_config(self, tmp_path, tokenizer):
+        """A GenerativeModel subclass with _save_args can save."""
 
-        class MyModel(TransitionModel):
+        class MyModel(GenerativeModel):
             def __init__(self, dim: int = 32):
                 self._dim = dim
                 backbone = TinyTransformer(dim=dim)
@@ -270,8 +270,8 @@ class TestCheckpointing:
         config = json.loads((tmp_path / "model" / "config.json").read_text())
         assert config == {"dim": 16}
 
-    def test_transition_model_from_checkpoint_round_trip(self, tmp_path):
-        class MyModel(TransitionModel):
+    def test_generative_model_from_checkpoint_round_trip(self, tmp_path):
+        class MyModel(GenerativeModel):
             def __init__(self, dim: int = 32):
                 self._dim = dim
                 backbone = TinyTransformer(dim=dim)
@@ -285,8 +285,8 @@ class TestCheckpointing:
         loaded = MyModel.from_checkpoint(tmp_path / "model")
         assert loaded._dim == 16
 
-    def test_transition_model_save_with_lora(self, tmp_path, tokenizer):
-        class MyModel(TransitionModel):
+    def test_generative_model_save_with_lora(self, tmp_path, tokenizer):
+        class MyModel(GenerativeModel):
             def __init__(self, dim: int = 32):
                 self._dim = dim
                 backbone = TinyTransformer(dim=dim)
@@ -301,8 +301,8 @@ class TestCheckpointing:
         assert (tmp_path / "model" / "config.json").exists()
         assert (tmp_path / "model" / "lora_adapter").exists()
 
-    def test_transition_model_from_checkpoint_with_lora(self, tmp_path, seq):
-        class MyModel(TransitionModel):
+    def test_generative_model_from_checkpoint_with_lora(self, tmp_path, seq):
+        class MyModel(GenerativeModel):
             def __init__(self, dim: int = 32, seed: int = 0):
                 self._dim = dim
                 self._seed = seed

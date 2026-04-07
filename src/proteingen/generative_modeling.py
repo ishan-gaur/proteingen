@@ -25,12 +25,12 @@ TransitionFunc = Callable[
 ]  # takes in sequence outputs log_probs
 
 
-class TransitionModel(ProbabilityModel):
+class GenerativeModel(ProbabilityModel):
     """Wraps a model + logit formatter into a ready-to-use probability model.
 
     Pass in any ``nn.Module`` whose forward returns logits, a tokenizer, and a
     ``LogitFormatter`` (e.g. ``MaskedModelLogitFormatter`` for masked diffusion,
-    ``PassThroughLogitFormatter`` for uniform noise). ``TransitionModel`` handles
+    ``PassThroughLogitFormatter`` for uniform noise). ``GenerativeModel`` handles
     the rest: forward runs the wrapped model, applies logit formatting, and
     ``get_log_probs`` (inherited from ``ProbabilityModel``) adds temperature-scaled
     log_softmax.
@@ -44,7 +44,7 @@ class TransitionModel(ProbabilityModel):
         esmc = ESMC.from_pretrained("esmc_300m")
         tokenizer = EsmSequenceTokenizer()
         formatter = MaskedModelLogitFormatter(tokenizer)
-        model = TransitionModel(esmc, tokenizer, formatter)
+        model = GenerativeModel(esmc, tokenizer, formatter)
 
         # unconditional
         log_probs = model.get_log_probs(seq_SP)
@@ -192,7 +192,7 @@ class TransitionModel(ProbabilityModel):
             self.model.save_pretrained(str(Path(path) / "lora_adapter"))
 
     @classmethod
-    def from_checkpoint(cls, path: str | Path) -> "TransitionModel":
+    def from_checkpoint(cls, path: str | Path) -> "GenerativeModel":
         """Load model from a directory. Loads LoRA adapter if present."""
         obj = super().from_checkpoint(path)
         lora_path = Path(path) / "lora_adapter"
@@ -201,8 +201,8 @@ class TransitionModel(ProbabilityModel):
         return obj
 
 
-class TransitionModelWithEmbedding(TransitionModel, ABC):
-    """TransitionModel that exposes a differentiable embedding step.
+class GenerativeModelWithEmbedding(GenerativeModel, ABC):
+    """GenerativeModel that exposes a differentiable embedding step.
 
     Subclasses implement two methods that split the model's forward pass:
 

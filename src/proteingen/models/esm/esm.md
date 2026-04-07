@@ -1,10 +1,10 @@
 # ESM Models — Design Notes
 
-ESMC and ESM3 wrappers in `models/esm/__init__.py`. Both subclass `TransitionModelWithEmbedding`.
+ESMC and ESM3 wrappers in `models/esm/__init__.py`. Both subclass `GenerativeModelWithEmbedding`.
 
 ## Dependencies
 
-- [generative_modeling.md](../../generative_modeling.md) — `TransitionModelWithEmbedding`, `MaskedModelLogitFormatter`
+- [generative_modeling.md](../../generative_modeling.md) — `GenerativeModelWithEmbedding`, `MaskedModelLogitFormatter`
 - [probability_model.md](../../probability_model.md) — conditioning, checkpointing protocol
 - External: `esm` package (EvolutionaryScale)
 
@@ -28,7 +28,7 @@ ESMC and ESM3 wrappers in `models/esm/__init__.py`. Both subclass `TransitionMod
 - `EMB_DIM = 960`
 - Very concise — `differentiable_embedding` is ~4 lines: `ohe @ embed.weight` → transformer → deep embeddings
 - `embedding_to_logits`: `self.model.sequence_head(emb_SPD)` — 1 line
-- `forward`, `format_raw_to_logits`, `embed` — all inherited from `TransitionModelWithEmbedding`
+- `forward`, `format_raw_to_logits`, `embed` — all inherited from `GenerativeModelWithEmbedding`
 - `_ESMC` internals: `self.model.embed` (nn.Embedding(64,960)), `self.model.transformer` (TransformerStack), `self.model.sequence_head` (Sequential). `_use_flash_attn` is False on this setup.
 - `EMB_DIM` is dynamic (instance variable set from model weights), not a class constant
 

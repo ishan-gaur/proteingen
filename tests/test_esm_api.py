@@ -81,13 +81,18 @@ def test_esmc_batched(esmc_api):
 
 @skip_no_key
 def test_esmc_temperature(esmc_api):
-    seq_SP = torch.tensor([esmc_api.tokenizer.encode("ACDEF")], dtype=torch.long)
+    mask_id = esmc_api.tokenizer.mask_token_id
+    ids = esmc_api.tokenizer.encode("ACDEF")
+    ids[2] = mask_id  # mask one position so distribution is non-degenerate
+    seq_SP = torch.tensor([ids], dtype=torch.long)
 
     lp_default = esmc_api.get_log_probs(seq_SP)
     with esmc_api.with_temp(0.5):
         lp_cold = esmc_api.get_log_probs(seq_SP)
 
-    assert lp_cold.max() > lp_default.max()
+    # Only compare at the masked position — unmasked positions are one-hot
+    mask_pos = (seq_SP[0] == mask_id).nonzero(as_tuple=True)[0]
+    assert lp_cold[0, mask_pos].max() > lp_default[0, mask_pos].max()
 
 
 @skip_no_key

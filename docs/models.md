@@ -19,7 +19,7 @@
 
 ### ESMC
 
-ESM-C masked language model, available in 300m and 600m parameter variants. Wraps the ESM model as a `TransitionModelWithEmbedding`, providing both generative sampling and differentiable embedding extraction (used by `LinearProbe` and TAG).
+ESM-C masked language model, available in 300m and 600m parameter variants. Wraps the ESM model as a `GenerativeModelWithEmbedding`, providing both generative sampling and differentiable embedding extraction (used by `LinearProbe` and TAG).
 
 - **Output dim**: 64 (33 real vocab + 31 alignment padding — handled automatically by `MaskedModelLogitFormatter`)
 - **Embedding dim**: 960 (300m) — set dynamically from model weights
@@ -123,7 +123,7 @@ sequences = sample_linear_interpolation(model, init_tokens, n_steps=100)
 
 ### ProteinMPNN
 
-Structure-conditioned autoregressive sequence design model ([Dauparas et al., 2022](https://www.science.org/doi/10.1126/science.add2187)). Wraps the Foundry implementation (`rc-foundry[all]`) as a `TransitionModelWithEmbedding`.
+Structure-conditioned autoregressive sequence design model ([Dauparas et al., 2022](https://www.science.org/doi/10.1126/science.add2187)). Wraps the Foundry implementation (`rc-foundry[all]`) as a `GenerativeModelWithEmbedding`.
 
 - **Output dim**: 22 (20 standard AAs + UNK + mask — UNK and mask columns are always -inf)
 - **Embedding dim**: 128

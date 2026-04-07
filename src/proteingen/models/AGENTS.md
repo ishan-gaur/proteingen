@@ -6,15 +6,15 @@ Concrete model implementations that subclass the core abstractions.
 
 Each model lives in its own directory with a dedicated `.md`:
 
-- [esm/esm.md](esm/esm.md) — ESMC, ESM3 (TransitionModelWithEmbedding subclasses); ESM3IF deprecated (thin subclass of ESM3)
-- [dplm2/dplm2.md](dplm2/dplm2.md) — DPLM-2 discrete diffusion protein language model (TransitionModelWithEmbedding subclass)
-- [mpnn/mpnn.md](mpnn/mpnn.md) — ProteinMPNN structure-conditioned sequence design (TransitionModelWithEmbedding subclass, via `rc-foundry[all]`)
+- [esm/esm.md](esm/esm.md) — ESMC, ESM3 (GenerativeModelWithEmbedding subclasses); ESM3IF deprecated (thin subclass of ESM3)
+- [dplm2/dplm2.md](dplm2/dplm2.md) — DPLM-2 discrete diffusion protein language model (GenerativeModelWithEmbedding subclass)
+- [mpnn/mpnn.md](mpnn/mpnn.md) — ProteinMPNN structure-conditioned sequence design (GenerativeModelWithEmbedding subclass, via `rc-foundry[all]`)
 - [rocklin_ddg/rocklin_ddg.md](rocklin_ddg/rocklin_ddg.md) — Stability predictor from Listgarten lab / ProteinGuide, trained on Rocklin Megascale dataset (PredictiveModel subclass)
 - `seki_tyrosine_kinase.py` — kinase fitness predictor (stale, needs updating — sets `self.input_dim` manually)
 - [utils.md](utils.md) — structure loading (`load_pdb`, `PDBStructure`) and encoding API for structure-conditioned models. **Read this when adding any structure-conditioned model.**
 
 ## Adding a New Model
 
-- **Generative models** (TransitionModel / TransitionModelWithEmbedding): use the `/skill:add-generative-model` skill (`.agents/skills/add-generative-model/SKILL.md`)
+- **Generative models** (GenerativeModel / GenerativeModelWithEmbedding): use the `/skill:add-generative-model` skill (`.agents/skills/add-generative-model/SKILL.md`)
 - **Predictive models** (PredictiveModel subclasses): use the `/skill:add-predictive-model` skill (`.agents/skills/add-predictive-model/SKILL.md`)
 - **Structure-conditioned models**: read [utils.md](utils.md) first — it documents the two-layer API (`PDBStructure` → `atom_array_to_encoding`) and the pattern for writing `condition_from_structure()` / `structure_from_pdb()`. Use the PMPNN implementation as the reference.

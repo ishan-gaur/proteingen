@@ -1,4 +1,4 @@
-"""Evaluate transition models by measuring log-likelihood along noising trajectories."""
+"""Evaluate generative models by measuring log-likelihood along noising trajectories."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import torch
 from tqdm import tqdm
 
-from proteingen.generative_modeling import TransitionModel
+from proteingen.generative_modeling import GenerativeModel
 
 matplotlib.use("Agg")
 
@@ -44,7 +44,7 @@ class LogProbTrajectory(TypedDict):
 @torch.no_grad()
 def compute_log_prob_trajectory(
     sequences: list[str],
-    model: TransitionModel,
+    model: GenerativeModel,
     n_time_points: int,
     batch_size: int = 32,
 ) -> LogProbTrajectory:
@@ -59,7 +59,7 @@ def compute_log_prob_trajectory(
 
     Args:
         sequences: protein sequences to evaluate.
-        model: a TransitionModel (e.g. ESMC wrapped with MaskedModelLogitFormatter).
+        model: a GenerativeModel (e.g. ESMC wrapped with MaskedModelLogitFormatter).
         n_time_points: number of evenly-spaced noise levels to evaluate.
         batch_size: sequences per forward pass.
 

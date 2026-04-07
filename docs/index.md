@@ -30,13 +30,13 @@ We similarly provide simplified APIs to a broad array of protein [models](models
     ```python
     from proteingen.models.mpnn import ProteinMPNN
     from proteingen.models.utils import load_pdb
-    from proteingen.sampling import sample_any_order_ancestral
+    from proteingen.sampling import sample_any_order
 
     structure = load_pdb("1YCR.pdb")
     masked_seqs = ["<mask>" * 98] * 8 # placeholders to be designed
 
     model = ProteinMPNN().conditioned_on({"structure": structure}) # configure inverse-folding
-    seqs = sample_any_order_ancestral(model, masked_seqs) # generate sequences
+    seqs = sample_any_order(model, masked_seqs) # generate sequences
     ```
 
 === "Original ProteinMPNN"
@@ -158,7 +158,7 @@ Take the stability optimization experiment from [ProteinGuide](https://arxiv.org
     ```python hl_lines="2 3 13 17"
     from proteingen.models import PMPNN, StabilityPredictor
     from proteingen.guide import DEG
-    from proteingen.sampling import sample_any_order_ancestral
+    from proteingen.sampling import sample_any_order
     from proteingen.models.utils import load_pdb
 
     structure = load_pdb("1YCR.pdb")
@@ -172,7 +172,7 @@ Take the stability optimization experiment from [ProteinGuide](https://arxiv.org
 
     # Sample 8 stability-optimized variants starting from fully masked sequences
     masked_seqs = ["<mask>" * 98] * 8
-    seqs = sample_any_order_ancestral(guided, masked_seqs)
+    seqs = sample_any_order(guided, masked_seqs)
     ```
 
 === "DEG + ESM3"
@@ -180,7 +180,7 @@ Take the stability optimization experiment from [ProteinGuide](https://arxiv.org
     ```python hl_lines="1 9"
     from proteingen.models import ESM3, StabilityPredictor
     from proteingen.guide import DEG
-    from proteingen.sampling import sample_any_order_ancestral
+    from proteingen.sampling import sample_any_order
     from proteingen.models.utils import load_pdb
 
     structure = load_pdb("1YCR.pdb")
@@ -194,7 +194,7 @@ Take the stability optimization experiment from [ProteinGuide](https://arxiv.org
 
     # Sample 8 stability-optimized variants starting from fully masked sequences
     masked_seqs = ["<mask>" * 98] * 8
-    seqs = sample_any_order_ancestral(guided, masked_seqs)
+    seqs = sample_any_order(guided, masked_seqs)
     ```
 
 ### Built with Agents in Mind

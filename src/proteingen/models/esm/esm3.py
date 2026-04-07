@@ -8,7 +8,7 @@ import torch
 from torch.nn import functional as F
 
 from proteingen.generative_modeling import (
-    TransitionModelWithEmbedding,
+    GenerativeModelWithEmbedding,
     MaskedModelLogitFormatter,
 )
 from esm.models.esm3 import ESM3 as _ESM3
@@ -19,8 +19,8 @@ from esm.utils.misc import rbf
 from esm.utils.structure.affine3d import build_affine3d_from_coordinates
 
 
-class ESM3(TransitionModelWithEmbedding):
-    """ESM3 masked language model as a TransitionModelWithEmbedding.
+class ESM3(GenerativeModelWithEmbedding):
+    """ESM3 masked language model as a GenerativeModelWithEmbedding.
 
     Non-sequence tracks (structure, ss8, sasa, function, residue) default to
     padding values. Only the sequence embedding is differentiable.

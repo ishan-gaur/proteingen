@@ -27,7 +27,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from proteingen.guide import TAG
 from proteingen.models.esm import ESMC
 from proteingen.predictive_modeling import LinearProbe, point_estimate_binary_logits
-from proteingen.sampling import sample_any_order_ancestral
+from proteingen.sampling import sample_any_order
 
 
 DATASET_ID = "SaProtHub/Dataset-TrpB_fitness_landsacpe"
@@ -316,7 +316,7 @@ def main():
 
         # 2. Unguided (ESMC, temp=1.0)
         gen_model.set_temp_(1.0)
-        unguided = sample_any_order_ancestral(gen_model, make_masked(n), return_string=True)
+        unguided = sample_any_order(gen_model, make_masked(n), return_string=True)
         unguided = [s.replace(" ", "") for s in unguided]
         for _, _, actual in score_sequences(unguided, predictor, variable_pos, seq_to_label):
             if actual is not None:
@@ -324,7 +324,7 @@ def main():
 
         # 3. TAG guided, gen temp=1.0
         tag = TAG(gen_model, predictor)
-        guided = sample_any_order_ancestral(tag, make_masked(n), return_string=True)
+        guided = sample_any_order(tag, make_masked(n), return_string=True)
         guided = [s.replace(" ", "") for s in guided]
         for _, _, actual in score_sequences(guided, predictor, variable_pos, seq_to_label):
             if actual is not None:
@@ -333,7 +333,7 @@ def main():
         # 4. TAG guided, higher gen temp
         gen_model.set_temp_(args.gen_temp)
         tag_hot = TAG(gen_model, predictor)
-        guided_hot = sample_any_order_ancestral(tag_hot, make_masked(n), return_string=True)
+        guided_hot = sample_any_order(tag_hot, make_masked(n), return_string=True)
         guided_hot = [s.replace(" ", "") for s in guided_hot]
         gen_model.set_temp_(1.0)
         for _, _, actual in score_sequences(guided_hot, predictor, variable_pos, seq_to_label):

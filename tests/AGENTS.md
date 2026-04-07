@@ -10,7 +10,7 @@ Pytest test suite for proteingen. Run with `uv run python -m pytest tests/ -v`.
 
 | File | Count | Covers |
 |------|-------|--------|
-| `test_transition_model.py` | — | TransitionModel, TransitionModelWithEmbedding |
+| `test_generative_model.py` | — | GenerativeModel, GenerativeModelWithEmbedding |
 | `test_logit_formatter.py` | 24 | MaskedModelLogitFormatter with ESM and BERT tokenizers |
 | `test_embedding_mlp.py` | 49 | OneHotMLP, EmbeddingMLP, PairwiseLinearModel: construction, forward, gradients, get_log_probs, grad_log_prob |
 | `test_pca_embed_init.py` | 21 | pca_embed_init, init_embed_from_pretrained_pca, ESMC integration |

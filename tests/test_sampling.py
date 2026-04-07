@@ -1,6 +1,6 @@
 """Tests for any-order ancestral sampling with n_parallel > 1.
 
-Uses a deterministic mock transition model so we can verify exact behavior
+Uses a deterministic mock generative model so we can verify exact behavior
 of position selection, sampling, and convergence.
 """
 
@@ -10,10 +10,10 @@ from torch import nn
 from torch.nn import functional as F
 
 from proteingen.generative_modeling import (
-    TransitionModel,
+    GenerativeModel,
     PassThroughLogitFormatter,
 )
-from proteingen.sampling import any_order_ancestral_step, sample_any_order_ancestral
+from proteingen.sampling import any_order_ancestral_step, sample_any_order
 
 
 # ---------------------------------------------------------------------------
@@ -66,7 +66,7 @@ class MockTokenizer:
 # ---------------------------------------------------------------------------
 
 
-class DeterministicModel(TransitionModel):
+class DeterministicModel(GenerativeModel):
     """Always predicts token 0 with probability 1 at every position.
 
     This makes sampling deterministic: every masked position will be
@@ -92,7 +92,7 @@ class DeterministicModel(TransitionModel):
         return raw.float()
 
 
-class UniformModel(TransitionModel):
+class UniformModel(GenerativeModel):
     """Returns uniform probabilities over tokens 0-4 (the 5 'real' tokens)."""
 
     def __init__(self):
@@ -340,7 +340,7 @@ class TestExplicitPositionSelection:
 
 
 # ---------------------------------------------------------------------------
-# sample_any_order_ancestral — full integration with n_parallel
+# sample_any_order — full integration with n_parallel
 # ---------------------------------------------------------------------------
 
 
@@ -352,7 +352,7 @@ class TestSampleAnyOrderAncestral:
         # [cls, mask, mask, mask, eos]
         mask_id = det_model.tokenizer.mask_token_id
         x = torch.tensor([[6, 8, 8, 8, 7]])
-        result = sample_any_order_ancestral(
+        result = sample_any_order(
             det_model, x, n_parallel=1, return_string=False
         )
         assert (result == mask_id).sum().item() == 0
@@ -361,7 +361,7 @@ class TestSampleAnyOrderAncestral:
         """n_parallel > 1 should also fully decode."""
         mask_id = det_model.tokenizer.mask_token_id
         x = torch.tensor([[6, 8, 8, 8, 8, 8, 7]])
-        result = sample_any_order_ancestral(
+        result = sample_any_order(
             det_model, x, n_parallel=3, return_string=False
         )
         assert (result == mask_id).sum().item() == 0
@@ -370,7 +370,7 @@ class TestSampleAnyOrderAncestral:
         """If n_parallel >= n_masks, should complete in one step."""
         mask_id = det_model.tokenizer.mask_token_id
         x = torch.tensor([[6, 8, 8, 7]])  # 2 masks
-        result = sample_any_order_ancestral(
+        result = sample_any_order(
             det_model, x, n_parallel=5, return_string=False
         )
         assert (result == mask_id).sum().item() == 0
@@ -378,7 +378,7 @@ class TestSampleAnyOrderAncestral:
     def test_deterministic_output_values(self, det_model):
         """DeterministicModel should fill all masks with token 0."""
         x = torch.tensor([[6, 8, 8, 8, 7]])
-        result = sample_any_order_ancestral(
+        result = sample_any_order(
             det_model, x, n_parallel=2, return_string=False
         )
         assert result[0, 1].item() == 0
@@ -389,7 +389,7 @@ class TestSampleAnyOrderAncestral:
         """Special tokens (CLS/EOS) should not be modified."""
         tok = det_model.tokenizer
         x = torch.tensor([[tok.cls_token_id, 8, 8, tok.eos_token_id]])
-        result = sample_any_order_ancestral(
+        result = sample_any_order(
             det_model, x, n_parallel=2, return_string=False
         )
         assert result[0, 0].item() == tok.cls_token_id
@@ -404,7 +404,7 @@ class TestSampleAnyOrderAncestral:
                 [6, 0, 8, 1, 2, 7],  # 1 mask
             ]
         )
-        result = sample_any_order_ancestral(
+        result = sample_any_order(
             det_model, x, n_parallel=2, return_string=False
         )
         assert (result == mask_id).sum().item() == 0
@@ -412,7 +412,7 @@ class TestSampleAnyOrderAncestral:
     def test_return_string(self, det_model):
         """return_string=True should return a list of strings."""
         x = torch.tensor([[6, 8, 8, 7]])
-        result = sample_any_order_ancestral(
+        result = sample_any_order(
             det_model, x, n_parallel=1, return_string=True
         )
         assert isinstance(result, list)
@@ -422,7 +422,7 @@ class TestSampleAnyOrderAncestral:
     def test_returns_to_original_device(self, det_model):
         """Output tensor should be on the same device as input."""
         x = torch.tensor([[6, 8, 8, 7]])  # CPU
-        result = sample_any_order_ancestral(
+        result = sample_any_order(
             det_model, x, n_parallel=1, return_string=False
         )
         assert result.device == x.device
@@ -431,7 +431,7 @@ class TestSampleAnyOrderAncestral:
         """If input has no masks, should return immediately."""
         x = torch.tensor([[6, 0, 1, 2, 7]])
         original = x.clone()
-        result = sample_any_order_ancestral(
+        result = sample_any_order(
             det_model, x, n_parallel=2, return_string=False
         )
         assert torch.equal(result, original)
@@ -449,7 +449,7 @@ class TestStochasticSampling:
         """All decoded tokens should be valid vocab tokens (0-4)."""
         mask_id = uniform_model.tokenizer.mask_token_id
         x = torch.tensor([[6, 8, 8, 8, 8, 7]])
-        result = sample_any_order_ancestral(
+        result = sample_any_order(
             uniform_model, x, n_parallel=2, return_string=False
         )
         inner_tokens = result[0, 1:-1]  # skip CLS and EOS
@@ -462,7 +462,7 @@ class TestStochasticSampling:
         results = set()
         for _ in range(20):
             x = torch.tensor([[6, 8, 8, 8, 8, 7]])
-            result = sample_any_order_ancestral(
+            result = sample_any_order(
                 uniform_model, x, n_parallel=2, return_string=False
             )
             results.add(tuple(result[0, 1:-1].tolist()))
@@ -474,7 +474,7 @@ class TestStochasticSampling:
         mask_id = uniform_model.tokenizer.mask_token_id
         for n_par in [1, 2, 3, 4, 5, 10]:
             x = torch.tensor([[6, 8, 8, 8, 8, 7]])
-            result = sample_any_order_ancestral(
+            result = sample_any_order(
                 uniform_model, x, n_parallel=n_par, return_string=False
             )
             assert (result == mask_id).sum().item() == 0, (

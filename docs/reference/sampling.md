@@ -1,15 +1,15 @@
 # sampling
 
-Sampling algorithms that generate sequences from `TransitionModel` instances (including guided TAG/DEG models). Because TAG and DEG are `TransitionModel` subclasses, all samplers work transparently with both guided and unguided models.
+Sampling algorithms that generate sequences from `GenerativeModel` instances (including guided TAG/DEG models). Because TAG and DEG are `GenerativeModel` subclasses, all samplers work transparently with both guided and unguided models.
 
 ## Samplers
 
-### `sample_any_order_ancestral`
+### `sample_any_order`
 
 The main high-level sampler. Unmasks positions one (or `n_parallel`) at a time in random order.
 
 ```python
-sample_any_order_ancestral(model, x_SP, n_parallel=1, return_string=True)
+sample_any_order(model, x_SP, n_parallel=1, return_string=True)
 ```
 
 - Accepts `x_SP` as token IDs or a list of strings (auto-tokenizes)
@@ -47,7 +47,7 @@ Legacy flow-matching sampler with `dt` and `x1_temp` parameters. Kept for reprod
 
 - **DEG + `n_parallel > 1`**: not yet implemented — raises `NotImplementedError`.
 - **In-place mutation**: `any_order_ancestral_step` modifies `x_SP` in-place.
-- **Device handling**: `sample_any_order_ancestral` and `sample_linear_interpolation` move input to `model.device` and return on the original device (or as strings).
+- **Device handling**: `sample_any_order` and `sample_linear_interpolation` move input to `model.device` and return on the original device (or as strings).
 
 ---
 

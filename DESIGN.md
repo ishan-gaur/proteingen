@@ -10,13 +10,13 @@ Main types:
     - the shape of the output logits must match the input--how do you enforce that?
         - e.g. for a conditional model you need a factory function that takes the conditioning information as input and returns a function that will load up the conditioning information appropriately and just provide a seq->seq interface for the rest of the code
         - I feel like an important downside of this for lay users is that the programming will be counterintuitive. It'll even be intimidating for regular but not try-hard programmers.
-        - So like for guidance we have a bayes_rule transition_model, "get_conditional_forward" in esm_cath/model.py:ESMCath will also return something of type transition_model
-    - these will be of type transition_model
-    - an unconditional ESM's forward function logits (appropriately wrapped) is a valid transition model
-    - For example, the bayes_rule transition_model will be constructed by taking a generative model (of type transition_model)
+        - So like for guidance we have a bayes_rule generative_model, "get_conditional_forward" in esm_cath/model.py:ESMCath will also return something of type generative_model
+    - these will be of type generative_model
+    - an unconditional ESM's forward function logits (appropriately wrapped) is a valid generative model
+    - For example, the bayes_rule generative_model will be constructed by taking a generative model (of type generative_model)
       and a predictive model as input
-    - TAG will be another transition_model
-    - In this way, e.g. multiple classifiers can be layers by wrapping them in multiple transition models
+    - TAG will be another generative_model
+    - In this way, e.g. multiple classifiers can be layers by wrapping them in multiple generative models
 - transition_rate will have two functions--a time-conditional rate and an unconditional sampler
     - the time-conditional rate will be used to compute rates for TAG
     - the unconditional sampler will be used to sample noise schedules for training
@@ -35,7 +35,7 @@ We should also include code to use FT so it's easy for people to do
 And we can make our recommendation to do both or at least do partial unmasked generation
 
 I should've maybe made it so that you could use HF models no???
-I guess you can--just have to wrap them with a transition model--which is just adding a logitformatter
+I guess you can--just have to wrap them with a generative model--which is just adding a logitformatter
 That would be the real win
 How do packages get there--maybe ask Tristan
 

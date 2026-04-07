@@ -26,7 +26,7 @@ If none fit, write a new function in `src/proteingen/predictive_modeling.py`.
 
 | Template | Architecture | Use case |
 |----------|-------------|----------|
-| `LinearProbe` | Frozen `TransitionModelWithEmbedding` + linear head | Probe on pretrained embeddings |
+| `LinearProbe` | Frozen `GenerativeModelWithEmbedding` + linear head | Probe on pretrained embeddings |
 | `OneHotMLP` | Flattened OHE → MLP | Simple baseline |
 | `EmbeddingMLP` | Differentiable embedding → MLP | PCA-init from pretrained models |
 | `PairwiseLinearModel` | Pairwise OHE features → linear | Epistatic models |

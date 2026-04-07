@@ -179,10 +179,10 @@ Generate candidate sequences using one of the available samplers.
 === "Ancestral (any-order)"
 
     ```python
-    from proteingen import sample_any_order_ancestral
+    from proteingen import sample_any_order
 
     masked = ["<mask>" * 100] * 8
-    sequences = sample_any_order_ancestral(guided, masked)
+    sequences = sample_any_order(guided, masked)
     ```
 
     Unmasks positions one at a time in random order. Simple and effective. DEG-aware — automatically passes position info.

@@ -25,7 +25,7 @@ from config import DATA_DIR, MASK_FRACTIONS, MODEL_CONFIGS, N_ORDERS, OUTPUT_DIR
 
 
 def load_model(family: str, checkpoint: str, device: str):
-    """Instantiate a TransitionModel by family and checkpoint."""
+    """Instantiate a GenerativeModel by family and checkpoint."""
     if family == "esmc":
         from proteingen.models.esm import ESMC
 
@@ -133,7 +133,7 @@ def run_generation_for_model(
     """Run ordered ancestral sampling for one model across all configs."""
     import math
 
-    from proteingen.sampling import sample_ordered_ancestral
+    from proteingen.sampling import sample_in_order
 
     print(f"\n{'=' * 60}")
     print(f"Generating with {display_name} ({checkpoint})")
@@ -212,7 +212,7 @@ def run_generation_for_model(
                 # Run ordered ancestral sampling (batch size 1)
                 x_SP = model_masked.unsqueeze(0).to(device)
                 t0 = time.time()
-                trajectory = sample_ordered_ancestral(
+                trajectory = sample_in_order(
                     model=model,
                     x_SP=x_SP,
                     unmask_orders=[model_unmask_tail],

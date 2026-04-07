@@ -5,7 +5,7 @@ PredictiveModel ABC, template models (LinearProbe, OneHotMLP, EmbeddingMLP, Pair
 ## Dependencies
 
 - [probability_model.md](probability_model.md) — `PredictiveModel(ProbabilityModel)`, inherits conditioning/temp/get_log_probs
-- [generative_modeling.md](generative_modeling.md) — `LinearProbe` wraps `TransitionModelWithEmbedding`
+- [generative_modeling.md](generative_modeling.md) — `LinearProbe` wraps `GenerativeModelWithEmbedding`
 
 ## Used By
 
@@ -16,7 +16,7 @@ PredictiveModel ABC, template models (LinearProbe, OneHotMLP, EmbeddingMLP, Pair
 
 ## PredictiveModel
 
-**ABC** — user subclasses directly (no `model` arg like TransitionModel).
+**ABC** — user subclasses directly (no `model` arg like GenerativeModel).
 
 ### Constructor
 
@@ -90,7 +90,7 @@ Standalone functions for converting raw predictions to `(B, 2)` binary logits. C
 
 ### Constructor
 
-`__init__(embed_model: TransitionModelWithEmbedding, output_dim, pooling_fn=None, freeze_embed_model=True)`
+`__init__(embed_model: GenerativeModelWithEmbedding, output_dim, pooling_fn=None, freeze_embed_model=True)`
 
 - Default pooling: mean over non-padding positions
 - `pooling_fn` takes **two args**: `(embeddings_SPD, seq_SP)` — seq_SP needed for masking special tokens

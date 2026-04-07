@@ -1,4 +1,4 @@
-"""Tests for ProteinMPNN wrapper (TransitionModelWithEmbedding)."""
+"""Tests for ProteinMPNN wrapper (GenerativeModelWithEmbedding)."""
 
 import torch
 import torch.utils.checkpoint

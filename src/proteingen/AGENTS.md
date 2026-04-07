@@ -4,12 +4,12 @@ ProteinGen's core abstractions for probabilistic protein modeling, sampling, and
 
 ## Architecture Overview
 
-Inheritance chain: `ProbabilityModel` → `TransitionModel` → `TransitionModelWithEmbedding` (generative side) and `ProbabilityModel` → `PredictiveModel` (predictive side). Guidance (`TAG`/`DEG`) combines both to steer sampling.
+Inheritance chain: `ProbabilityModel` → `GenerativeModel` → `GenerativeModelWithEmbedding` (generative side) and `ProbabilityModel` → `PredictiveModel` (predictive side). Guidance (`TAG`/`DEG`) combines both to steer sampling.
 
 ```
 ProbabilityModel (ABC)          — temp, conditioning, get_log_probs
-├── TransitionModel (concrete)  — wraps nn.Module + tokenizer + logit_formatter
-│   └── TransitionModelWithEmbedding (ABC) — adds differentiable embedding path
+├── GenerativeModel (concrete)  — wraps nn.Module + tokenizer + logit_formatter
+│   └── GenerativeModelWithEmbedding (ABC) — adds differentiable embedding path
 │       ├── ESMC, ESM3          — concrete model implementations (models/)
 │       └── LinearProbe         — frozen embed_model + trainable head
 ├── PredictiveModel (ABC)       — binary logit pattern, OHE, grad_log_prob
@@ -17,16 +17,16 @@ ProbabilityModel (ABC)          — temp, conditioning, get_log_probs
 │   └── PreTrainedStabilityPredictor (models/rocklin_ddg/ — Listgarten lab / ProteinGuide)
 ```
 
-Guidance: `TAG` (gradient-based) and `DEG` (enumeration-based) consume a `PredictiveModel` and modify a `TransitionModel`'s log probs during sampling.
+Guidance: `TAG` (gradient-based) and `DEG` (enumeration-based) consume a `PredictiveModel` and modify a `GenerativeModel`'s log probs during sampling.
 
-Sampling: `sample_any_order_ancestral`, `sample_flow_matching_legacy`, etc. orchestrate the generation loop, calling `get_log_probs` on the (optionally guided) generative model.
+Sampling: `sample_any_order`, `sample_flow_matching_legacy`, etc. orchestrate the generation loop, calling `get_log_probs` on the (optionally guided) generative model.
 
 ## Component Design Docs
 
 Per-component design, dependencies, gotchas, and checklists:
 
 - [probability_model.md](probability_model.md) — `ProbabilityModel` ABC, conditioning, checkpointing
-- [generative_modeling.md](generative_modeling.md) — `TransitionModel`, `TransitionModelWithEmbedding`, `LogitFormatter`, `MPNNTokenizer`, LoRA
+- [generative_modeling.md](generative_modeling.md) — `GenerativeModel`, `GenerativeModelWithEmbedding`, `LogitFormatter`, `MPNNTokenizer`, LoRA
 - [predictive_modeling.md](predictive_modeling.md) — `PredictiveModel`, `LinearProbe`, `OneHotMLP`/`EmbeddingMLP`, binary logit functions, PCA init
 - [guide.md](guide.md) — `TAG`, `DEG`, `GuidanceProjection`, cross-tokenizer mapping
 - [sampling.md](sampling.md) — sampling algorithms, noise schedules

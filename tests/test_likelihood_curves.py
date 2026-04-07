@@ -1,7 +1,7 @@
 """Tests for proteingen.eval.likelihood_curves.
 
 Tests compute_log_prob_trajectory and plot_log_prob_trajectories using
-mock transition models (deterministic and uniform) so tests are fast,
+mock generative models (deterministic and uniform) so tests are fast,
 reproducible, and don't require downloading real models.
 """
 
@@ -9,7 +9,7 @@ import torch
 import pytest
 from torch import nn
 
-from proteingen.generative_modeling import TransitionModel, PassThroughLogitFormatter
+from proteingen.generative_modeling import GenerativeModel, PassThroughLogitFormatter
 from proteingen.eval.likelihood_curves import (
     compute_log_prob_trajectory,
     plot_log_prob_trajectories,
@@ -58,7 +58,7 @@ class MockTokenizer:
 # ---------------------------------------------------------------------------
 
 
-class DeterministicModel(TransitionModel):
+class DeterministicModel(GenerativeModel):
     """Always predicts token 0 with probability 1 at every position."""
 
     def __init__(self):
@@ -80,7 +80,7 @@ class DeterministicModel(TransitionModel):
         return raw.float()
 
 
-class UniformModel(TransitionModel):
+class UniformModel(GenerativeModel):
     """Returns uniform probabilities over tokens 0-4 (5 'real' tokens).
 
     log p(any real token) = log(1/5) ≈ -1.609 at every position.
