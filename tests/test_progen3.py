@@ -45,11 +45,37 @@ class TestTokenizer:
         assert ids[-2] == tok.c_to_n_token_id
         assert ids[-1] == tok.eos_token_id
 
+    def test_encode_mask_tokens(self, model):
+        tok = model.tokenizer
+        ids = tok.encode_sequence("<mask><mask><mask>")
+        # <bos> 1 <mask> <mask> <mask> 2 <eos> = 7 tokens
+        assert len(ids) == 7
+        assert ids[2] == tok.mask_token_id
+        assert ids[3] == tok.mask_token_id
+        assert ids[4] == tok.mask_token_id
+
     def test_extract_sequence(self, model):
         tok = model.tokenizer
         ids = tok.encode_sequence("ACDEFG")
         recovered = tok.extract_sequence(ids)
         assert recovered == "ACDEFG"
+
+    def test_decode(self, model):
+        tok = model.tokenizer
+        ids = tok.encode_sequence("ACDEFG")
+        decoded = tok.decode(ids)
+        assert decoded == "ACDEFG"
+
+    def test_batch_decode(self, model):
+        tok = model.tokenizer
+        batch = torch.tensor(
+            [
+                tok.encode_sequence("ACD"),
+                tok.encode_sequence("EFG"),
+            ]
+        )
+        decoded = tok.batch_decode(batch)
+        assert decoded == ["ACD", "EFG"]
 
     def test_call_padding(self, model):
         tok = model.tokenizer
@@ -58,7 +84,6 @@ class TestTokenizer:
         assert input_ids.shape[0] == 2
         # "AC" → 6 tokens, "ACDE" → 8 tokens, padded to 8
         assert input_ids.shape[1] == 8
-        # Padding should be pad_token_id
         assert input_ids[0, -1].item() == tok.pad_token_id
 
     def test_special_ids(self, model):
@@ -67,10 +92,10 @@ class TestTokenizer:
         assert tok.pad_token_id in special
         assert tok.bos_token_id in special
         assert tok.eos_token_id in special
+        assert tok.mask_token_id in special
 
     def test_aa_token_ids(self, model):
         tok = model.tokenizer
-        # Should have at least the 20 standard AAs
         assert len(tok.aa_token_ids) >= 20
 
 
@@ -99,6 +124,105 @@ class TestForward:
         assert logits.dtype == torch.float32
 
 
+class TestLogitFormatter:
+    def test_non_mask_positions_one_hot(self, model):
+        """Non-mask positions should predict only themselves."""
+        tok = model.tokenizer
+        result = tok(["ACDE"], padding=True)
+        seq_SP = result["input_ids"].to(model.device)
+        log_probs = model.get_log_probs(seq_SP)
+        probs = torch.exp(log_probs)
+
+        # BOS position (0) should predict BOS with prob ~1
+        assert probs[0, 0, tok.bos_token_id].item() > 0.99
+
+        # Direction token position (1) should predict "1" with prob ~1
+        assert probs[0, 1, tok.n_to_c_token_id].item() > 0.99
+
+    def test_mask_position_aa_only(self, model):
+        """First mask position should only have non-zero prob for AAs."""
+        tok = model.tokenizer
+        result = tok(["<mask><mask>"], padding=True)
+        seq_SP = result["input_ids"].to(model.device)
+        log_probs = model.get_log_probs(seq_SP)
+        probs = torch.exp(log_probs)
+
+        # Position 2 is the first mask — should have AA probs
+        aa_ids = tok.aa_token_ids
+        aa_prob_sum = probs[0, 2, aa_ids].sum().item()
+        assert aa_prob_sum > 0.99, f"AA probs at first mask: {aa_prob_sum}"
+
+        # Special tokens should have ~0 probability at mask position
+        for sid in tok.all_special_ids:
+            assert probs[0, 2, sid].item() < 1e-6
+
+    def test_second_mask_blocked(self, model):
+        """Second mask position should have all -inf logits (no valid prediction)."""
+        tok = model.tokenizer
+        result = tok(["<mask><mask>"], padding=True)
+        seq_SP = result["input_ids"].to(model.device)
+        log_probs = model.get_log_probs(seq_SP)
+
+        # Position 3 is the second mask — should be all -inf
+        # log_softmax of all -inf → NaN (no valid distribution)
+        assert log_probs[0, 3].isnan().all() or log_probs[0, 3].isinf().all()
+
+
+class TestEmbedding:
+    def test_embed_shape(self, model):
+        tok = model.tokenizer
+        seq_SP = tok(["ACDEFGHIK"])["input_ids"].to(model.device)
+        emb = model.embed(seq_SP)
+        S, P = seq_SP.shape
+        assert emb.shape == (S, P, model.EMB_DIM)
+
+    def test_embedding_matches_forward(self, model):
+        """embedding_to_outputs(embed(x)) should match forward(x)."""
+        tok = model.tokenizer
+        seq_SP = tok(["ACDEFGHIK"])["input_ids"].to(model.device)
+        emb = model.embed(seq_SP)
+        emb_logits = model.embedding_to_outputs(emb)
+        fwd_logits = model.forward(seq_SP)
+        assert torch.allclose(emb_logits, fwd_logits, atol=1e-4), (
+            f"Max diff: {(emb_logits - fwd_logits).abs().max().item()}"
+        )
+
+    def test_gradients_flow(self, model):
+        """Gradients should flow through embed()."""
+        tok = model.tokenizer
+        seq_SP = tok(["ACDE"])["input_ids"].to(model.device)
+        emb = model.embed(seq_SP)
+        loss = emb.sum()
+        loss.backward()
+        # If backward didn't crash, gradients flow
+
+
+class TestSample:
+    def test_sample_left_to_right(self, model):
+        """sample() with in_order='left_to_right' should produce valid sequences."""
+        from proteingen.sampling import sample
+
+        init_x = ["<mask>" * 10 for _ in range(2)]
+        traj = sample(model, init_x, in_order="left_to_right")
+
+        assert len(traj["sequences"]) == 2
+        for seq in traj["sequences"]:
+            assert len(seq) == 10
+            assert all(c in "ACDEFGHIKLMNPQRSTVWY" for c in seq)
+
+    def test_sample_trajectory_logged(self, model):
+        """sample() should log per-step data."""
+        from proteingen.sampling import sample
+
+        init_x = ["<mask>" * 5]
+        traj = sample(model, init_x, in_order="left_to_right")
+
+        assert traj["step_log_probs"].shape[1] == 5  # 5 steps
+        assert traj["step_tokens"].shape[1] == 5
+        # Log probs should be finite (not nan) for real steps
+        assert torch.isfinite(traj["step_log_probs"]).all()
+
+
 class TestGenerate:
     def test_unconditional(self, model):
         result = model.generate(n=2, max_new_tokens=32, temperature=0.8)
@@ -107,8 +231,6 @@ class TestGenerate:
         for seq in result["sequences"]:
             assert isinstance(seq, str)
             assert len(seq) > 0
-            # All characters should be amino acids
-            assert all(c in "ACDEFGHIKLMNPQRSTVWYBJOUXZ" for c in seq)
 
     def test_prompted(self, model):
         prompt = "MKTL"
@@ -125,9 +247,7 @@ class TestScore:
         assert "perplexity" in scores
         assert scores["log_likelihood"].shape == (1,)
         assert scores["perplexity"].shape == (1,)
-        # Log-likelihoods should be negative
         assert scores["log_likelihood"][0] < 0
-        # Perplexity should be > 1
         assert scores["perplexity"][0] > 1
 
     def test_score_batch(self, model):

@@ -10,6 +10,7 @@ Tensor Index Legend:
     S: batch (sequence) index
     P: position index within a sequence (includes BOS + direction + AA + direction + EOS)
     T: token/vocab dimension (OUTPUT_DIM = 134)
+    D: embedding dimension (EMB_DIM, set dynamically from model weights)
 """
 
 from __future__ import annotations
@@ -17,11 +18,15 @@ from __future__ import annotations
 import re
 import sys
 import types
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import torch
+from torch import nn
 
-from proteingen.generative_modeling import GenerativeModel, PassThroughLogitFormatter
+from proteingen.generative_modeling import (
+    GenerativeModelWithEmbedding,
+    LogitFormatter,
+)
 
 
 def _ensure_flash_attn_mock():
@@ -112,10 +117,90 @@ def _ensure_flash_attn_mock():
         sys.modules[name] = mod
 
 
-class ProGen3GenerationResult(TypedDict):
-    """Result of autoregressive protein generation."""
+# ── Logit Formatter ──────────────────────────────────────────────────────
 
-    sequences: list[str]
+
+class AutoregressiveLogitFormatter(nn.Module, LogitFormatter):
+    """Logit formatter for autoregressive models used with ``sample()``.
+
+    In the proteingen framework, ``logits[i]`` is the prediction for position i.
+    Autoregressive models naturally produce ``logits[i]`` = prediction for position
+    i+1. The caller (``format_raw_to_logits``) shifts the logits before passing
+    them here so they are already position-aligned.
+
+    This formatter then applies:
+
+    - **Non-mask positions**: one-hot (predict themselves — already decoded or
+      fixed framing tokens).
+    - **First mask position** (leftmost per sequence): pass through the model's
+      logits, restricted to standard amino acids.
+    - **Remaining mask positions**: all ``-inf`` (not yet reachable by the
+      autoregressive model).
+
+    This makes the model compatible with ``sample(model, x, in_order="left_to_right")``.
+
+    Tensor Index Legend:
+        Ti: input token index — rows of the one-hot mask, size = vocab_size
+        To: output token index — columns, size = output_dim
+    """
+
+    STANDARD_AAS = set("ACDEFGHIKLMNPQRSTVWY")
+
+    def __init__(self, tokenizer: _ProGen3TokenizerAdapter, output_dim: int):
+        nn.Module.__init__(self)
+        self.tokenizer = tokenizer
+        self.output_dim = output_dim
+
+        PASS, BLOCK = 0.0, float("-inf")
+
+        # One-hot mask for non-fill positions: (Ti, To)
+        # Each token predicts only itself
+        one_hot_mask = torch.full(
+            (tokenizer.vocab_size, output_dim), BLOCK, dtype=torch.float32
+        )
+        for idx in range(tokenizer.vocab_size):
+            if idx < output_dim:
+                one_hot_mask[idx, idx] = PASS
+        self.register_buffer("one_hot_mask_TiTo", one_hot_mask)
+
+        # AA-only additive mask for fill positions: (To,)
+        # Allows only standard amino acid outputs
+        aa_mask = torch.full((output_dim,), BLOCK, dtype=torch.float32)
+        for tok, idx in tokenizer.vocab.items():
+            if tok in self.STANDARD_AAS:
+                aa_mask[idx] = PASS
+        self.register_buffer("aa_mask_To", aa_mask)
+
+    def forward(
+        self, logits_SPT: torch.Tensor, seq_SP: torch.LongTensor
+    ) -> torch.FloatTensor:
+        S, P, T = logits_SPT.shape
+        mask_id = self.tokenizer.mask_token_id
+        is_mask = seq_SP == mask_id  # [S, P]
+
+        # Start with one-hot for all positions
+        result = self.one_hot_mask_TiTo[seq_SP]  # [S, P, To]
+
+        if is_mask.any():
+            # Block ALL mask positions (override one-hot for mask token)
+            result[is_mask] = float("-inf")
+
+            # Pass through logits only at the first mask position per sequence
+            has_mask = is_mask.any(dim=1)  # [S]
+            first_mask_pos = is_mask.float().argmax(dim=1)  # [S]
+
+            batch_idx = torch.arange(S, device=seq_SP.device)[has_mask]
+            pos_idx = first_mask_pos[has_mask]
+
+            # Model logits + AA restriction at first mask position
+            result[batch_idx, pos_idx] = (
+                logits_SPT[batch_idx, pos_idx] + self.aa_mask_To
+            )
+
+        return result.float()
+
+
+# ── Tokenizer Adapter ────────────────────────────────────────────────────
 
 
 class _ProGen3TokenizerAdapter:
@@ -124,12 +209,15 @@ class _ProGen3TokenizerAdapter:
 
     The progen3 tokenizer uses the ``tokenizers`` library (not HF
     ``PreTrainedTokenizer``). This adapter provides the subset of the HF API
-    that ``GenerativeModel``, ``PassThroughLogitFormatter``, and
-    ``get_log_probs_from_string`` rely on.
+    that ``GenerativeModelWithEmbedding``, ``AutoregressiveLogitFormatter``,
+    ``sample()``, and ``get_log_probs_from_string`` rely on.
 
     Encoding convention:
         Raw sequence ``"ACDE"`` is encoded as ``<bos> 1 A C D E 2 <eos>``
         where ``1`` = N-to-C direction token, ``2`` = C-to-N direction token.
+
+    For ``sample()`` integration, ``<mask>`` tokens mark positions to be filled:
+        ``"<mask><mask><mask>"`` → ``<bos> 1 <mask> <mask> <mask> 2 <eos>``
     """
 
     # Standard amino acid one-letter codes recognized by the model
@@ -145,7 +233,7 @@ class _ProGen3TokenizerAdapter:
         self.pad_token_id: int = self._vocab["<pad>"]
         self.bos_token_id: int = self._vocab["<bos>"]
         self.eos_token_id: int = self._vocab["<eos>"]
-        self.mask_token_id: int | None = self._vocab.get("<mask>")
+        self.mask_token_id: int = self._vocab["<mask>"]
 
         # Direction tokens
         self.n_to_c_token_id: int = self._vocab["1"]
@@ -179,13 +267,22 @@ class _ProGen3TokenizerAdapter:
         """Encode a raw AA sequence with BOS + direction + EOS framing.
 
         ``"ACDE"`` → ``[<bos>, 1, A, C, D, E, 2, <eos>]``
+
+        Also handles ``<mask>`` tokens for ``sample()`` integration:
+        ``"<mask><mask>"`` → ``[<bos>, 1, <mask>, <mask>, 2, <eos>]``
         """
         framed = f"<bos>1{sequence}2<eos>"
         return self._tok.encode(framed).ids
 
-    def decode_ids(self, token_ids: list[int]) -> str:
-        """Decode token IDs back to a string."""
-        return self._tok.decode(token_ids, skip_special_tokens=False)
+    def decode(self, token_ids: list[int] | torch.Tensor) -> str:
+        """Decode token IDs to an amino acid string, stripping all framing."""
+        if isinstance(token_ids, torch.Tensor):
+            token_ids = token_ids.tolist()
+        return self.extract_sequence(token_ids)
+
+    def batch_decode(self, token_ids_batch: torch.Tensor) -> list[str]:
+        """Decode a batch of token ID sequences to amino acid strings."""
+        return [self.decode(row) for row in token_ids_batch]
 
     def extract_sequence(self, token_ids: list[int]) -> str:
         """Extract the amino acid sequence from encoded token IDs, stripping framing tokens."""
@@ -213,49 +310,62 @@ class _ProGen3TokenizerAdapter:
         return {"input_ids": input_ids}
 
 
-class ProGen3(GenerativeModel):
+# ── Result Types ─────────────────────────────────────────────────────────
+
+
+class ProGen3GenerationResult(TypedDict):
+    """Result of autoregressive protein generation."""
+
+    sequences: list[str]
+
+
+# ── Model ────────────────────────────────────────────────────────────────
+
+
+class ProGen3(GenerativeModelWithEmbedding):
     """ProGen3 autoregressive protein language model.
 
     Wraps Profluent's ProGen3 family (112M–46B params, sparse MoE) as a
-    ``GenerativeModel``. Unlike the masked models in proteingen, ProGen3 is
-    autoregressive — it generates proteins left-to-right (N→C terminal).
+    ``GenerativeModelWithEmbedding``. Unlike the masked models in proteingen,
+    ProGen3 is autoregressive — it generates proteins left-to-right (N→C terminal).
 
     Main use cases:
 
-    - **Unconditional generation**: ``model.generate()`` produces novel proteins
-    - **Prompted generation**: ``model.generate(prompt="MKTL")`` completes a prefix
+    - **Unconditional generation via sample()**: use ``<mask>`` tokens with
+      ``in_order="left_to_right"``
+    - **Open-ended generation**: ``model.generate()`` produces variable-length proteins
     - **Scoring**: ``model.score(["MKTLLLTL..."])`` returns per-sequence log-likelihoods
-
-    The ``forward()`` / ``get_log_probs()`` interface is also available for
-    compatibility with the proteingen framework, returning next-token log
-    probabilities at each position.
+    - **Embeddings / linear probes**: ``model.embed(seq)`` returns transformer hidden
+      states; the representation at the last real token position is a sequence embedding
 
     Available checkpoints (HuggingFace hub, ``Profluent-Bio/``):
 
-    ============= ====== ====== ======
-    Checkpoint     Params Hidden Layers
-    ============= ====== ====== ======
-    progen3-112m  112M   768    12
-    progen3-3b    3B     2048   40
-    ============= ====== ====== ======
+    ==================== ====== ====== ======
+    Checkpoint            Params Hidden Layers
+    ==================== ====== ====== ======
+    progen3-112m          112M   384    10
+    progen3-3b            3B     2048   40
+    ==================== ====== ====== ======
 
     Example::
 
         from proteingen.models import ProGen3
+        from proteingen import sample
 
         model = ProGen3("Profluent-Bio/progen3-112m").cuda()
-        result = model.generate(n=5, max_new_tokens=256)
-        print(result["sequences"])
 
-    Limitations vs masked models:
-        - No mask-based sampling (``sample()`` / ``sample_ctmc_linear_interpolation()`` don't apply)
-        - No TAG guidance (no differentiable embedding path)
-        - No LoRA support (MoE architecture + megablocks)
+        # Fixed-length sampling via sample()
+        init_x = ["<mask>" * 100 for _ in range(5)]
+        result = sample(model, init_x, in_order="left_to_right")
+
+        # Open-ended generation (variable length)
+        result = model.generate(n=5, max_new_tokens=256)
 
     Tensor Index Legend:
         S: batch (sequence) index
         P: position index within a sequence
         T: token/vocab dimension (OUTPUT_DIM = 134)
+        D: embedding dimension (EMB_DIM, varies by checkpoint)
     """
 
     OUTPUT_DIM = 134  # progen3 vocab size
@@ -272,24 +382,103 @@ class ProGen3(GenerativeModel):
         model.eval()
 
         tokenizer = _ProGen3TokenizerAdapter()
-        formatter = PassThroughLogitFormatter()
-        super().__init__(model=model, tokenizer=tokenizer, logit_formatter=formatter)
+        logit_formatter = AutoregressiveLogitFormatter(tokenizer, self.OUTPUT_DIM)
+
+        self.EMB_DIM = model.model.embed_tokens.weight.shape[1]
+
+        super().__init__(
+            model=model, tokenizer=tokenizer, logit_formatter=logit_formatter
+        )
 
         self._checkpoint = checkpoint
         self._torch_dtype = torch_dtype
 
-    def forward(self, seq_SP: torch.LongTensor, **kwargs) -> torch.FloatTensor:
+    # ── GenerativeModelWithEmbedding interface ───────────────────────────
+
+    def differentiable_embedding(
+        self, ohe_seq_SPT: torch.FloatTensor
+    ) -> torch.FloatTensor:
+        """OHE (or soft distribution) over tokens → deep embeddings (S, P, D).
+
+        Performs differentiable embedding lookup via matrix multiply, adds
+        default sequence ID embedding (all zeros), then runs through the
+        full transformer body with causal attention.
+        """
+        S, P, T = ohe_seq_SPT.shape
+        device = ohe_seq_SPT.device
+
+        # Differentiable embedding lookup (cast OHE to model dtype for matmul)
+        weight_dtype = self.model.model.embed_tokens.weight.dtype
+        emb_SPD = (
+            ohe_seq_SPT.to(weight_dtype) @ self.model.model.embed_tokens.weight
+        )  # [S, P, D]
+
+        # Add sequence ID embedding (all zeros for single-sequence mode)
+        seq_ids = torch.zeros(S, P, dtype=torch.long, device=device)  # [S, P]
+        emb_SPD = emb_SPD + self.model.model.embed_seq_id(seq_ids)  # [S, P, D]
+
+        # Cast to model dtype
+        if torch.is_autocast_enabled():
+            target_dtype = torch.get_autocast_gpu_dtype()
+        else:
+            target_dtype = weight_dtype
+        hidden_states = emb_SPD.to(target_dtype)  # [S, P, D]
+
+        # Default position_ids = sequential
+        position_ids = (
+            torch.arange(P, device=device).unsqueeze(0).expand(S, -1)
+        )  # [S, P]
+
+        # Run through transformer layers
+        for layer in self.model.model.layers:
+            layer_outputs = layer(
+                hidden_states,
+                position_ids=position_ids,
+                past_key_value=None,
+                output_attentions=False,
+                output_router_weights=False,
+                use_cache=False,
+            )
+            hidden_states = layer_outputs[0]  # [S, P, D]
+
+        hidden_states = self.model.model.norm(hidden_states)  # [S, P, D]
+        return hidden_states
+
+    def embedding_to_outputs(
+        self, embedding_SPD: torch.FloatTensor
+    ) -> torch.FloatTensor:
+        """Deep embeddings → logits via the language model head."""
+        return self.model.lm_head(embedding_SPD).float()  # [S, P, T=134]
+
+    def format_raw_to_logits(
+        self, raw_output: torch.FloatTensor, seq_SP: torch.LongTensor, **kwargs
+    ) -> torch.FloatTensor:
+        """Shift AR logits to align with positions, then apply formatter.
+
+        Raw AR logits: ``logits[i]`` = prediction for position ``i+1`` given
+        tokens ``0..i``. The framework expects ``logits[i]`` = prediction for
+        position ``i``. We shift left by one, then apply the logit formatter.
+        """
+        S, P, T = raw_output.shape
+
+        # Shift left: aligned[i] = raw[i-1] (prediction for position i)
+        aligned_SPT = torch.zeros_like(raw_output)  # [S, P, T]
+        aligned_SPT[:, 1:, :] = raw_output[
+            :, :-1, :
+        ]  # [S, P-1, T] shifted into [S, 1:P, T]
+        # Position 0 (BOS) gets zeros — formatter will make it one-hot anyway
+
+        return self.logit_formatter(aligned_SPT, seq_SP)
+
+    # ── Forward (overrides GenerativeModelWithEmbedding default) ─────────
+
+    def forward(self, seq_SP: torch.LongTensor, **kwargs) -> Any:
         """Forward pass through ProGen3.
 
         Automatically constructs ``position_ids`` and ``sequence_ids`` from
         the token sequence if not provided in kwargs.
 
-        Args:
-            seq_SP: Token IDs of shape (S, P), including BOS/direction/EOS framing.
-            **kwargs: Optional ``position_ids``, ``sequence_ids`` overrides.
-
-        Returns:
-            Logits tensor of shape (S, P, T=134).
+        Returns raw (unshifted) logits of shape (S, P, T=134).
         """
         S, P = seq_SP.shape
         device = seq_SP.device
@@ -312,6 +501,8 @@ class ProGen3(GenerativeModel):
         )
         return output.logits.float()  # [S, P, T=134]
 
+    # ── Convenience methods ──────────────────────────────────────────────
+
     def generate(
         self,
         prompt: str = "",
@@ -320,7 +511,11 @@ class ProGen3(GenerativeModel):
         temperature: float = 0.8,
         top_p: float = 0.95,
     ) -> ProGen3GenerationResult:
-        """Generate protein sequences autoregressively.
+        """Generate protein sequences autoregressively (variable length).
+
+        For fixed-length generation, use ``sample(model, x, in_order="left_to_right")``
+        instead. This method uses HuggingFace's ``model.generate()`` and lets the
+        model decide when to stop.
 
         Args:
             prompt: Optional amino acid prefix (N-terminal). Empty string for
@@ -352,8 +547,6 @@ class ProGen3(GenerativeModel):
         )  # [1, prefix_len]
         sequence_ids = torch.zeros_like(input_ids)  # [1, prefix_len]
 
-        # EOS = <eos> token signals the model to stop (the "2" direction
-        # token precedes it in a valid completion)
         eos_token_id = batch_preparer.tokenizer.token_to_id("<eos>")
 
         gen_config = GenerationConfig(
@@ -366,7 +559,6 @@ class ProGen3(GenerativeModel):
             num_return_sequences=n,
         )
 
-        # Expand inputs for n sequences
         input_ids_expanded = input_ids.expand(n, -1)  # [n, prefix_len]
         position_ids_expanded = position_ids.expand(n, -1)  # [n, prefix_len]
         sequence_ids_expanded = sequence_ids.expand(n, -1)  # [n, prefix_len]
@@ -379,11 +571,9 @@ class ProGen3(GenerativeModel):
                 generation_config=gen_config,
             )  # [n, generated_len]
 
-        # Extract amino acid sequences from generated tokens
         sequences = []
         for i in range(n):
-            generated_ids = outputs[i].tolist()
-            seq = tok.extract_sequence(generated_ids)
+            seq = tok.extract_sequence(outputs[i].tolist())
             sequences.append(seq)
 
         return ProGen3GenerationResult(sequences=sequences)
@@ -408,7 +598,6 @@ class ProGen3(GenerativeModel):
         batch_preparer = ProGen3BatchPreparer()
 
         def _score_direction(seqs: list[str], reverse: bool) -> torch.Tensor:
-            """Compute per-sequence NLL for one direction."""
             kwargs = batch_preparer.get_batch_kwargs(
                 seqs, device=self.device, reverse=reverse
             )
@@ -427,7 +616,6 @@ class ProGen3(GenerativeModel):
                 )
             logits = output.logits.float()  # [S, P, T]
 
-            # Shift: logits[i] predicts token[i+1]
             shift_logits = logits[:, :-1, :].contiguous()  # [S, P-1, T]
             shift_labels = labels[:, 1:].contiguous()  # [S, P-1]
 
@@ -437,7 +625,6 @@ class ProGen3(GenerativeModel):
                 reduction="none",
             ).view(shift_labels.shape)  # [S, P-1]
 
-            # Mask out padding
             mask = shift_labels != batch_preparer.pad_token_id  # [S, P-1]
             nll = (nll * mask).sum(dim=1) / mask.sum(dim=1)  # [S]
             return nll
@@ -451,7 +638,7 @@ class ProGen3(GenerativeModel):
             "perplexity": torch.exp(nll_avg),
         }
 
-    # ── Unsupported operations ───────────────────────────────────────────
+    # ── Unsupported / model-specific ─────────────────────────────────────
 
     def _save_args(self) -> dict:
         return {"checkpoint": self._checkpoint}

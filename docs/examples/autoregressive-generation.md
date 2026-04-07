@@ -6,53 +6,65 @@ Generate novel protein sequences using ProGen3's autoregressive (left-to-right) 
 
 ```python
 from proteingen.models import ProGen3
+from proteingen import sample
 
 model = ProGen3("Profluent-Bio/progen3-112m").cuda()
-result = model.generate(n=5, max_new_tokens=256)
-for seq in result["sequences"]:
-    print(f"Length {len(seq)}: {seq[:60]}...")
+
+# Fixed-length: 5 proteins of 100 residues each
+init_x = ["<mask>" * 100 for _ in range(5)]
+result = sample(model, init_x, in_order="left_to_right")
+print(result["sequences"])
 ```
 
 ```bash
 uv run python examples/autoregressive_generation.py
 ```
 
-## Unconditional Generation
+## Fixed-Length Generation via `sample()`
 
-Start from nothing — the model decides both the sequence and its length:
+Use `<mask>` tokens as placeholders and `sample()` fills them left-to-right:
 
 ```python
 from proteingen.models import ProGen3
+from proteingen import sample
 
 model = ProGen3("Profluent-Bio/progen3-112m").cuda()
 
-# Generate 10 novel proteins, up to 512 residues each
-result = model.generate(
-    n=10,
-    max_new_tokens=512,
-    temperature=0.8,   # higher = more diverse
-    top_p=0.95,        # nucleus sampling threshold
-)
+init_x = ["<mask>" * 200 for _ in range(10)]
+result = sample(model, init_x, in_order="left_to_right")
 
 for i, seq in enumerate(result["sequences"]):
     print(f"Protein {i}: {len(seq)} residues")
     print(f"  {seq[:80]}...")
 ```
 
-The model generates until it produces a natural stop signal (the C-terminal direction token followed by EOS). Each sequence will have a different length — the model learns protein length distributions from its training data.
+This uses the same `sample()` interface as masked models — the `AutoregressiveLogitFormatter` ensures only the next unfilled position gets non-trivial logits at each step.
+
+## Open-Ended Generation (Variable Length)
+
+Let the model decide when to stop:
+
+```python
+result = model.generate(
+    n=10,
+    max_new_tokens=512,
+    temperature=0.8,
+    top_p=0.95,
+)
+for i, seq in enumerate(result["sequences"]):
+    print(f"Protein {i}: {len(seq)} residues")
+```
 
 ## Prompted Generation (Sequence Completion)
 
 Provide an N-terminal prefix and let the model complete the protein:
 
 ```python
-# Complete a signal peptide into a full protein
 result = model.generate(
     prompt="MKTLLLTLVVVTIVCLD",
     n=5,
     max_new_tokens=512,
 )
-# Each generated sequence starts with the prompt
 assert all(seq.startswith("MKTLLLTLVVVTIVCLD") for seq in result["sequences"])
 ```
 
@@ -63,7 +75,7 @@ Evaluate how likely a sequence is under the model. ProGen3 scores bidirectionall
 ```python
 sequences = [
     "MKTLLLTLVVVTIVCLDLGYAAQSEGSSRQLIAAIGAICGAILLNYTFNQEIAQ",
-    "ACDEFGHIKLMNPQRSTVWY",  # not a real protein
+    "ACDEFGHIKLMNPQRSTVWY",
 ]
 scores = model.score(sequences)
 print("Log-likelihoods:", scores["log_likelihood"])
@@ -76,18 +88,8 @@ ProGen3 is a **causal language model** — it factorizes the probability of a pr
 
 $$P(\text{seq}) = \prod_{i=1}^{L} P(a_i \mid a_1, \ldots, a_{i-1})$$
 
-Each token is sampled from the model's predicted distribution given all previous tokens. This is the same generation strategy used in GPT-style text models, applied to protein sequences.
+Each token is sampled from the model's predicted distribution given all previous tokens. The model uses a sparse mixture-of-experts (MoE) architecture.
 
-The model uses a sparse mixture-of-experts (MoE) architecture where each layer routes tokens to a subset of expert networks, allowing the model to scale to billions of parameters while keeping inference efficient.
-
-### Encoding format
-
-Internally, sequences are framed with direction tokens:
-
-```
-<bos> 1 M K T L ... 2 <eos>
-```
-
-Where `1` = N→C direction and `2` = C→N direction. The wrapper handles this framing automatically.
+When used with `sample()`, the `AutoregressiveLogitFormatter` adapts this to the framework's position-aligned convention by shifting logits left by one (so `logits[i]` = prediction for position `i`) and blocking all positions except the first unfilled one.
 
 **Source**: [`examples/autoregressive_generation.py`](https://github.com/ishan-gaur/proteingen/blob/main/examples/autoregressive_generation.py)
