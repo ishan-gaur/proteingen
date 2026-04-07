@@ -205,11 +205,23 @@ We're excited about AI coding agents but, as scientists, recognize it's tricky t
 
 We want to make it easy for you to get your work out there. Our [Contributing](contributing/index.md) section has instructions for submitting new models or sampling algorithms to be included in the next release. We've also created SKILL.md files that walk your coding agents through the process. We'd love to include your work, even if you've never contributed to open source before!
 
-### Are We Missing a Model?
+## Library Design with ProteinGen
 
-No problem. Our Contributing section includes an agent workflow that autonomously integrated ProteinMPNN into the codebase with minimal intervention on our part. If there's a model you want, all you have to do is ask:
+With ProteinGen, designing libraries to optimize some property of a protein requires the use of four modules:
 
-> "Read the skill file at `.agents/skills/add-generative-model/SKILL.md` and follow it to add **[model name]** to ProteinGen."
+1. [Data](reference/data.md): assay labeled variants or homolog datasets
+2. [Models](reference/models.md): sequence generative models, property predictive models, and how to train them with your data
+3. [Sampling](reference/sampling.md): generating a library to optimize your property using the models
+4. [Evaluation](reference/evaluation.md): various tools to sanity check the pipeline at each of the 3 preceding stages
+
+The simplest possible pipeline is to just sample from a pretrained model. To be clear, this doesn't involve any wet-lab data, nor does it optimize any functional property, but it demonstrates the `GenerativeModel`, `PredictiveModel`, and `Sampling` APIs.
+
+
+
+
+
+
+
 
 <!-- TODO[pi]: flesh out home page with a diagram showing the generative + predictive model combination via Bayes' rule -->
 <!-- TODO[pi]: add a quick "5-line example" code block showing unconditional sampling -->
