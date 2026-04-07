@@ -30,10 +30,16 @@ from .predictive_modeling import (
     LinearProbe,
     OneHotMLP,
     EmbeddingMLP,
-    PairwiseLinearModel
+    PairwiseLinearModel,
 )
-    
-from .sampling import sample_any_order_ancestral
+
+from .sampling import (
+    sample_any_order_ancestral,
+    sample_ordered_ancestral,
+    generate_unmask_orders,
+    mask_by_order,
+    SamplingTrajectory,
+)
 
 
 __all__ = [
@@ -61,4 +67,8 @@ __all__ = [
     "EmbeddingMLP",
     "PairwiseLinearModel",
     "sample_any_order_ancestral",
+    "sample_ordered_ancestral",
+    "generate_unmask_orders",
+    "mask_by_order",
+    "SamplingTrajectory",
 ]

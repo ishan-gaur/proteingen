@@ -59,7 +59,17 @@ plugins:
 nav:
   - Home: index.md
   - Setup: setup.md
-  - Examples: examples.md
+  - Examples:
+    - Overview: examples/index.md
+    - Unconditional Sampling: examples/unconditional-sampling.md
+    - Structure-Conditioned Sampling: examples/structure-conditioned-sampling.md
+    - Guided Sampling (TrpB): examples/trpb-linear-probe.md
+    - Likelihood Curves: examples/likelihood-curves.md
+    - Benchmark — Model Families: examples/benchmark-model-families.md
+    - Fine-tuning ESM3 (MLM): examples/finetune-esm3-mlm.md
+    - Fine-tuning Inverse Folding: examples/finetune-inverse-folding.md
+    - Stability-Guided Generation: examples/stability-guided-generation.md
+    - PCA Embedding Init: examples/pca-embedding-init.md
   - Models: models.md
   - Workflows:
     - Overview: workflows/index.md

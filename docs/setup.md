@@ -156,4 +156,4 @@ with model.conditioned_on({"coords_RAX": coords}):  # context manager
     probs = model.get_log_probs(x)
 ```
 
-Then check out the [Examples](examples.md) to see working end-to-end code.
+Then check out the [Examples](examples/index.md) to see working end-to-end code.

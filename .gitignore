@@ -27,7 +27,12 @@ examples/finetune_esm3/7KPM_atom37_295.pt
 examples/finetune_esm3/checkpoints/
 af3-server/*.out
 af3-server/*.err
+
+# Benchmark example generated data
+examples/benchmark_model_families/data/
+examples/benchmark_model_families/outputs/
 fold_msa.log
 wandb/
+
 
 .env
