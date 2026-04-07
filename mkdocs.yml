@@ -67,6 +67,7 @@ nav:
     - MSA → Dataset: workflows/msa-to-dataset.md
     - Fine-tuning: workflows/finetune-generative.md
     - Likelihood Curves: workflows/likelihood-curves.md
+    - Stability Guidance: workflows/stability-guidance.md
   - Contributing: contributing.md
   - Reference:
     - Design Philosophy: reference/design-philosophy.md

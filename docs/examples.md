@@ -115,8 +115,22 @@ The structure-conditioned model improves from -2.075 to -0.798 while sequence-on
 
 See the [Fine-tuning workflow](workflows/finetune-generative.md) and [MSA → Dataset workflow](workflows/msa-to-dataset.md) for the full walkthrough.
 
-## Stability-Guided Generation
+## Stability-Guided Inverse Folding
 
-!!! note "Coming soon"
-    The `examples/stability_guidance/` directory contains a work-in-progress reimplementation of stability-guided protein generation using the ProteinMPNN stability predictor and ESM3 as the generative model.
+Redesign a protein backbone (Rocklin cluster 146 / 5KPH) for thermodynamic stability using ESM3 as the inverse folding model and a noisy ProteinMPNN-based stability classifier via TAG guidance.
+
+```bash
+uv run python examples/stability_guidance/main.py
+```
+
+The example generates 100 unguided and 100 guided sequences, evaluates predicted ΔΔG with an oracle model, and produces comparison plots:
+
+| Metric | Unguided | Guided |
+|--------|----------|--------|
+| Mean ΔΔG | +1.59 | **−0.67** |
+| Fraction ΔΔG ≤ 0 | ~15% | **~65%** |
+
+![ddG histogram comparing guided vs unguided sampling](assets/images/ddg_histogram.png)
+
+Guidance shifts the distribution from mostly destabilizing to mostly stabilizing. See the [Stability Guidance workflow](workflows/stability-guidance.md) for the full walkthrough — model setup, structure conditioning, temperature tuning, and interpretation.
 

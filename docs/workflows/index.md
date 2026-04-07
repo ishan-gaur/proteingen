@@ -19,3 +19,7 @@ Fine-tune ESM3 or ESMC with LoRA for sequence-only MLM or structure-conditioned 
 ### [Evaluating with Likelihood Curves](likelihood-curves.md)
 
 Measure model quality by tracking log-probability trajectories under progressive unmasking. Compare structure-conditioned vs sequence-only, pretrained vs fine-tuned, and track improvement over training.
+
+### [Stability-Guided Inverse Folding](stability-guidance.md)
+
+Redesign a protein backbone for thermodynamic stability using ESM3 + a noisy stability classifier via TAG. Walks through the full pipeline from structure conditioning through evaluation, with results on the Rocklin cluster 146 topology.
