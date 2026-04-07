@@ -29,8 +29,7 @@ import biotite.structure.io.pdb as pdb_io
 import biotite.structure.io.pdbx as pdbx
 import torch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "af3-server"))
-from client import AF3Client
+from af3_server import AF3Client
 
 from esm.utils.structure.protein_chain import ProteinChain
 

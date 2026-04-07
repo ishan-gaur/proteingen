@@ -36,6 +36,14 @@ wheels = [
 ]
 
 [[package]]
+name = "af3-server"
+version = "0.1.0"
+source = { git = "https://github.com/ishan-gaur/af3-server.git#815d5b81655d51f2479a71ae79e5dbd672202eb9" }
+dependencies = [
+    { name = "requests" },
+]
+
+[[package]]
 name = "aiohappyeyeballs"
 version = "2.6.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1929,6 +1937,7 @@ name = "proteingen"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "af3-server" },
     { name = "datasets" },
     { name = "esm" },
     { name = "matplotlib" },
@@ -1954,6 +1963,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "af3-server", git = "https://github.com/ishan-gaur/af3-server.git" },
     { name = "datasets", specifier = ">=2.14.4" },
     { name = "esm", specifier = ">=3.2.3" },
     { name = "matplotlib" },

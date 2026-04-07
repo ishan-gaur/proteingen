@@ -2,12 +2,31 @@
 
 The full pipeline: fold MSA sequences with AF3, then fine-tune ESM3 to predict sequence from structure.
 
+## Prerequisites
+
+### AF3 Server
+
+Step 1 requires a running [AF3 inference server](https://github.com/ishan-gaur/af3-server). Install the client package:
+
+```bash
+# From the proteingen repo — already listed as a dev dependency
+uv sync
+
+# Or install standalone
+uv pip install git+https://github.com/ishan-gaur/af3-server.git
+```
+
+Then start the server on a GPU node (see the [af3-server README](https://github.com/ishan-gaur/af3-server) for full setup):
+
+```bash
+cd /path/to/af3-server
+sbatch launch.sh
+# Wait for "Server ready." in the SLURM log
+```
+
 ## Step 1: Fold MSA sequences
 
 ```bash
-# Start AF3 server
-cd af3-server && sbatch launch.sh
-
 # Fold all sequences (runs ~80h for 10k sequences, saves incrementally)
 uv run python examples/finetune_esm3/fold_msa_domains.py \
     --server-url http://localhost:8080

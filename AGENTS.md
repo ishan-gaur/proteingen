@@ -51,7 +51,9 @@ Available skills:
 
 ## AF3 Server
 
-- `af3-server/` subdirectory — FastAPI server + Python client for persistent AF3 inference
+- **Separate repo**: `~/af3-server/` (GitHub: `ishan-gaur/af3-server`) — FastAPI server + Python client for persistent AF3 inference
+- Installed from GitHub: `af3-server @ git+https://github.com/ishan-gaur/af3-server.git`
+- Import: `from af3_server import AF3Client`
 - **Apptainer** installed at user level: `~/bin/apptainer` v1.4.5, `~/lib/libfuse3.so.3`, `~/libexec/apptainer/bin/squashfuse_ll` (wrapper for libfuse3)
 - **SIF image**: `/data/apptainer_images/alphafold3_server.sif` (alphafold3 Docker image + FastAPI/uvicorn)
 - **Model weights**: `/data/af3/af3.bin`

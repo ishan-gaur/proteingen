@@ -22,9 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from config import AF3_POLL_INTERVAL, AF3_SERVER_URL, AF3_TIMEOUT, DATA_DIR, OUTPUT_DIR
 
-# Import AF3 client from af3-server directory
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "af3-server"))
-from client import AF3Client
+from af3_server import AF3Client
 
 
 def collect_sequences_to_fold() -> dict[str, str]:

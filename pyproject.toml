@@ -23,6 +23,7 @@ dependencies = [
     "mkdocstrings[python]>=1.0.3",
     "mkdocs-liveedit",
     "tmtools>=0.3.0",
+    "af3-server",
 ]
 
 [dependency-groups]
@@ -37,3 +38,4 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 mkdocs-liveedit = { git = "https://github.com/ishan-gaur/mkdocs-liveedit.git" }
+af3-server = { git = "https://github.com/ishan-gaur/af3-server.git" }

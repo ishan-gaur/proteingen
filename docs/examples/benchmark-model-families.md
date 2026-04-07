@@ -117,6 +117,10 @@ ESM3-Open (1.4B) occupies an interesting middle ground — its sequence recovery
 
 ## Reproducing This Benchmark
 
+### Prerequisites
+
+Step 3 requires a running [AF3 inference server](https://github.com/ishan-gaur/af3-server). The client is included as a dependency of proteingen — just `uv sync`. See the [af3-server README](https://github.com/ishan-gaur/af3-server) for server setup.
+
 ```bash
 # 1. Prepare data (sample from Swiss-Prot, generate orders)
 uv run python examples/benchmark_model_families/prepare_data.py
@@ -126,7 +130,7 @@ CUDA_VISIBLE_DEVICES=0 uv run python examples/benchmark_model_families/generate.
 CUDA_VISIBLE_DEVICES=1 uv run python examples/benchmark_model_families/generate.py --model esm3-open --device cuda
 # ... etc for all 6 models
 
-# 3. Fold with AF3 (requires AF3 server)
+# 3. Fold with AF3 (requires AF3 server running)
 uv run python examples/benchmark_model_families/fold.py --server http://localhost:8080
 
 # 4. Analyze and plot
