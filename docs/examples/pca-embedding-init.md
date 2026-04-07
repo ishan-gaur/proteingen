@@ -1,5 +1,14 @@
 # PCA Embedding Initialization
 
+??? abstract "Architecture Breakdown"
+    **Data:** None (demonstrates initialization, not training).
+
+    **Models:** ESMC (source of pretrained embeddings) + EmbeddingMLP (target predictor initialized via PCA) → [predictive_modeling](../reference/predictive_modeling.md#pca-embedding-initialization). This is a sub-step of [Training Predictors](../workflows/training-predictors.md) — you'd use this before training a predictor with small training data.
+
+    **Sampling:** None.
+
+    **Evaluation:** None (utility demonstration).
+
 Initialize a small `EmbeddingMLP` predictor using PCA-compressed embeddings from ESMC. This transfers learned amino acid representations from the pretrained model into a lightweight head.
 
 ## Quick Start

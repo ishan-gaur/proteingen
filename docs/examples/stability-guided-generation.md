@@ -1,5 +1,19 @@
 # Stability-Guided Generation
 
+??? abstract "Architecture Breakdown"
+    **Data:** None in this example (pretrained models are provided). In a full [ProteinGuide](../workflows/protein-guide.md) pipeline, you would use the [MegaScale dataset](https://www.nature.com/articles/s41586-023-06328-6) to train both the noisy predictor and the oracle → [Training Predictors](../workflows/training-predictors.md).
+
+    **Models:**
+
+    - **ESM3** — pretrained generative model, structure-conditioned via `set_condition_` → [generative_modeling](../reference/generative_modeling.md)
+    - **Noisy stability predictor** (`PreTrainedStabilityPredictor`) — ProteinMPNN-based binary classifier trained on partially masked inputs. In a full pipeline, you'd train this yourself → [Training Predictors](../workflows/training-predictors.md), which uses [noise schedules](../reference/data.md#noise-design) and [data splits](../workflows/data-splits.md)
+    - **Stability oracle** (`StabilityPMPNN`) — separate regression model for evaluation only. In a full pipeline → [Training Predictors](../workflows/training-predictors.md)
+    - **TAG**(ESM3, noisy predictor) — combines generative + predictive models via Bayes' rule → [guide](../reference/guide.md)
+
+    **Sampling:** `sample_ctmc_linear_interpolation` with 100 steps → [sampling](../reference/sampling.md#sample_ctmc_linear_interpolation)
+
+    **Evaluation:** Oracle ΔΔG scoring of generated vs. unguided sequences, sequence identity to wildtype → [evaluation](../reference/evaluation.md)
+
 Generate thermodynamically stable protein sequences using ESM3 inverse folding guided by a learned stability predictor.
 
 ## Quick Start
