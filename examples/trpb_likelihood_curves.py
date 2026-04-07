@@ -3,6 +3,8 @@
 Evaluates how well ESMC predicts masked amino acids as more of the
 sequence is revealed, using real TrpB sequences from SaProtHub.
 
+Skill reference: .agents/skills/likelihood-curves/SKILL.md
+
 Usage:
     uv run python examples/trpb_likelihood_curves.py --device cuda
     uv run python examples/trpb_likelihood_curves.py --device cpu --n-sequences 10 --n-time-points 5
