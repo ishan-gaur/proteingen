@@ -91,11 +91,15 @@ nav:
   - Contributing: contributing.md
   - Reference:
     - Design Philosophy: reference/design-philosophy.md
-    - API Reference:
+    - Data:
+      - data: reference/data.md
+    - Models:
       - probability_model: reference/probability_model.md
       - generative_modeling: reference/generative_modeling.md
       - predictive_modeling: reference/predictive_modeling.md
       - guide: reference/guide.md
-      - sampling: reference/sampling.md
-      - data: reference/data.md
       - models: reference/models.md
+    - Sampling:
+      - sampling: reference/sampling.md
+    - Evaluation:
+      - evaluation: reference/evaluation.md
