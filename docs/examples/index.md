@@ -6,10 +6,11 @@ All examples live in the [`examples/`](https://github.com/ishan-gaur/proteingen/
 
 ## Sampling
 
-Examples of generating protein sequences using masked language models
+Examples of generating protein sequences using masked and autoregressive models.
 
 - **[Stability Guided Sampling](stability-guided-generation.md)** — Guiding ESM3 inverse folding using a predictor trained with experimental stability data
-- **[Unconditional Sampling](unconditional-sampling.md)** — generate sequences from scratch with ESMC
+- **[Unconditional Sampling](unconditional-sampling.md)** — generate sequences from scratch with ESMC (masked LM)
+- **[Autoregressive Generation (ProGen3)](autoregressive-generation.md)** — unconditional protein generation with ProGen3's left-to-right sampling
 - **[Structure-Conditioned Sampling](structure-conditioned-sampling.md)** — inverse folding with ESM3 backbone conditioning
 <!-- - **[Guided Sampling (TrpB)](trpb-linear-probe.md)** — train a fitness probe, then use DEG guidance to steer generation -->
 

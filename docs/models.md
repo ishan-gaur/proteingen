@@ -9,11 +9,11 @@
 | DPLM-2 | `proteingen.models.DPLM2` | [bytedance/dplm](https://github.com/bytedance/dplm) | None (masked diffusion) | `(B, L, 8229)` logits |
 | ESM Forge API | `proteingen.models.ESMForgeAPI` | [EvolutionaryScale Forge](https://forge.evolutionaryscale.ai) | Structure (ESM3 only) | `(B, L, 64)` logits |
 | ProteinMPNN | `proteingen.models.ProteinMPNN` | [Foundry](https://github.com/dauparas/ProteinMPNN) (via `rc-foundry[all]`) | Structure (required) | `(B, L, 22)` logits |
+| ProGen3 | `proteingen.models.ProGen3` | [Profluent-AI/progen3](https://github.com/Profluent-AI/progen3) | None (autoregressive) | `(B, L, 134)` logits |
 | LigandMPNN | *coming soon* | [dauparas/LigandMPNN](https://github.com/dauparas/LigandMPNN) | Structure + ligands | Sequence logits |
 | SaProt | *coming soon* | [westlake-repl/SaProt](https://github.com/westlake-repl/SaProt) | Structure (Foldseek tokens) | Sequence logits |
 | EvoDiff | *coming soon* | [microsoft/evodiff](https://github.com/microsoft/evodiff) | None (discrete diffusion) | Sequence logits |
 | AMPLIFY | *coming soon* | [chandar-lab/AMPLIFY](https://github.com/chandar-lab/AMPLIFY) | None (masked LM) | Sequence logits |
-| ProGen2 | *coming soon* | [salesforce/progen](https://github.com/salesforce/progen) | None (autoregressive) | Sequence logits |
 | Dayhoff | *coming soon* | [microsoft/Dayhoff](https://huggingface.co/microsoft/Dayhoff-170m-UR50) | None (masked LM) | Sequence logits |
 | ZymCTRL | *coming soon* | [AI4PD/ZymCTRL](https://huggingface.co/AI4PD/ZymCTRL) | EC number (autoregressive) | Sequence logits |
 
@@ -216,6 +216,66 @@ log_probs = model.get_log_probs_from_string(["ACDEFGHIK" + "A" * (L - 9)])
 
 !!! note "When to use Forge vs local models"
     Forge is useful for accessing larger models (e.g. ESMC-6B) that don't fit in local GPU memory, or for quick experiments without downloading weights. For training, LoRA, TAG guidance, or any workflow requiring gradients, use the local model wrappers instead.
+
+### ProGen3
+
+Autoregressive protein language model from [Profluent Bio](https://www.profluent.bio/showcase/progen3) ([paper](https://www.biorxiv.org/content/10.1101/2025.04.15.649055v1)). Uses a sparse mixture-of-experts (MoE) architecture trained on 3.4 billion protein sequences. Unlike the masked models in proteingen, ProGen3 generates proteins left-to-right (N→C terminal).
+
+- **Architecture**: Autoregressive causal LM with sparse MoE layers
+- **Output dim**: 134 (26 amino acid letters + special tokens + 100 span tokens)
+- **LoRA support**: no (sparse MoE architecture)
+- **Requires**: `pip install git+https://github.com/Profluent-AI/progen3.git` (or `pip install proteingen[progen3]`)
+
+Available checkpoints (HuggingFace hub, `Profluent-Bio/`):
+
+| Checkpoint | Params | Hidden | Layers |
+|---|---|---|---|
+| `Profluent-Bio/progen3-112m` | 112M | 768 | 12 |
+| `Profluent-Bio/progen3-3b` | 3B | 2048 | 40 |
+
+```python
+from proteingen.models import ProGen3
+
+model = ProGen3("Profluent-Bio/progen3-112m").cuda()
+```
+
+#### Unconditional generation
+
+Generate novel proteins from scratch — the model starts from a BOS + direction token and autoregressively samples amino acids until it produces a stop signal:
+
+```python
+result = model.generate(n=5, max_new_tokens=256, temperature=0.8, top_p=0.95)
+for seq in result["sequences"]:
+    print(f"Length {len(seq)}: {seq[:50]}...")
+```
+
+#### Prompted generation (sequence completion)
+
+Provide an N-terminal prefix and let the model complete the rest:
+
+```python
+result = model.generate(
+    prompt="MKTLLLTLVVVTIVCLD",  # signal peptide prefix
+    n=10,
+    max_new_tokens=512,
+)
+```
+
+#### Sequence scoring
+
+Score sequences by bidirectional log-likelihood (averaged N→C and C→N):
+
+```python
+scores = model.score(["MKTLLLTLVVVTIVCLD", "ACDEFGHIKLMNPQRSTVWY"])
+print(scores["log_likelihood"])   # tensor of per-sequence log-likelihoods
+print(scores["perplexity"])       # tensor of perplexities
+```
+
+!!! warning "Hardware requirements"
+    ProGen3 requires Flash Attention and megablocks (GPU-only). The 112M model fits on any modern GPU; the 3B model needs ≥40GB VRAM. Both require bfloat16 support (A100/H100/RTX 40xx).
+
+!!! note "Autoregressive vs masked models"
+    ProGen3 is autoregressive — it generates one token at a time, left to right. This means the mask-based sampling functions (`sample()`, `sample_ctmc_linear_interpolation()`), TAG guidance, and `LinearProbe` workflows don't apply. Use `model.generate()` for generation and `model.score()` for evaluation.
 
 ---
 

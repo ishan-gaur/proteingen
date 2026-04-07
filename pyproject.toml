@@ -26,8 +26,9 @@ dependencies = [
 
 [project.optional-dependencies]
 pmpnn = ["rc-foundry[all]"]
+progen3 = ["progen3"]
 af3 = ["af3-server"]
-all = ["rc-foundry[all]", "af3-server"]
+all = ["rc-foundry[all]", "progen3", "af3-server"]
 
 [dependency-groups]
 dev = [
@@ -42,3 +43,4 @@ build-backend = "uv_build"
 [tool.uv.sources]
 mkdocs-liveedit = { git = "https://github.com/ishan-gaur/mkdocs-liveedit.git" }
 af3-server = { git = "https://github.com/ishan-gaur/af3-server.git" }
+progen3 = { git = "https://github.com/Profluent-AI/progen3.git" }

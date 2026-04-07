@@ -7,6 +7,11 @@ except ImportError:
     pass
 
 try:
+    from .progen3 import ProGen3
+except ImportError:
+    pass
+
+try:
     from .rocklin_ddg.stability_predictor import PreTrainedStabilityPredictor
 except ImportError:
     pass

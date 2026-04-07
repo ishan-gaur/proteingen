@@ -65,6 +65,7 @@ nav:
   - Examples:
     - Overview: examples/index.md
     - Unconditional Sampling: examples/unconditional-sampling.md
+    - Autoregressive Generation (ProGen3): examples/autoregressive-generation.md
     - Structure-Conditioned Sampling: examples/structure-conditioned-sampling.md
     - Guided Sampling (TrpB): examples/trpb-linear-probe.md
     - Likelihood Curves: examples/likelihood-curves.md
