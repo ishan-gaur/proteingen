@@ -53,7 +53,7 @@ Sampler selection and configuration is covered in the [sampling reference](../re
 
 ## Skills
 
-Skills are structured instructions that AI coding agents can load on-demand to perform specific tasks. They live in [`.agents/skills/`](https://github.com/ishan-gaur/proteingen/tree/main/.agents/skills) and follow the [Agent Skills standard](https://agentskills.io/specification). Feel free to write your own when making your own workflows and sharing them with the community by [contributing](contributing/index.md) to ProteinGen.
+Skills are structured instructions that AI coding agents can load on-demand to perform specific tasks. They live in [`.agents/skills/`](https://github.com/ishan-gaur/proteingen/tree/main/.agents/skills) and follow the [Agent Skills standard](https://agentskills.io/specification). Feel free to write your own when making your own workflows and sharing them with the community by [contributing](../contributing.md) to ProteinGen.
 
 !!! tip "Setup"
     To setup skills, make sure to follow the [setup instructions](../setup.md#add-agent-skills), making sure to adapt them to the particular of what your model provider, e.g. Anthropic, OpenAI, Z.ai, etc. expect.

@@ -199,11 +199,11 @@ Take the stability optimization experiment from [ProteinGuide](https://arxiv.org
 
 ### Built with Agents in Mind
 
-We're excited about AI coding agents but, as scientists, recognize it's tricky to trust their results. Our [Workflows](workflows/index.md) include algorithm guides and evaluation checklists at each step — the same ones we use with our collaborators, continuously updated as we learn more. Follow the [Setup](setup/index.md) instructions to give your agents our AGENTS.md and SKILLS.md files so they avoid common mistakes we uncovered during testing.
+We're excited about AI coding agents but, as scientists, recognize it's tricky to trust their results. Our [Workflows](workflows/index.md) include algorithm guides and evaluation checklists at each step — the same ones we use with our collaborators, continuously updated as we learn more. Follow the [Setup](setup.md) instructions to give your agents our AGENTS.md and SKILLS.md files so they avoid common mistakes we uncovered during testing.
 
 ### Share Your Work on ProteinGen
 
-We want to make it easy for you to get your work out there. Our [Contributing](contributing/index.md) section has instructions for submitting new models or sampling algorithms to be included in the next release. We've also created SKILL.md files that walk your coding agents through the process. We'd love to include your work, even if you've never contributed to open source before!
+We want to make it easy for you to get your work out there. Our [Contributing](contributing.md) section has instructions for submitting new models or sampling algorithms to be included in the next release. We've also created SKILL.md files that walk your coding agents through the process. We'd love to include your work, even if you've never contributed to open source before!
 
 ## Library Design with ProteinGen
 
@@ -288,4 +288,4 @@ library_scores = oracle.predict(library)                                # (8)
 7. **Sampling** — DEG enumerates all amino acids at each position, reweighting by the predictor's scores
 8. **Evaluation** — the oracle scores the final library; these scores inform threshold-setting for the next round
 
-Each numbered annotation maps to a module. The [ProteinGuide workflow](workflows/protein-guide.md) walks through each step in detail, and the [PbrR walkthrough](examples/pbrr-walkthrough.md) shows a complete working implementation.
+Each numbered annotation maps to a module. The [ProteinGuide workflow](workflows/protein-guide.md) walks through each step in detail, and the [stability-guided generation example](examples/stability-guided-generation.md) shows a working implementation with ESM3 + TAG.

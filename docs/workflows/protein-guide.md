@@ -1,23 +1,45 @@
 # ProteinGuide Workflow
 
-End-to-end recipe for guided protein sequence generation. Each step links to relevant API docs and includes practical tips from our own benchmarking.
+End-to-end recipe for guided protein sequence generation, based on [ProteinGuide](https://arxiv.org/abs/2505.04823). Each step maps to one of the four library design modules and links to the relevant module page for details.
 
 ## Overview
 
 ```
-Data → PredictiveModel → Train → Combine with GenModel → Sample → Evaluate
+    DATA              MODELS                  SAMPLING      EVALUATION
+┌──────────┐   ┌─────────────────────┐   ┌───────────┐   ┌──────────┐
+│ Assay    ├──►│ Train oracle        │   │           │   │ Oracle   │
+│ variants │   │ Train noisy pred.   ├──►│ Guided    ├──►│ scoring  │
+│          │   │ TAG/DEG(gen, pred)  │   │ sampling  │   │ Diversity│
+│ Homologs ├──►│ Fine-tune gen model │   │           │   │ AF3 fold │
+└──────────┘   └─────────────────────┘   └───────────┘   └──────────┘
 ```
+
+| Step | Module | Key Pages |
+|------|--------|-----------|
+| Organize data | Data | [MSA Acquisition](msa-acquisition.md), [MSA → Dataset](msa-to-dataset.md), [Data Splits](data-splits.md) |
+| Set up predictive model | Models | [predictive_modeling](../reference/predictive_modeling.md) |
+| Train oracle + noisy classifier | Models | [Training Predictors](training-predictors.md) |
+| Combine with TAG or DEG | Models | [guide](../reference/guide.md) |
+| Sample | Sampling | [sampling](../reference/sampling.md) |
+| Evaluate | Evaluation | [evaluation](../reference/evaluation.md), [Likelihood Curves](likelihood-curves.md) |
 
 ---
 
 ## Step 1: Organize your data
 
-Prepare your fitness/property dataset for training a predictive model.
+Prepare your fitness/property dataset for training a predictive model and (optionally) homologous sequences for fine-tuning.
 
-!!! note "Coming soon"
-    Detailed workflow for data organization, train/val/test splits, and the `GuidanceDataset` interface.
+**Assay data** — load labeled variants into a `ProteinDataset` and set up [Data Splits](data-splits.md) for train/eval:
 
-<!-- TODO[pi]: write data organization workflow — cover GuidanceDataset, noise schedules, collation -->
+```python
+from proteingen.data import ProteinDataset
+
+dataset = ProteinDataset(sequences=my_sequences, labels=my_labels)
+```
+
+**Homologs for fine-tuning** (optional) — if you want to specialize the generative model to your protein family before guidance, acquire an MSA via [MSA Acquisition](msa-acquisition.md) and prepare it with [MSA → Dataset](msa-to-dataset.md). Then follow the [Continued Pretraining](continued-pretraining.md) workflow.
+
+Split your assay data thoughtfully — see [Data Splits](data-splits.md) for strategies (by mutational distance, activity range, position).
 
 ---
 
@@ -77,18 +99,15 @@ All template models are ABCs — you implement `format_raw_to_logits` using the 
     - **`gaussian_binary_logits`** — differentiable through both mean and variance. Naturally TAG-friendly.
     - **`categorical_binary_logits`** — for multi-class predictors (target class vs rest).
 
-<!-- TODO[pi]: write predictive model setup workflow with code templates -->
+
 
 ---
 
-## Step 3: Train a noisy classifier
+## Step 3: Train oracle and noisy classifier
 
-Train your predictive model on noisy (partially masked) inputs so it works well during the iterative denoising/sampling process.
+Train two predictive models: an **oracle** on clean data for evaluation, and a **noisy classifier** on masked inputs for guidance during sampling.
 
-!!! note "Coming soon"
-    Detailed workflow for noisy classifier training — noise schedules, masking strategies, training loops, and diagnostics.
-
-<!-- TODO[pi]: write training workflow — cover noise schedules, GuidanceDataset, training loop, wandb logging -->
+→ See **[Training Predictors](training-predictors.md)** for the full module: oracle training, noisy classifier training with noise injection, predictor–oracle agreement validation, and `format_raw_to_logits` selection.
 
 ---
 
@@ -168,7 +187,7 @@ projection = LinearGuidanceProjection(
 guided = TAG(gen, pred, projection=projection)
 ```
 
-<!-- TODO[pi]: write guidance workflow — cover TAG vs DEG tradeoffs, temperature tuning, GuidanceProjection setup -->
+
 
 ---
 
@@ -212,7 +231,7 @@ Generate candidate sequences using one of the available samplers.
     - All samplers move input to `model.device` automatically and return strings by default.
     - Ancestral sampling modifies the input tensor in-place — pass a copy if you need the original.
 
-<!-- TODO[pi]: write sampling workflow — cover sampler choice, batch_size, temperature, evaluation metrics -->
+
 
 ---
 
@@ -220,7 +239,14 @@ Generate candidate sequences using one of the available samplers.
 
 Assess whether generated sequences are trustworthy before committing to wet-lab validation.
 
-!!! note "Coming soon"
-    Detailed workflow for evaluation — sequence diversity, predicted fitness distributions, structural plausibility checks, comparison to training data.
+→ See **[evaluation](../reference/evaluation.md)** for the full reference: oracle scoring, predictor–oracle agreement, diversity metrics, and structural validation.
 
-<!-- TODO[pi]: write evaluation workflow — cover metrics, plots, sanity checks, red flags -->
+**Key checks:**
+
+1. **Oracle scoring** — score the generated library with your oracle. Are predicted activities above threshold?
+2. **Predictor–oracle agreement** — on the generated (clean) sequences, do the noisy predictor and oracle agree? Low agreement means the predictor was unreliable during generation.
+3. **Diversity** — are sequences diverse enough? Check pairwise identity, mutational distance from wildtype, positional entropy.
+4. **Structural validation** (optional) — fold a subset with AF3 and check pLDDT, TM-score to target backbone.
+5. **Comparison to training data** — are generated sequences interpolating within the training distribution or extrapolating beyond it?
+
+These checks inform threshold-setting and parameter tuning for subsequent rounds.
