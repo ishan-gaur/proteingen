@@ -33,7 +33,7 @@ We ran a controlled experiment generating proteins with **6 models across 3 fami
 
 How well do models reconstruct the original sequence at each masking level?
 
-![Sequence identity vs masking level](assets/images/benchmark/sequence_identity.png)
+![Sequence identity vs masking level](../assets/images/benchmark/sequence_identity.png)
 
 At low masking (10%), all models achieve >90% sequence identity — they're good at filling in a few gaps. The real separation happens at **50% masking**: ESM-C models (71–73%) and DPLM2-3B (66%) lead, while smaller DPLM2 models and ESM3 lag behind (56–62%).
 
@@ -43,19 +43,19 @@ At 100% masking (fully unconditional generation), all models converge to ~6% ide
 
 How confident is each model at each step of the generation process?
 
-![Likelihood trajectories](assets/images/benchmark/likelihood_trajectories.png)
+![Likelihood trajectories](../assets/images/benchmark/likelihood_trajectories.png)
 
 **ESM-C models are the most confident generators**, with mean step log-probs around -1.3 to -1.5 across all masking levels (except 100%). DPLM2-3B is comparable. Smaller DPLM2 models are notably less confident (around -2.3 to -2.5).
 
 An interesting pattern: at 100% masking, all models produce similar mean log-probs (~-2.5 to -2.8), but the trajectories look qualitatively different — ESM-C trajectories are smoother while DPLM2 trajectories show more variance.
 
-![Mean step log-prob](assets/images/benchmark/mean_step_log_prob.png)
+![Mean step log-prob](../assets/images/benchmark/mean_step_log_prob.png)
 
 ### Structural Quality (AF3 pLDDT)
 
 Does higher sequence recovery translate to better-folding proteins?
 
-![pLDDT vs masking](assets/images/benchmark/scaling_plddt.png)
+![pLDDT vs masking](../assets/images/benchmark/scaling_plddt.png)
 
 At low masking, all models produce sequences with similar AF3 pLDDT (~50–52). As masking increases, **DPLM2-3B maintains structural quality best** (pLDDT 52→37), while smaller DPLM2 models degrade faster (50→34). ESM-C models hold up well in the middle range.
 
@@ -65,7 +65,7 @@ At 100% masking, all models produce low-confidence structures (pLDDT 34–39), b
 
 Do generated sequences fold into the same structure as the original?
 
-![TM-score scaling](assets/images/benchmark/scaling_tm_score.png)
+![TM-score scaling](../assets/images/benchmark/scaling_tm_score.png)
 
 TM-score to the original structure tells the structural similarity story:
 
@@ -83,7 +83,7 @@ The 600M model consistently outperforms the 300M across all metrics and masking 
 
 DPLM2 shows **dramatic scaling benefits**:
 
-![Scaling: sequence identity](assets/images/benchmark/scaling_sequence_identity.png)
+![Scaling: sequence identity](../assets/images/benchmark/scaling_sequence_identity.png)
 
 - **Sequence identity at 50%**: 56% (150M) → 58% (650M) → **66% (3B)**
 - **pLDDT at 50%**: 42 (150M) → 44 (650M) → **51 (3B)**
@@ -91,7 +91,7 @@ DPLM2 shows **dramatic scaling benefits**:
 
 The jump from 650M to 3B is particularly striking — it's a larger improvement than 150M to 650M despite a similar relative parameter increase.
 
-![Scaling: log-probs](assets/images/benchmark/scaling_mean_step_log_prob.png)
+![Scaling: log-probs](../assets/images/benchmark/scaling_mean_step_log_prob.png)
 
 ### Cross-Family Comparison
 
