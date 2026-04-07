@@ -207,22 +207,85 @@ We want to make it easy for you to get your work out there. Our [Contributing](c
 
 ## Library Design with ProteinGen
 
-With ProteinGen, designing libraries to optimize some property of a protein requires the use of four modules:
+With ProteinGen, designing libraries to optimize some property of a protein involves four modules:
 
-1. [Data](reference/data.md): assay labeled variants or homologous sequences stores as a `ProteinDataset`
-2. [Models](reference/models.md): sequence `GenerativeModels`, property `PredictiveModels`, and how to train them with your data
-3. [Sampling](reference/sampling.md): generating a library to optimize your property using the models
-4. [Evaluation](reference/evaluation.md): various tools to sanity check the pipeline at each of the 3 preceding stages
-
-
-The simplest possible pipeline is to just sample from a pretrained model. To be clear, this doesn't involve any wet-lab data, nor does it optimize any functional property, but it demonstrates the `GenerativeModel`, `PredictiveModel`, and `Sampling` APIs.
+1. **[Data](reference/data.md)** — assay-labeled variants, homologous sequences, noise schedules, and data splits
+2. **[Models](reference/models.md)** — generative models (ESM3, ESMC, PMPNN), predictive models (probes, MLPs), guidance (TAG, DEG), and training (LoRA, noisy classifiers)
+3. **[Sampling](reference/sampling.md)** — generating a library using the models: discrete-time ancestral, linear interpolation, or flow-matching samplers
+4. **[Evaluation](reference/evaluation.md)** — sanity-checking each stage: likelihood curves, oracle agreement, diversity metrics, and structural validation
 
 
+### Unconditional Sampling (Models + Sampling)
 
+The simplest pipeline: sample from a pretrained model with no data and no property optimization. This demonstrates the **Models** and **Sampling** modules.
 
+```python
+from proteingen.models import ESMC
+from proteingen.sampling import sample
 
+model = ESMC("esmc_300m").cuda()
+seqs = sample(model, ["<mask>" * 100] * 8)["sequences"]  # 8 random proteins
+```
 
+That's it — three lines. The model provides `get_log_probs`, the sampler iteratively unmasks positions. See the [unconditional sampling example](examples/unconditional-sampling.md) for details.
 
+### Guided Library Design (All Four Modules)
 
-<!-- TODO[pi]: flesh out home page with a diagram showing the generative + predictive model combination via Bayes' rule -->
-<!-- TODO[pi]: add a quick "5-line example" code block showing unconditional sampling -->
+A realistic pipeline uses all four modules. Here's a sketch of a first-round library design using [ProteinGuide](workflows/protein-guide.md) — combining fine-tuning with classifier guidance to generate variants optimized for a target property.
+
+```python
+from proteingen.models import ESMC
+from proteingen.models.utils import load_pdb
+from proteingen.data import ProteinDataset, uniform_mask_noise, uniform_time
+from proteingen.predictive_modeling import OneHotMLP
+from proteingen.guide import DEG
+from proteingen.sampling import sample
+
+# ── Data ─────────────────────────────────────────────────────────
+# Load homologs for fine-tuning and assay-labeled variants for the predictor
+homologs = ProteinDataset(sequences=load_homologs("my_protein.fasta"))  # (1)
+assay_data = ProteinDataset(
+    sequences=labeled_seqs, labels=activity_labels,                     # (2)
+)
+
+# ── Models: fine-tune the generative model ───────────────────────
+gen_model = ESMC("esmc_300m")
+gen_model.apply_lora(r=4)
+collate_fn = homologs.collator(gen_model, uniform_mask_noise(gen_model.tokenizer), uniform_time)
+# ... training loop (see Fine-tuning workflow) ...                      # (3)
+
+# ── Models: train oracle and noisy predictor ─────────────────────
+oracle = MyPredictor(tokenizer=gen_model.tokenizer, ...)                # (4)
+# ... train oracle on clean assay data ...
+
+noisy_predictor = MyPredictor(tokenizer=gen_model.tokenizer, ...)       # (5)
+# ... train noisy predictor with masked inputs (see ProteinGuide workflow) ...
+
+# ── Evaluation: validate predictor–oracle agreement ──────────────
+# Check that the noisy predictor and oracle agree on clean sequences
+# before trusting the predictor during sampling                         # (6)
+oracle_scores = oracle.predict(val_seqs)
+predictor_scores = noisy_predictor.predict(val_seqs)
+print(f"Spearman ρ: {spearmanr(oracle_scores, predictor_scores).correlation:.3f}")
+
+# ── Sampling: guided generation ──────────────────────────────────
+noisy_predictor.set_target_(True)
+noisy_predictor.set_temp_(0.1)          # lower = stronger guidance
+guided = DEG(gen_model, noisy_predictor).cuda()
+
+library = sample(guided, ["<mask>" * seq_len] * 100)["sequences"]       # (7)
+
+# ── Evaluation: score the library with the oracle ────────────────
+library_scores = oracle.predict(library)                                # (8)
+```
+
+1. **Data** — homologous sequences from an MSA for fine-tuning the base model
+2. **Data** — assay-labeled variants (e.g. from a DMS or previous round) for training the predictor
+3. **Models** — LoRA fine-tuning specializes the base model to your protein family
+4. **Models** — the oracle is trained on clean data and used only for evaluation
+5. **Models** — the noisy predictor is trained on randomly masked inputs so it works during iterative unmasking
+6. **Evaluation** — if the predictor and oracle disagree on clean sequences, the predictor can't be trusted during generation
+7. **Sampling** — DEG enumerates all amino acids at each position, reweighting by the predictor's scores
+8. **Evaluation** — the oracle scores the final library; these scores inform threshold-setting for the next round
+
+Each numbered annotation maps to a module. The [ProteinGuide workflow](workflows/protein-guide.md) walks through each step in detail, and the [PbrR walkthrough](examples/pbrr-walkthrough.md) shows a complete working implementation.
