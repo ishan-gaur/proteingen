@@ -60,6 +60,7 @@ Skills are structured instructions that AI coding agents can load on-demand to p
 
 | Skill | Description |
 |-------|-------------|
+| [`follow-workflow`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/follow-workflow/SKILL.md) | Plan and implement a library design pipeline by walking through workflows step-by-step |
 | [`add-generative-model`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/add-generative-model/SKILL.md) | Integrate a new generative (transition) model into the library |
 | [`add-predictive-model`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/add-predictive-model/SKILL.md) | Integrate a new predictive model into the library |
 | [`likelihood-curves`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/likelihood-curves/SKILL.md) | Evaluate and plot log-likelihood trajectories for generative models |
