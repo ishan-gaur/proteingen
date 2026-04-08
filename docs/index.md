@@ -1,6 +1,5 @@
 ProteinGen is a package for library design with machine learning. It focuses on leveraging assay-labeled data to improve libraries sampled using protein sequence models.
 
-
 In order to make writing library design [pipelines](workflows/index.md) easier, we created a simplified [interface](reference/design-philosophy.md#design-philosophy) for using sequence models. Below is an example of inverse-folding with ProteinMPNN using ProteinGen. On the other tab, you can see the *forty-five lines* needed for the original codebase.
 
 
@@ -8,22 +7,6 @@ In order to make writing library design [pipelines](workflows/index.md) easier, 
 
 
 We similarly provide simplified APIs to a broad array of protein [models](models/index.md) including ESM3, DPLM2, and ProGen3.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 === "ProteinGen Inverse-Folding"
 
