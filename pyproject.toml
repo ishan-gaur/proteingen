@@ -21,10 +21,8 @@ dependencies = [
     "mkdocs-material>=9.7.5",
     "mkdocstrings[python]>=1.0.3",
     "tmtools>=0.3.0",
+    "rc-foundry>=0.1.11",
 ]
-
-[project.optional-dependencies]
-pmpnn = ["rc-foundry[all]"]
 
 [dependency-groups]
 dev = [

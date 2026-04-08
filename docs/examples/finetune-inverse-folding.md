@@ -1,5 +1,14 @@
 # Fine-tuning ESM3 as Inverse Folding Model (EphB1)
 
+??? abstract "Architecture Breakdown"
+    **Data:** ~9.2k EphB1 homologs with AF3-predicted structures. The pipeline: MSA → gap stripping → AF3 folding → atom37 coords + VQ-VAE structure tokens → [MSA → Dataset](../workflows/msa-to-dataset.md). Custom collator pads both sequences and structures per batch.
+
+    **Models:** ESM3 with LoRA (r=4), structure-conditioned — all sequence positions masked, model predicts from structure alone → [generative_modeling](../reference/generative_modeling.md). This is an instance of the [Fine-tuning](../workflows/finetune-generative.md) module (inverse folding variant).
+
+    **Sampling:** None (training only).
+
+    **Evaluation:** Per-epoch likelihood curves comparing structure-conditioned vs. sequence-only prediction → [Likelihood Curves](../workflows/likelihood-curves.md). Key metric: structure-conditioned log-prob at t=0 (fully masked).
+
 The full pipeline: fold MSA sequences with AF3, then fine-tune ESM3 to predict sequence from structure.
 
 ## Prerequisites

@@ -83,19 +83,30 @@ nav:
     - StabilityPMPNN: models/stability-pmpnn.md
   - Workflows:
     - Overview: workflows/index.md
-    - ProteinGuide: workflows/protein-guide.md
-    - MSA → Dataset: workflows/msa-to-dataset.md
-    - Fine-tuning: workflows/finetune-generative.md
-    - Likelihood Curves: workflows/likelihood-curves.md
-    - Stability Guidance: workflows/stability-guidance.md
+    - Workflows:
+      - ProteinGuide: workflows/protein-guide.md
+      - Continued Pretraining: workflows/continued-pretraining.md
+    - "Modules — Data":
+      - MSA Acquisition: workflows/msa-acquisition.md
+      - MSA → Dataset: workflows/msa-to-dataset.md
+      - Data Splits: workflows/data-splits.md
+    - "Modules — Models":
+      - Fine-tuning Generative Models: workflows/finetune-generative.md
+      - Training Predictors: workflows/training-predictors.md
+    - "Modules — Evaluation":
+      - Likelihood Curves: workflows/likelihood-curves.md
   - Contributing: contributing.md
   - Reference:
     - Design Philosophy: reference/design-philosophy.md
-    - API Reference:
+    - Data:
+      - data: reference/data.md
+    - Models:
       - probability_model: reference/probability_model.md
       - generative_modeling: reference/generative_modeling.md
       - predictive_modeling: reference/predictive_modeling.md
       - guide: reference/guide.md
-      - sampling: reference/sampling.md
-      - data: reference/data.md
       - models: reference/models.md
+    - Sampling:
+      - sampling: reference/sampling.md
+    - Evaluation:
+      - evaluation: reference/evaluation.md

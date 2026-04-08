@@ -1,5 +1,14 @@
 # Structure-Conditioned Sampling (ESM3)
 
+??? abstract "Architecture Breakdown"
+    **Data:** A PDB structure file (the conditioning input, not training data).
+
+    **Models:** ESM3 (pretrained generative model, structure-conditioned via `set_condition_`) → [generative_modeling](../reference/generative_modeling.md). Structure encoding uses the VQ-VAE encoder (runs once, cached).
+
+    **Sampling:** `sample` (discrete-time ancestral) → [sampling](../reference/sampling.md)
+
+    **Evaluation:** None in this example. For structural validation of generated sequences, see [evaluation](../reference/evaluation.md#structural-validation).
+
 Generate sequences conditioned on a known protein backbone structure using ESM3.
 
 ## Quick Start

@@ -1,8 +1,8 @@
 # Design Philosophy
 
-ProteinGen is built around a small number of composable abstractions that mirror the math of guided generation. Understanding these three base classes is all you need to use the library.
+ProteinGen is organized around four modules — **Data**, **Models**, **Sampling**, and **Evaluation** — that mirror the stages of a library design pipeline. The **Models** module contains the core abstractions: a small number of composable classes that mirror the math of guided generation. Understanding these base classes is all you need to use the library.
 
-## The three base classes
+## The core abstractions (Models module)
 
 ### ProbabilityModel
 
@@ -209,3 +209,5 @@ Key parameters:
 ## Composition
 
 The key design insight: because TAG, DEG, and all models share the `ProbabilityModel` interface, they compose naturally. You can layer multiple guidance signals, swap generative backbones, or mix sampling strategies without changing any code.
+
+This composability is what makes the four-module structure work: **Data** feeds into **Models** (both generative and predictive), guidance algorithms combine models into new models, **Sampling** consumes any model that provides `get_log_probs`, and **Evaluation** tools work on the outputs of any sampler. Swapping any component — a different generative backbone, a new predictor architecture, a different sampling algorithm — requires changing only that component.

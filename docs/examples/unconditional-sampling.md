@@ -1,5 +1,14 @@
 # Unconditional Sampling
 
+??? abstract "Architecture Breakdown"
+    **Data:** None — sampling from a pretrained model.
+
+    **Models:** ESMC (pretrained generative model, no conditioning) → [generative_modeling](../reference/generative_modeling.md)
+
+    **Sampling:** `sample` (discrete-time ancestral, random unmasking order) → [sampling](../reference/sampling.md)
+
+    **Evaluation:** None in this example.
+
 Generate protein sequences from scratch using ESMC as a masked language model.
 
 ## Quick Start

@@ -1,5 +1,8 @@
 # Stability-Guided Inverse Folding
 
+!!! info "This is an example walkthrough"
+    This page walks through a specific example (`examples/stability_guidance/main.py`). For the general guided generation framework, see the [ProteinGuide workflow](protein-guide.md). For the quick-start version, see the [stability-guided generation example](../examples/stability-guided-generation.md).
+
 Generate thermodynamically stable protein sequences for a target backbone structure by combining ESM3 (inverse folding) with a structure-aware stability predictor via TAG guidance.
 
 This workflow walks through `examples/stability_guidance/main.py`, which redesigns the Rocklin cluster 146 topology (PDB: 5KPH) — a small 4-helix bundle — and shows that guided sampling shifts the predicted ΔΔG distribution from destabilizing to stabilizing.

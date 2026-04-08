@@ -1,8 +1,10 @@
 import math
+import shutil
+import sys
 
 import torch
 from torch.nn import functional as F
-from typing import Callable, Optional, List, TypedDict
+from typing import Callable, Optional, List, TypedDict, TextIO
 from proteingen.generative_modeling import GenerativeModel, TransitionFunc
 from tqdm import tqdm
 
@@ -48,29 +50,172 @@ def tensor_to_string(x_SP, tokenizer):
     return seq_SP
 
 
+def _tensor_to_preview_strings(x_SP: torch.LongTensor, tokenizer) -> list[str]:
+    if hasattr(tokenizer, "batch_decode"):
+        seq_SP = tokenizer.batch_decode(x_SP)
+        seq_SP = [s.replace(" ", "") for s in seq_SP]
+    else:
+        seq_SP = [tokenizer.decode(row) for row in x_SP]
+    seq_SP = [s.replace("<cls>", "") for s in seq_SP]
+    seq_SP = [s.replace("<eos>", "") for s in seq_SP]
+    seq_SP = [s.replace("<pad>", "") for s in seq_SP]
+    seq_SP = [s.replace("<mask>", "_") for s in seq_SP]
+    return seq_SP
+
+
+def _truncate_for_terminal(text: str, max_width: int) -> str:
+    if max_width <= 0:
+        return ""
+    if len(text) <= max_width:
+        return text
+    if max_width <= 3:
+        return "." * max_width
+    return text[: max_width - 3] + "..."
+
+
+def _build_live_preview_lines(
+    x_SP: torch.LongTensor, tokenizer, max_lines: int, max_width: int
+) -> list[str]:
+    if max_lines <= 0:
+        return []
+
+    n_sequences = x_SP.size(0)
+    if n_sequences > max_lines:
+        n_decode = max(max_lines - 1, 0)
+    else:
+        n_decode = n_sequences
+
+    preview = _tensor_to_preview_strings(x_SP[:n_decode], tokenizer)
+    lines = [_truncate_for_terminal(seq, max_width) for seq in preview]
+
+    if n_sequences > max_lines:
+        lines.append(_truncate_for_terminal("...", max_width))
+
+    while len(lines) < max_lines:
+        lines.append("")
+
+    return lines
+
+
+def _render_live_preview(
+    lines: list[str], previous_line_count: int, stream: TextIO
+) -> int:
+    line_count = max(previous_line_count, len(lines))
+    for i in range(line_count):
+        stream.write("\n")
+        stream.write("\x1b[2K")
+        if i < len(lines):
+            stream.write(lines[i])
+
+    stream.flush()
+    return len(lines)
+
+
+class LiveSamplingPreview:
+    """Terminal renderer for in-place sequence previews below tqdm.
+
+    Interface:
+    - ``update(x_SP)``: render current sampled sequences in-place
+    - ``close()``: flush output (no-op cleanup)
+
+    Intended usage inside sampling loops:
+
+    ```python
+    preview = LiveSamplingPreview(model.tokenizer, enabled=True)
+    for step in ...:
+        ...  # update x_SP
+        pbar.update(1)
+        preview.update(x_SP)
+    preview.close()
+    ```
+    """
+
+    def __init__(
+        self,
+        tokenizer,
+        *,
+        enabled: bool,
+        reserve_lines: int = 2,
+        stream: Optional[TextIO] = None,
+    ) -> None:
+        self.tokenizer = tokenizer
+        self._reserve_lines = reserve_lines
+        self._stream = sys.stdout if stream is None else stream
+        self._enabled = bool(
+            enabled
+            and hasattr(self._stream, "isatty")
+            and self._stream.isatty()
+        )
+        self._line_count = 0
+
+    @property
+    def enabled(self) -> bool:
+        return self._enabled
+
+    def update(self, x_SP: torch.LongTensor) -> None:
+        if not self._enabled:
+            return
+
+        if self._line_count > 0:
+            self._stream.write(f"\x1b[{self._line_count}A")
+            self._stream.flush()
+
+        terminal_size = shutil.get_terminal_size(fallback=(80, 24))
+        max_lines = max(terminal_size.lines - self._reserve_lines, 1)
+        max_width = max(terminal_size.columns, 1)
+        preview_lines = _build_live_preview_lines(
+            x_SP=x_SP,
+            tokenizer=self.tokenizer,
+            max_lines=max_lines,
+            max_width=max_width,
+        )
+        self._line_count = _render_live_preview(
+            preview_lines,
+            previous_line_count=self._line_count,
+            stream=self._stream,
+        )
+
+    def close(self) -> None:
+        if self._enabled:
+            self._stream.flush()
+
+    def __enter__(self) -> "LiveSamplingPreview":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
+
+
 def sample_ctmc_linear_interpolation(
     model: GenerativeModel,
     x_SP: torch.LongTensor | List[str],
     n_steps: int,
     return_string=True,
+    live_preview: bool = True,
 ):
     if isinstance(x_SP, list):
         x_SP = model.tokenizer(x_SP, padding=True, return_tensors="pt")["input_ids"]
     x_device = x_SP.device
     x_SP = x_SP.to(model.device)
 
-    for step in tqdm(range(n_steps)):
-        logp_x_SPT = model.get_log_probs(
-            x_SP
-        )  # TODO[pi] I'm not seeing any -infs here--which I should with ESM3 for a masked logit formatted output
-        # Euler in this case is just a linear interpolation
-        output_dim = logp_x_SPT.size(2)
-        X_0_SPT = F.one_hot(x_SP, num_classes=output_dim)
-        X_n_SPT = torch.exp(logp_x_SPT)
-        steps_left = n_steps - step
-        X_1_SPT = ((steps_left - 1) / steps_left) * X_0_SPT + (1 / steps_left) * X_n_SPT
-        X_1_SxPT = X_1_SPT.reshape(-1, output_dim)
-        x_SP = torch.multinomial(X_1_SxPT, num_samples=1).reshape(*(x_SP.shape))
+    preview = LiveSamplingPreview(model.tokenizer, enabled=live_preview)
+
+    with preview, tqdm(total=n_steps) as pbar:
+        for step in range(n_steps):
+            logp_x_SPT = model.get_log_probs(
+                x_SP
+            )  # TODO[pi] I'm not seeing any -infs here--which I should with ESM3 for a masked logit formatted output
+            # Euler in this case is just a linear interpolation
+            output_dim = logp_x_SPT.size(2)
+            X_0_SPT = F.one_hot(x_SP, num_classes=output_dim)
+            X_n_SPT = torch.exp(logp_x_SPT)
+            steps_left = n_steps - step
+            X_1_SPT = ((steps_left - 1) / steps_left) * X_0_SPT + (1 / steps_left) * X_n_SPT
+            X_1_SxPT = X_1_SPT.reshape(-1, output_dim)
+            x_SP = torch.multinomial(X_1_SxPT, num_samples=1).reshape(*(x_SP.shape))
+
+            pbar.update(1)
+            preview.update(x_SP)
     assert (x_SP == model.tokenizer.mask_token_id).sum() == 0
     if return_string:
         return tensor_to_string(x_SP, model.tokenizer)
@@ -84,6 +229,7 @@ def sample(
     x_SP: torch.LongTensor | List[str],
     n_parallel: int = 1,
     in_order: Optional[list[torch.LongTensor] | str] = None,
+    live_preview: bool = True,
 ) -> SamplingTrajectory:
     """Ancestral sampling for masked generative models.
 
@@ -107,6 +253,8 @@ def sample(
             - ``"left_to_right"``: masked positions in ascending index order.
             - ``list[LongTensor]``: one tensor per sequence giving explicit
               positions to unmask (first element = first revealed).
+        live_preview: if True, render in-place sequence updates below tqdm in a
+            real terminal. Automatically disabled when stdout is not a TTY.
 
     Returns:
         SamplingTrajectory with generated sequences and per-step data.
@@ -152,45 +300,52 @@ def sample(
     step_positions = order_flat.clone()
     step_tokens = torch.full((S, padded_len), -1, dtype=torch.long)
 
-    for step in tqdm(range(n_steps)):
-        positions = order_steps[:, step, :]  # (S, n_parallel)
+    preview = LiveSamplingPreview(model.tokenizer, enabled=live_preview)
 
-        # DEG needs position info before computing log probs
-        if hasattr(model, "at_position"):
-            if n_parallel > 1:
-                raise NotImplementedError("DEG with n_parallel > 1 not implemented")
-            positions_per_seq: List[Optional[int]] = [
-                pos[0].item() for pos in positions
-            ]
-            with model.at_position(positions_per_seq):
+    with preview, tqdm(total=n_steps) as pbar:
+        for step in range(n_steps):
+            positions = order_steps[:, step, :]  # (S, n_parallel)
+
+            # DEG needs position info before computing log probs
+            if hasattr(model, "at_position"):
+                if n_parallel > 1:
+                    raise NotImplementedError("DEG with n_parallel > 1 not implemented")
+                positions_per_seq: List[Optional[int]] = [
+                    pos[0].item() for pos in positions
+                ]
+                with model.at_position(positions_per_seq):
+                    log_probs_SPT = model.get_log_probs(x_SP)
+            else:
                 log_probs_SPT = model.get_log_probs(x_SP)
-        else:
-            log_probs_SPT = model.get_log_probs(x_SP)
 
-        T = log_probs_SPT.size(-1)
-        probs_SPT = torch.exp(log_probs_SPT)
+            T = log_probs_SPT.size(-1)
+            probs_SPT = torch.exp(log_probs_SPT)
 
-        # Gather probs at selected positions
-        pos_expanded = positions.unsqueeze(-1).expand(S, n_parallel, T)  # (S, n_parallel, T)
-        probs_at_pos = probs_SPT.gather(1, pos_expanded)  # (S, n_parallel, T)
+            # Gather probs at selected positions
+            pos_expanded = positions.unsqueeze(-1).expand(S, n_parallel, T)  # (S, n_parallel, T)
+            probs_at_pos = probs_SPT.gather(1, pos_expanded)  # (S, n_parallel, T)
 
-        # Sample tokens
-        tokens = torch.multinomial(
-            probs_at_pos.reshape(S * n_parallel, T), num_samples=1
-        ).reshape(S, n_parallel)  # (S, n_parallel)
+            # Sample tokens
+            tokens = torch.multinomial(
+                probs_at_pos.reshape(S * n_parallel, T), num_samples=1
+            ).reshape(S, n_parallel)  # (S, n_parallel)
 
-        # Update sequences
-        x_SP.scatter_(1, positions, tokens)
+            # Update sequences
+            x_SP.scatter_(1, positions, tokens)
 
-        # Record trajectory
-        flat_start = step * n_parallel
-        flat_end = flat_start + n_parallel
-        log_probs_at_pos = log_probs_SPT.gather(1, pos_expanded)  # (S, n_parallel, T)
-        token_log_probs = log_probs_at_pos.gather(
-            2, tokens.unsqueeze(-1)
-        ).squeeze(-1)  # (S, n_parallel)
-        step_log_probs[:, flat_start:flat_end] = token_log_probs.cpu()
-        step_tokens[:, flat_start:flat_end] = tokens.cpu()
+            # Record trajectory
+            flat_start = step * n_parallel
+            flat_end = flat_start + n_parallel
+            log_probs_at_pos = log_probs_SPT.gather(1, pos_expanded)  # (S, n_parallel, T)
+            token_log_probs = log_probs_at_pos.gather(
+                2, tokens.unsqueeze(-1)
+            ).squeeze(-1)  # (S, n_parallel)
+            step_log_probs[:, flat_start:flat_end] = token_log_probs.cpu()
+            step_tokens[:, flat_start:flat_end] = tokens.cpu()
+
+            pbar.update(1)
+
+            preview.update(x_SP)
 
     assert (x_SP == mask_token_id).sum() == 0, "Some positions remain masked"
     sequences = tensor_to_string(x_SP, model.tokenizer)
@@ -462,11 +617,14 @@ def sample_flow_matching_legacy(
         Callable[[torch.FloatTensor, torch.LongTensor], torch.FloatTensor]
     ] = None,
     return_string: bool = True,
+    live_preview: bool = True,
 ) -> torch.LongTensor | list[str]:
     """Legacy flow-matching Euler sampler (old stability demo numerics).
 
     This reproduces the original rate-matrix integration loop and guidance-ratio
     update so DFM models can be compared head-to-head against old behavior.
+
+    live_preview shows in-place sequence updates below tqdm in real terminals.
     """
     if isinstance(x_SP, list):
         x_SP = model.tokenizer(x_SP, padding=True, return_tensors="pt")["input_ids"]
@@ -483,52 +641,59 @@ def sample_flow_matching_legacy(
     mask_one_hot = torch.zeros((S,), device=xt.device)
     mask_one_hot[mask_idx] = 1.0
 
-    for _ in tqdm(range(n_steps)):
-        logits = _formatted_logits(model, xt)[..., :S]
-        if logits_postprocess is not None:
-            logits = logits_postprocess(logits, xt)
-        pt_x1_probs = F.softmax(logits / x1_temp, dim=-1)
+    preview = LiveSamplingPreview(model.tokenizer, enabled=live_preview)
 
-        xt_is_mask = (xt == mask_idx).view(*xt.shape, 1).float()
-        R_t = xt_is_mask * pt_x1_probs * ((1 + stochasticity * t) / (1 - t))
-        remask_rates = (1 - xt_is_mask) * mask_one_hot.view(1, 1, -1) * stochasticity
-        R_t += remask_rates
+    with preview, tqdm(total=n_steps) as pbar:
+        for _ in range(n_steps):
+            logits = _formatted_logits(model, xt)[..., :S]
+            if logits_postprocess is not None:
+                logits = logits_postprocess(logits, xt)
+            pt_x1_probs = F.softmax(logits / x1_temp, dim=-1)
 
-        if predictor_log_prob is not None:
-            R_t = _legacy_get_guided_rates(
-                predictor_log_prob,
-                xt,
-                t,
-                R_t,
-                S,
-                use_tag=use_tag,
-                guide_temp=guide_temp,
+            xt_is_mask = (xt == mask_idx).view(*xt.shape, 1).float()
+            R_t = xt_is_mask * pt_x1_probs * ((1 + stochasticity * t) / (1 - t))
+            remask_rates = (1 - xt_is_mask) * mask_one_hot.view(1, 1, -1) * stochasticity
+            R_t += remask_rates
+
+            if predictor_log_prob is not None:
+                R_t = _legacy_get_guided_rates(
+                    predictor_log_prob,
+                    xt,
+                    t,
+                    R_t,
+                    S,
+                    use_tag=use_tag,
+                    guide_temp=guide_temp,
+                )
+
+            R_t.scatter_(-1, xt[:, :, None], 0.0)
+            R_t.scatter_(-1, xt[:, :, None], (-R_t.sum(dim=-1, keepdim=True)))
+
+            step_probs = (R_t * dt).clamp(min=0.0, max=1.0)
+            step_probs.scatter_(-1, xt[:, :, None], 0.0)
+            step_probs.scatter_(
+                -1,
+                xt[:, :, None],
+                (1.0 - torch.sum(step_probs, dim=-1, keepdim=True)).clamp(min=0.0),
             )
+            step_probs = torch.clamp(step_probs, min=0.0, max=1.0)
 
-        R_t.scatter_(-1, xt[:, :, None], 0.0)
-        R_t.scatter_(-1, xt[:, :, None], (-R_t.sum(dim=-1, keepdim=True)))
+            xt = torch.distributions.Categorical(step_probs).sample()
 
-        step_probs = (R_t * dt).clamp(min=0.0, max=1.0)
-        step_probs.scatter_(-1, xt[:, :, None], 0.0)
-        step_probs.scatter_(
-            -1,
-            xt[:, :, None],
-            (1.0 - torch.sum(step_probs, dim=-1, keepdim=True)).clamp(min=0.0),
-        )
-        step_probs = torch.clamp(step_probs, min=0.0, max=1.0)
+            pbar.update(1)
+            preview.update(xt)
 
-        xt = torch.distributions.Categorical(step_probs).sample()
+            t += dt
+            if t > 1.0:
+                break
 
-        t += dt
-        if t > 1.0:
-            break
-
-    if argmax_final:
-        xt_is_mask = (xt == mask_idx).view(*xt.shape).float()
-        logits = _formatted_logits(model, xt)[..., :S]
-        if logits_postprocess is not None:
-            logits = logits_postprocess(logits, xt)
-        xt = (torch.argmax(logits, dim=-1) * xt_is_mask + xt * (1 - xt_is_mask)).long()
+        if argmax_final:
+            xt_is_mask = (xt == mask_idx).view(*xt.shape).float()
+            logits = _formatted_logits(model, xt)[..., :S]
+            if logits_postprocess is not None:
+                logits = logits_postprocess(logits, xt)
+            xt = (torch.argmax(logits, dim=-1) * xt_is_mask + xt * (1 - xt_is_mask)).long()
+            preview.update(xt)
 
     if return_string:
         return tensor_to_string(xt, model.tokenizer)

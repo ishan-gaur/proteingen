@@ -1,5 +1,14 @@
 # Benchmarking Model Families: Generation Quality vs. Scale
 
+??? abstract "Architecture Breakdown"
+    **Data:** 10 random Swiss-Prot sequences (80–300 aa) as generation seeds + 5 random decoding orders per seed.
+
+    **Models:** 6 pretrained generative models across 3 families (ESMC-300M/600M, ESM3-Open, DPLM2-150M/650M/3B) → [models](../reference/models.md). No predictive models or guidance — this benchmarks the base models directly.
+
+    **Sampling:** `sample` (discrete-time ancestral) at 4 masking levels (10%, 25%, 50%, 100%) with controlled decoding orders → [sampling](../reference/sampling.md).
+
+    **Evaluation:** Per-step generation log-likelihood, sequence identity to original, AF3 folding (pLDDT, pTM, TM-score) → [evaluation](../reference/evaluation.md). This is a pure evaluation example — no training or guidance.
+
 How do different protein language model families compare when generating sequences, and does bigger always mean better?
 
 We ran a controlled experiment generating proteins with **6 models across 3 families** (ESM-C, ESM3, DPLM-2) at 4 masking levels, then folded all 1200 generated sequences with AlphaFold 3.

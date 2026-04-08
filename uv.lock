@@ -467,62 +467,6 @@ wheels = [
 ]
 
 [[package]]
-name = "cuequivariance"
-version = "0.9.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "networkx", marker = "sys_platform == 'linux'" },
-    { name = "numpy", marker = "sys_platform == 'linux'" },
-    { name = "opt-einsum", marker = "sys_platform == 'linux'" },
-    { name = "scipy", marker = "sys_platform == 'linux'" },
-    { name = "sympy", marker = "sys_platform == 'linux'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/54/19/47c877dacf3efd16833a7bf8ea88be1d569c3d25d136f6fa36f392115478/cuequivariance-0.9.0.tar.gz", hash = "sha256:5b35d1ee0bbcf208e1862f1c4b351f1b4a74fe6cb583a0f91115bd8b3da8a011", size = 238619, upload-time = "2026-02-17T22:56:26.144Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/62/29/a3dba5b30dd89453ebfdabe00ebb80a9d4f16b4288650aacd2a472813be8/cuequivariance-0.9.0-py3-none-any.whl", hash = "sha256:332bf75127468e606beb7ae840487e72f9bd92fc5d5daa92777d54908cee02a4", size = 269244, upload-time = "2026-02-17T22:56:25.086Z" },
-]
-
-[[package]]
-name = "cuequivariance-ops-cu12"
-version = "0.9.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "nvidia-cublas-cu12", marker = "sys_platform == 'linux'" },
-    { name = "nvidia-ml-py", marker = "sys_platform == 'linux'" },
-    { name = "platformdirs", marker = "sys_platform == 'linux'" },
-    { name = "tqdm", marker = "sys_platform == 'linux'" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3d/ab/423d568cbc22b90a61315f1c5795383f7ab699e332b14e92ca0587ec5344/cuequivariance_ops_cu12-0.9.0-py3-none-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:c0a977018b123bb2884ff67e4b8a67577a64af3eb5eb9cf77c32c8bf0abfb800", size = 31060007, upload-time = "2026-02-17T16:33:37.602Z" },
-    { url = "https://files.pythonhosted.org/packages/ed/78/44138b4136660ede0bac6fc4f385bb96f1a33ede00f407b76af34aa9092e/cuequivariance_ops_cu12-0.9.0-py3-none-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:39b1f81a1f0491d6b829c781debfcd2cf743ba2b8783f6da8155c48947e54291", size = 31117632, upload-time = "2026-02-17T16:33:40.427Z" },
-]
-
-[[package]]
-name = "cuequivariance-ops-torch-cu12"
-version = "0.9.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cuequivariance-ops-cu12", marker = "sys_platform == 'linux'" },
-    { name = "scipy", marker = "sys_platform == 'linux'" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/79/4b/ff219c86ecc6fb27c1d328cdc87cfd44b5c5d07c017e76b42fb30955b7f9/cuequivariance_ops_torch_cu12-0.9.0-cp312-cp312-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:5bf590ea3115dd03152174cd2ba85dc0e9538276c709a78a094b925d442a3248", size = 395370, upload-time = "2026-02-17T16:34:00.787Z" },
-    { url = "https://files.pythonhosted.org/packages/fc/ee/82a927f4c156965d84c6501cedcf34c33b96a1523f80d4acb5a8ea39d157/cuequivariance_ops_torch_cu12-0.9.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:a404b6d7dee74f2ecbd2947109049cbaa61f63c8502d4988f050a8579b0cac82", size = 402307, upload-time = "2026-02-17T16:34:01.931Z" },
-]
-
-[[package]]
-name = "cuequivariance-torch"
-version = "0.9.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cuequivariance", marker = "sys_platform == 'linux'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/db/9c/e9aa1b10bf720903425f3a476b8d30832fb71b9e8437fba1b2106a6b26f7/cuequivariance_torch-0.9.0.tar.gz", hash = "sha256:347d9883e0673ab199db1e84095ce8d87a4bad93f591bbaf0ba4a4e2fd4deba5", size = 191116, upload-time = "2026-02-17T22:56:31.548Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/eb/a7/a7462588e70259d343ef75d5ddcf5e664ffdb6cb4b3d00d01f97927582aa/cuequivariance_torch-0.9.0-py3-none-any.whl", hash = "sha256:71bfc3ab8aebff5d1c2025c4bdb74882e01c91e61968059fb9592fee63d8442b", size = 205917, upload-time = "2026-02-17T22:56:30.499Z" },
-]
-
-[[package]]
 name = "cycler"
 version = "0.12.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1593,7 +1537,6 @@ version = "12.6.4.1"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/af/eb/ff4b8c503fa1f1796679dce648854d58751982426e4e4b37d6fce49d259c/nvidia_cublas_cu12-12.6.4.1-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:08ed2686e9875d01b58e3cb379c6896df8e76c75e0d4a7f7dace3d7b6d9ef8eb", size = 393138322, upload-time = "2024-11-20T17:40:25.65Z" },
-    { url = "https://files.pythonhosted.org/packages/97/0d/f1f0cadbf69d5b9ef2e4f744c9466cb0a850741d08350736dfdb4aa89569/nvidia_cublas_cu12-12.6.4.1-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:235f728d6e2a409eddf1df58d5b0921cf80cfa9e72b9f2775ccb7b4a87984668", size = 390794615, upload-time = "2024-11-20T17:39:52.715Z" },
 ]
 
 [[package]]
@@ -1694,15 +1637,6 @@ version = "0.6.3"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3b/9a/72ef35b399b0e183bc2e8f6f558036922d453c4d8237dab26c666a04244b/nvidia_cusparselt_cu12-0.6.3-py3-none-manylinux2014_x86_64.whl", hash = "sha256:e5c8a26c36445dd2e6812f1177978a24e2d37cacce7e090f297a688d1ec44f46", size = 156785796, upload-time = "2024-10-15T21:29:17.709Z" },
-]
-
-[[package]]
-name = "nvidia-ml-py"
-version = "13.590.48"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/af/a0/f4fc18cf72f06821a9a665085435b901449986855519d5b3843532db35e9/nvidia_ml_py-13.590.48.tar.gz", hash = "sha256:8184d1be52914ac7f0991cd1c0d946c65dc88a840c754cd12c274b77b88760dd", size = 49732, upload-time = "2026-01-22T01:14:56.456Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/fd/72/fb2af0d259a651affdce65fd6a495f0e07a685a0136baf585c5065204ee7/nvidia_ml_py-13.590.48-py3-none-any.whl", hash = "sha256:fd43d30ee9cd0b7940f5f9f9220b68d42722975e3992b6c21d14144c48760e43", size = 50680, upload-time = "2026-01-22T01:14:55.281Z" },
 ]
 
 [[package]]
@@ -1929,15 +1863,11 @@ dependencies = [
     { name = "pandas" },
     { name = "peft" },
     { name = "python-lsp-server" },
+    { name = "rc-foundry" },
     { name = "tmtools" },
     { name = "torch" },
     { name = "transformers" },
     { name = "wandb" },
-]
-
-[package.optional-dependencies]
-pmpnn = [
-    { name = "rc-foundry", extra = ["all"] },
 ]
 
 [package.dev-dependencies]
@@ -1957,13 +1887,12 @@ requires-dist = [
     { name = "pandas" },
     { name = "peft", specifier = ">=0.13.0" },
     { name = "python-lsp-server", specifier = ">=1.14.0" },
-    { name = "rc-foundry", extras = ["all"], marker = "extra == 'pmpnn'" },
+    { name = "rc-foundry", specifier = ">=0.1.11" },
     { name = "tmtools", specifier = ">=0.3.0" },
     { name = "torch" },
     { name = "transformers", specifier = "<4.48.2" },
     { name = "wandb", specifier = ">=0.25.0" },
 ]
-provides-extras = ["pmpnn"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2351,14 +2280,6 @@ dependencies = [
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c2/b2/b7541f602045754f377316b292404de2d0e1dccd2b9fca013174ff0050cf/rc_foundry-0.1.11-py3-none-any.whl", hash = "sha256:1da2b4545135a1a57770b768a2504c4ed8f01e5d9e783e72bdb18de4a7c4a596", size = 620880, upload-time = "2026-02-05T03:36:27.605Z" },
-]
-
-[package.optional-dependencies]
-all = [
-    { name = "cuequivariance-ops-cu12", marker = "sys_platform == 'linux'" },
-    { name = "cuequivariance-ops-torch-cu12", marker = "sys_platform == 'linux'" },
-    { name = "cuequivariance-torch", marker = "sys_platform == 'linux'" },
-    { name = "pydantic" },
 ]
 
 [[package]]

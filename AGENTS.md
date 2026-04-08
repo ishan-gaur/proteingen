@@ -3,13 +3,14 @@
 ## Skills
 
 Available skills:
+- `follow-workflow` — plan and implement a library design pipeline by walking through workflows step-by-step
 - `add-generative-model` — workflow for integrating a new generative model into the library
 - `add-predictive-model` — workflow for integrating a new predictive model into the library
 - `likelihood-curves` — evaluate and plot log-likelihood trajectories for generative models under progressive unmasking
 
 ## Project Management
 
-- Use `uv` for all package management and running Python code
+- Use `uv` for all package management and running Python code [×3]
   - Install dependencies: `uv add <package>`
   - Run scripts: `uv run python <script>`
   - Sync environment: `uv sync`

@@ -1,5 +1,18 @@
 # Training a Probe + Guided Sampling (TrpB)
 
+??? abstract "Architecture Breakdown"
+    **Data:** TrpB fitness landscape from SaProtHub (HuggingFace dataset) with continuous fitness labels → [data](../reference/data.md).
+
+    **Models:**
+
+    - **ESMC** — pretrained generative model (no fine-tuning) → [generative_modeling](../reference/generative_modeling.md)
+    - **LinearProbe** on cached ESMC embeddings — trained as the predictive model → [predictive_modeling](../reference/predictive_modeling.md). Uses `precompute_embeddings` for fast training → [Training Predictors](../workflows/training-predictors.md)
+    - **DEG**(ESMC, probe) — combines them via enumeration-based guidance → [guide](../reference/guide.md)
+
+    **Sampling:** `sample` (discrete-time ancestral) — DEG automatically passes position info → [sampling](../reference/sampling.md)
+
+    **Evaluation:** Guided vs. unguided fitness comparison → [evaluation](../reference/evaluation.md)
+
 End-to-end example: train a linear probe on the TrpB fitness landscape using cached ESMC embeddings, then use it for guided sampling with enumeration-based guidance (DEG).
 
 ## Quick Start
