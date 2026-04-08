@@ -110,12 +110,15 @@ ProteinGen was developed by [Ishan Gaur](https://ishangaur.com) and is maintaine
 
 
 
-ProteinGen makes it easy to use cutting-edge machine learning methods for protein engineering. It provides:
 
-1. the latest workflows for leveraging your wet-lab data to design new libraries, and
-2. all the common protein sequence models (incl. inverse-folding), reimplemented to work with our workflows out-of-the-box.
 
-Our framework *code*-ifies the insights from our recent [theoretical unification](https://arxiv.org/abs/2505.04823) of generative and predictive protein models, ensuring interoperability between various training, sampling, and scoring strategies. It has drastically reduced the work to develop new methods in our own research, and we use it with our [wet-lab collaborators](http://www.jennifer.listgarten.com/group.html#:~:text=Collaborators) as well.
+
+
+Our framework *code*-ifies the insights from our recent [theoretical unification](https://arxiv.org/abs/2505.04823) of generative and predictive protein models, ensuring interoperability between various training, sampling, and scoring strategies. It has drastically reduced the work to develop new methods in our own research, and we use it with our [wet-lab collaborators](http://www.jennifer.listgarten.com/group.html#:~:text=Collaborators) as well. 
+
+We aim to provide you with implementations of the latest design methodologies in the field, along with a catalog of the field's flagship models, all working out-of-the-box.
+
+
 
 <!-- For our computational colleagues, we hope ProteinGen makes your lives easier. For our wet-lab counterparts, we hope it makes the latest ML techniques more accessible. Let's engineer some amazing new proteins together! -->
 
@@ -127,7 +130,8 @@ Our framework *code*-ifies the insights from our recent [theoretical unification
 
 
 
-### Switching Models and Algorithms Made Easy
+### Switching Models and Algorithms is Easy
+
 
 Take the stability optimization experiment from [ProteinGuide](https://arxiv.org/abs/2505.04823) as an example. The paper presents two guidance algorithms — TAG (gradient-based) and DEG (enumeration-based) — and originally used TAG with PMPNN. With ProteinGen, switching to DEG or swapping in ESM3 is just a change of imports:
 
@@ -203,16 +207,20 @@ We're excited about AI coding agents but, as scientists, recognize it's tricky t
 
 ### Share Your Work on ProteinGen
 
-We want to make it easy for you to get your work out there. Our [Contributing](contributing.md) section has instructions for submitting new models or sampling algorithms to be included in the next release. We've also created SKILL.md files that walk your coding agents through the process. We'd love to include your work, even if you've never contributed to open source before!
+We want to make it easy for you to get your work out there. Our [Contributing](contributing.md) section has instructions for submitting new models and design algorithms to be included in the next release. We've also created SKILL.md files that walk your coding agents through the process. We'd love to include your work, even if you've never contributed to open source before!
+
 
 ## Library Design with ProteinGen
 
-With ProteinGen, designing libraries to optimize some property of a protein involves four modules:
+With ProteinGen, designing libraries to optimize some property of a protein requires the use of four modules:
 
-1. **[Data](reference/data.md)** — assay-labeled variants, homologous sequences, noise schedules, and data splits
-2. **[Models](reference/models.md)** — generative models (ESM3, ESMC, PMPNN), predictive models (probes, MLPs), guidance (TAG, DEG), and training (LoRA, noisy classifiers)
-3. **[Sampling](reference/sampling.md)** — generating a library using the models: discrete-time ancestral, linear interpolation, or flow-matching samplers
-4. **[Evaluation](reference/evaluation.md)** — sanity-checking each stage: likelihood curves, oracle agreement, diversity metrics, and structural validation
+1. [Data](reference/data.md): assay labeled variants or homologous sequences stored as `ProteinDatasets`
+2. [Models](reference/models.md): sequence `GenerativeModels`, property `PredictiveModels`, and how to train them with your data
+3. [Sampling](reference/sampling.md): generating a library to optimize your property using the models
+4. [Evaluation](reference/evaluation.md): tools to sanity check the pipeline at each of the 3 preceding stages
+
+
+
 
 
 ### Unconditional Sampling (Models + Sampling)
@@ -227,7 +235,9 @@ model = ESMC("esmc_300m").cuda()
 seqs = sample(model, ["<mask>" * 100] * 8)["sequences"]  # 8 random proteins
 ```
 
-That's it — three lines. The model provides `get_log_probs`, the sampler iteratively unmasks positions. See the [unconditional sampling example](examples/unconditional-sampling.md) for details.
+That's it, four lines. The `sample` function calls the `ESMC` model's `get_log_probs` function under the hood. Using the probabilities `ESMC` predicts at each masked position, the sampler iteratively fills in the amino acids in the sequence. See the [unconditional sampling example](examples/unconditional-sampling.md) for details.
+
+![Live terminal preview of unconditional sampling with progressive unmasking](assets/images/unconditional-sampling-live.gif)
 
 ### Guided Library Design (All Four Modules)
 

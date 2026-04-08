@@ -1,11 +1,9 @@
 from proteingen.models import ESMC
-from proteingen import sample
+from proteingen.sampling import sample
 
-n_samples = 5
-len_sample = 256
+len_sample = 128
+n_samples = 8
+masked_seqs = ["<mask>" * len_sample] * n_samples
 
-model = ESMC().cuda()
-initial_x = ["<mask>" * len_sample for _ in range(n_samples)]
-
-gen_sample_seqs = sample(model, initial_x)["sequences"]
-print(gen_sample_seqs)
+model = ESMC("esmc_300m").cuda()
+seqs = sample(model, masked_seqs)["sequences"]  # 8 random proteins

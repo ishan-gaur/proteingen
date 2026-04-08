@@ -38,6 +38,7 @@ from .sampling import (
     generate_unmask_orders,
     mask_by_order,
     SamplingTrajectory,
+    LiveSamplingPreview,
 )
 
 
@@ -69,4 +70,5 @@ __all__ = [
     "generate_unmask_orders",
     "mask_by_order",
     "SamplingTrajectory",
+    "LiveSamplingPreview",
 ]

@@ -1,0 +1,48 @@
+- #idea if we finetune a model on the first round data, how different is it from that data generating process in the first place?
+- #idea train a predictor on the joint by passing in one of the predicted values to the other and have them run in a single forward pass, or take the threshold and return the probability as output
+- consider training an ensemble for the pbrr experiment
+- this dag thing with: https://jupyterbook.org/?
+- Minimal user guide
+	- and then FAQs separately
+- Zero-shot library
+	- If you can, do a zero-shot library so that you can 1. train a more in-distribution predictor and 2. if things aren't working you know if it's the base model or the predictor
+		- Generally you won't have a choice!!
+		- Error-prone, DMS, or sample from pretrained model
+			- lose a lot of budget if you don't use the zero-shot model??
+			- in the ABE case--don't actually explore non-first round mutational space much** simple guidance model so maybe not
+			- probably depends on how close you want to be to wildtype--try to stay in distribution where you want to go
+			- combos downside is a lot of inactive things
+			- singles downside is not predictive of going far from wildtype
+			- use the model if... you want to go really far and have things still sort of work--probably want to inverse fold even if you have to use an af structure? **family-conditioned use PEINT**
+- To design your first round
+	- Unconditional model selection: LOTS OF PROBLEMS SoLVeD with a GOOD prior!
+		- Likelihoods for the models--see how it looks across the functional range--don't use a model if the likelihood is too bad for the seqs that you like--mb finetune if that's the case
+			- (including finetuned ones or potts model--like on an MSA or smthg)
+				- for finetuning go to convergence and keep lora rank small; to get more in distribution
+					- **with labeled data???**
+			- Checkout proteingym for model inspo??--maybe that's stale
+				- Let us know if you want it in the library--we'll hack it for you
+	- Predictive model testing
+		- **DANGER** it is not possible to actually generalize; we hope for the best, with some educated guessing
+		- data splits for train/eval--train/eval
+			- by mutational distance
+			- by activity range
+			- by position--if possible
+		- always train an oracle--cuz you need that for design
+			- do sensitivity analysis with the split-based models
+	- Designing the nth round
+		- wildtype bias--for early rounds (relegate to FAQ)
+			- adding logits with delta on the wildtype (with some coefficient)
+			- finetuning easy way
+		- how to set guidance temp and base model temp
+			- always better under the oracle
+			- based on the diversity (base-temp to increase, predictor to decrease) and mutational distance metrics; if you believe the predicted activity range
+			- look for diversity that has high enough variance to get close to your threshold
+				- then you can maybe okay to be more aggressive with
+		- how much to mask if initial variant
+		- how to set the target threshold
+			- split the library?
+			- edge of what's observed--based on how conservative you are
+- Design second round
+	- train a new predictor; push out the threshold more
+	- do all the same tricks to see if you believe your predictor and that your base model is OOD

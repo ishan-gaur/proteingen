@@ -4,9 +4,11 @@ ProteinGen organizes its guides into **workflows** and **modules**.
 
 **Workflows** are end-to-end recipes at the level of a paper's method — they compose multiple modules into a complete pipeline. **Modules** are the reusable building blocks, each implementing a specific mathematical or engineering idea. Modules are organized by the four library design areas: Data, Models, Sampling, and Evaluation.
 
-## Workflows
 
-Paper-level compositions that combine modules into complete pipelines.
+
+High-level design strategies that combine modules into complete pipelines.
+
+
 
 | Workflow | Description | Key Modules |
 |----------|-------------|-------------|
