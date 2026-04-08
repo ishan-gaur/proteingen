@@ -14,7 +14,22 @@ Combines predictive models and generative models via Bayes' rule to sample seque
 ```bash
 uv sync
 uv pip install -e .
+```
+
+### Optional dependencies
+
+Some features require packages only available via GitHub:
+
+```bash
+# ProteinMPNN (for ProteinMPNN / StabilityPMPNN models)
+uv pip install "rc-foundry[all]"
 uv run foundry install proteinmpnn
+
+# Docs development (live-reloading mkdocs plugin)
+uv pip install "mkdocs-liveedit @ git+https://github.com/ishan-gaur/mkdocs-liveedit.git"
+
+# AlphaFold 3 client (for structure prediction workflows)
+uv pip install "af3-server @ git+https://github.com/ishan-gaur/af3-server.git"
 ```
 
 ## References

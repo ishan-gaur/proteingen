@@ -21,13 +21,10 @@ dependencies = [
     "mkdocs-material>=9.7.5",
     "mkdocstrings[python]>=1.0.3",
     "tmtools>=0.3.0",
-    "mkdocs-liveedit",
 ]
 
 [project.optional-dependencies]
 pmpnn = ["rc-foundry[all]"]
-af3 = ["af3-server"]
-all = ["rc-foundry[all]", "af3-server"]
 
 [dependency-groups]
 dev = [
@@ -39,6 +36,3 @@ dev = [
 requires = ["uv_build>=0.9.22,<0.10.0"]
 build-backend = "uv_build"
 
-[tool.uv.sources]
-af3-server = { git = "https://github.com/ishan-gaur/af3-server.git" }
-mkdocs-liveedit = { git = "https://github.com/ishan-gaur/mkdocs-liveedit.git" }
