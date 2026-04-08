@@ -99,7 +99,11 @@ nav:
   - Reference:
     - Design Philosophy: reference/design-philosophy.md
     - Data:
-      - data: reference/data.md
+      - Overview: reference/data.md
+      - ProteinDataset: reference/data/proteindataset.md
+      - Noise Design: reference/data/noise-design.md
+      - FASTA Utilities: reference/data/fasta-utilities.md
+      - GuidanceDataset (Legacy): reference/data/guidance-dataset-legacy.md
     - Models:
       - probability_model: reference/probability_model.md
       - generative_modeling: reference/generative_modeling.md
@@ -107,6 +111,14 @@ nav:
       - guide: reference/guide.md
       - models: reference/models.md
     - Sampling:
-      - sampling: reference/sampling.md
+      - Overview: reference/sampling.md
+      - Samplers: reference/sampling/samplers.md
+      - Helpers: reference/sampling/helpers.md
+      - Gotchas: reference/sampling/gotchas.md
     - Evaluation:
-      - evaluation: reference/evaluation.md
+      - Overview: reference/evaluation.md
+      - Likelihood Curves: reference/evaluation/likelihood-curves.md
+      - Oracle Scoring: reference/evaluation/oracle-scoring.md
+      - Predictor–Oracle Agreement: reference/evaluation/predictor-oracle-agreement.md
+      - Diversity Metrics: reference/evaluation/diversity-metrics.md
+      - Structural Validation: reference/evaluation/structural-validation.md
