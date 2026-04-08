@@ -51,11 +51,11 @@ Available skills:
 
 ## AF3 Server
 
-- **Separate repo**: `~/af3-server/` (GitHub: `ishan-gaur/af3-server`, public) — FastAPI server + Python client for persistent AF3 inference
+- **Separate repo**: `~/af3-server/` (GitHub: `ishan-gaur/af3-server`, public) — FastAPI server + Python client for persistent AF3 inference [×1]
 - Installed from GitHub: `af3-server @ git+https://github.com/ishan-gaur/af3-server.git`
 - Import: `from af3_server import AF3Client`
 - Package structure: `src/af3_server/` (client, pip-installable), `server/` (server.py + .def, runs inside container)
-- **Server's real value is cross-environment access** — AF3 runs in JAX/Apptainer container, proteingen code runs in PyTorch env. The HTTP boundary bridges them. For batch-only workflows, a simpler in-container script would suffice.
+- **Server's real value is cross-environment access** — AF3 runs in JAX/Apptainer container, proteingen code runs in PyTorch env. The HTTP boundary bridges them. For batch-only workflows, a simpler in-container script would suffice. [×1]
 - **Official AF3 codebase is a full Python library** — `ModelRunner`, `predict_structure()`, `folding_input.Input` etc. are all importable, not just CLI. Our server wraps these same functions.
 - **Server config**: `num_diffusion_samples` (default 5) and `num_recycles` (default 10) are per-server env vars (`AF3_NUM_DIFFUSION_SAMPLES`, `AF3_NUM_RECYCLES`), NOT per-request — model config is set once at startup
 - **Single GPU only** — processes jobs sequentially. For multi-GPU, run multiple server instances on different ports/GPUs.
