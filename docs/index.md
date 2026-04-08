@@ -218,67 +218,31 @@ model = ESMC("esmc_300m").cuda()
 seqs = sample(model, ["<mask>" * 100] * 8)["sequences"]  # 8 random proteins
 ```
 
-That's it, four lines. The `sample` function calls the `ESMC` model's `get_log_probs` function under the hood. Using the probabilities `ESMC` predicts at each masked position, the sampler iteratively fills in the amino acids in the sequence. See the [unconditional sampling example](examples/unconditional-sampling.md) for details.
-
 ![Live terminal preview of unconditional sampling with progressive unmasking](assets/images/unconditional-sampling-live.gif)
+
+That's it, four lines. The `sample` function calls the `ESMC` model's `get_log_probs` function under the hood. Using the probabilities `ESMC` predicts at each masked position, the sampler iteratively fills in the amino acids in the sequence. See the [unconditional sampling example](examples/unconditional-sampling.md) for details.
 
 ### Guided Library Design (All Four Modules)
 
-A realistic pipeline uses all four modules. Here's a sketch of a first-round library design using [ProteinGuide](workflows/protein-guide.md) — combining fine-tuning with classifier guidance to generate variants optimized for a target property.
+In the previous section, we looked at a very simple example of doing library design with protein gen. Unconditional sampling just uses a pre-trained model and gets sequences from it; however, most workflows that we'd use to design a real library are a little more involved. One example is a conditional generation method from a recent paper called Protein Guide. Protein Guide keeps the same masked sequence modeling core, but trains a separate property predictor (e.g. of stability or activity) and uses it to guide the sequence models generations.
 
-```python
-from proteingen.models import ESMC
-from proteingen.models.utils import load_pdb
-from proteingen.data import ProteinDataset, uniform_mask_noise, uniform_time
-from proteingen.predictive_modeling import OneHotMLP
-from proteingen.guide import DEG
-from proteingen.sampling import sample
+- Unconditional: `ESMC → Sample → Library`
+- ProteinGuide: `ESMC + Assay Data → Train + Validate Predictor → Construct Guided Model → Sample → In-silico Library Validation`
 
-# ── Data ─────────────────────────────────────────────────────────
-# Load homologs for fine-tuning and assay-labeled variants for the predictor
-homologs = ProteinDataset(sequences=load_homologs("my_protein.fasta"))  # (1)
-assay_data = ProteinDataset(
-    sequences=labeled_seqs, labels=activity_labels,                     # (2)
-)
 
-# ── Models: fine-tune the generative model ───────────────────────
-gen_model = ESMC("esmc_300m")
-gen_model.apply_lora(r=4)
-collate_fn = homologs.collator(gen_model, uniform_mask_noise(gen_model.tokenizer), uniform_time)
-# ... training loop (see Fine-tuning workflow) ...                      # (3)
 
-# ── Models: train oracle and noisy predictor ─────────────────────
-oracle = MyPredictor(tokenizer=gen_model.tokenizer, ...)                # (4)
-# ... train oracle on clean assay data ...
+Below is we've delineated the main steps of ProteinGuide and which ProteinGen APIs they use. For more conceptual detail on the method, checkout the [ProteinGuide workflow](add-link-pls).
 
-noisy_predictor = MyPredictor(tokenizer=gen_model.tokenizer, ...)       # (5)
-# ... train noisy predictor with masked inputs (see ProteinGuide workflow) ...
+1. Data: create a [`ProteinDataset`](reference/data.md#proteindataset) using your assay-labeled variants
+2. Train and validate models: then use the [Data Splits](workflows/data-splits.md) to [train](workflows/training-predictors.md) several `PredictiveModels` (e.g. `OHEMLP`, `LinearProbe`, `SecondOrderLinearModel`) and select the one that seems to generalize best.
+3. Noisy predictor evaluation: verify noisy predictor and oracle agree on clean sequences before proceeding. You can prompt your agent to complete and the previous step using the [`Training Predictors`](workflows/training-predictors.md) workflow.
+4. Guided sampling: combine generator + predictor with [TAG/DEG](reference/guide.md), then run [`sample`](reference/sampling.md).
+5. In-silico library evaluation: `score` the library with the oracle, check the library diversity via `mean_hamming_dist`, and query the `AF3Client` to check folding `pLDDT` metrics before wet-lab testing.
 
-# ── Evaluation: validate predictor–oracle agreement ──────────────
-# Check that the noisy predictor and oracle agree on clean sequences
-# before trusting the predictor during sampling                         # (6)
-oracle_scores = oracle.predict(val_seqs)
-predictor_scores = noisy_predictor.predict(val_seqs)
-print(f"Spearman ρ: {spearmanr(oracle_scores, predictor_scores).correlation:.3f}")
 
-# ── Sampling: guided generation ──────────────────────────────────
-noisy_predictor.set_target_(True)
-noisy_predictor.set_temp_(0.1)          # lower = stronger guidance
-guided = DEG(gen_model, noisy_predictor).cuda()
 
-library = sample(guided, ["<mask>" * seq_len] * 100)["sequences"]       # (7)
 
-# ── Evaluation: score the library with the oracle ────────────────
-library_scores = oracle.predict(library)                                # (8)
-```
 
-1. **Data** — homologous sequences from an MSA for fine-tuning the base model
-2. **Data** — assay-labeled variants (e.g. from a DMS or previous round) for training the predictor
-3. **Models** — LoRA fine-tuning specializes the base model to your protein family
-4. **Models** — the oracle is trained on clean data and used only for evaluation
-5. **Models** — the noisy predictor is trained on randomly masked inputs so it works during iterative unmasking
-6. **Evaluation** — if the predictor and oracle disagree on clean sequences, the predictor can't be trusted during generation
-7. **Sampling** — DEG enumerates all amino acids at each position, reweighting by the predictor's scores
-8. **Evaluation** — the oracle scores the final library; these scores inform threshold-setting for the next round
 
-Each numbered annotation maps to a module. The [ProteinGuide workflow](workflows/protein-guide.md) walks through each step in detail, and the [stability-guided generation example](examples/stability-guided-generation.md) shows a working implementation with ESM3 + TAG.
+
+See the [ProteinGuide workflow](workflows/protein-guide.md) for full details and the [stability-guided generation example](examples/stability-guided-generation.md) for a concrete implementation.

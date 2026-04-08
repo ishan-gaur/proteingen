@@ -191,55 +191,56 @@ ProteinGen is designed to be a library you own: that you and your agents can ada
         pip install "proteingen @ git+https://github.com/ishan-gaur/proteingen.git"
         ```
 
-### Optional dependencies
+### ProteinMPNN model assets (required)
 
-Some dependencies are only available via GitHub (not PyPI) and must be installed separately:
-
-**mkdocs-liveedit** — live-reloading plugin for the docs site. Required for `mkdocs serve`:
+ProteinMPNN support is installed by default with ProteinGen, but you still need to download the ProteinMPNN assets once:
 
 === "uv"
 
     ```bash
-    uv pip install "mkdocs-liveedit @ git+https://github.com/ishan-gaur/mkdocs-liveedit.git"
-    ```
-
-=== "conda / pip"
-
-    ```bash
-    pip install "mkdocs-liveedit @ git+https://github.com/ishan-gaur/mkdocs-liveedit.git"
-    ```
-
-**af3-server** — Python client for a persistent AlphaFold 3 inference server. Required for structure prediction workflows (e.g. [Benchmark — Model Families](examples/benchmark-model-families.md), [Fine-tuning Inverse Folding](examples/finetune-inverse-folding.md)):
-
-=== "uv"
-
-    ```bash
-    uv pip install "af3-server @ git+https://github.com/ishan-gaur/af3-server.git"
-    ```
-
-=== "conda / pip"
-
-    ```bash
-    pip install "af3-server @ git+https://github.com/ishan-gaur/af3-server.git"
-    ```
-
-See the [af3-server README](https://github.com/ishan-gaur/af3-server) for server setup instructions.
-
-**ProteinMPNN** — via the Foundry package. Required for ProteinMPNN and StabilityPMPNN models:
-
-=== "uv"
-
-    ```bash
-    uv pip install "rc-foundry[all]"
     uv run foundry install proteinmpnn
     ```
 
 === "conda / pip"
 
     ```bash
-    pip install "rc-foundry[all]"
     foundry install proteinmpnn
     ```
+
+??? info "Optional dependencies (expand if needed)"
+
+    Some dependencies are only available via GitHub (not PyPI) and must be installed separately:
+
+    **mkdocs-liveedit** — live-reloading plugin for the docs site. Required for `mkdocs serve`:
+
+    === "uv"
+
+        ```bash
+        uv pip install "mkdocs-liveedit @ git+https://github.com/ishan-gaur/mkdocs-liveedit.git"
+        ```
+
+    === "conda / pip"
+
+        ```bash
+        pip install "mkdocs-liveedit @ git+https://github.com/ishan-gaur/mkdocs-liveedit.git"
+        ```
+
+    **af3-server** — Python client for a persistent AlphaFold 3 inference server. Required for structure prediction workflows (e.g. [Benchmark — Model Families](examples/benchmark-model-families.md), [Fine-tuning Inverse Folding](examples/finetune-inverse-folding.md)):
+
+    === "uv"
+
+        ```bash
+        uv pip install "af3-server @ git+https://github.com/ishan-gaur/af3-server.git"
+        ```
+
+    === "conda / pip"
+
+        ```bash
+        pip install "af3-server @ git+https://github.com/ishan-gaur/af3-server.git"
+        ```
+
+    See the [af3-server README](https://github.com/ishan-gaur/af3-server) for server setup instructions.
+
 
 ### Verify installation
 
