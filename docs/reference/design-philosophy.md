@@ -6,7 +6,8 @@ ProteinGen is organized around four modules — **Data**, **Models**, **Sampling
 
 ### ProbabilityModel
 
-Everything in ProteinGen is a `ProbabilityModel` — an `nn.Module` that produces log-probability distributions. This shared base class provides:
+All models in ProteinGen are subclasses of `ProbabilityModel` — an `nn.Module` that produces log-probability distributions. This shared base class provides:
+
 
 - **Temperature** — scale the sharpness of distributions
 - **Conditioning** — attach observations (e.g., structure coordinates) that the model conditions on
@@ -135,7 +136,9 @@ All are ABCs — you implement `format_raw_to_logits` using the binary logit fun
 
 ---
 
-## Guidance
+### On-the-fly Conditional Models
+
+
 
 `TAG` (Taylor-Approximate Guidance) and `DEG` (Discrete Enumeration Guidance) combine a generative model with a predictive model using Bayes' rule:
 
@@ -208,6 +211,7 @@ Key parameters:
 
 ## Composition
 
-The key design insight: because TAG, DEG, and all models share the `ProbabilityModel` interface, they compose naturally. You can layer multiple guidance signals, swap generative backbones, or mix sampling strategies without changing any code.
+The key design insight: because TAG, DEG, and all models share the `ProbabilityModel` interface, they compose naturally. You can layer multiple guidance signals, swap generative backbones, or mix sampling strategies without changing code for any other part of your pipeline.
 
-This composability is what makes the four-module structure work: **Data** feeds into **Models** (both generative and predictive), guidance algorithms combine models into new models, **Sampling** consumes any model that provides `get_log_probs`, and **Evaluation** tools work on the outputs of any sampler. Swapping any component — a different generative backbone, a new predictor architecture, a different sampling algorithm — requires changing only that component.
+
+
