@@ -15,6 +15,7 @@ MkDocs Material documentation site for ProtStar.
   - `pymdownx.highlight` (anchor_linenums) — code highlighting with `` ```python hl_lines="2 3" ``
   - `pymdownx.superfences`, `admonition`, `attr_list`
 - True side-by-side columns (CSS grid) not feasible — content tabs are the idiomatic alternative
+- Mermaid fences from `pymdownx.superfences` only emit `<pre class="mermaid">...`; you must also load Mermaid JS via `extra_javascript` and run it on `document$` page loads (Material instant navigation) or diagrams won't render.
 
 ## API Reference
 

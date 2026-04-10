@@ -4,14 +4,40 @@ End-to-end recipe for guided protein sequence generation, based on [ProteinGuide
 
 ## Overview
 
-```
-    DATA              MODELS                  SAMPLING      EVALUATION
-┌──────────┐   ┌─────────────────────┐   ┌───────────┐   ┌──────────┐
-│ Assay    ├──►│ Train oracle        │   │           │   │ Oracle   │
-│ variants │   │ Train noisy pred.   ├──►│ Guided    ├──►│ scoring  │
-│          │   │ TAG/DEG(gen, pred)  │   │ sampling  │   │ Diversity│
-│ Homologs ├──►│ Fine-tune gen model │   │           │   │ AF3 fold │
-└──────────┘   └─────────────────────┘   └───────────┘   └──────────┘
+```mermaid
+flowchart LR
+    subgraph DATA
+        D1[Assay variants]
+        D2[Homologs]
+    end
+
+    subgraph MODELS
+        M1[Train oracle]
+        M2[Train noisy predictor]
+        M3[Fine-tune generative model]
+        M4["TAG/DEG (gen, pred)"]
+    end
+
+    subgraph SAMPLING
+        S1[Guided sampling]
+    end
+
+    subgraph EVALUATION
+        E1[Oracle scoring]
+        E2[Diversity]
+        E3[AF3 fold]
+    end
+
+    D1 --> M1
+    D1 --> M2
+    D2 --> M3
+    M1 --> M2
+    M2 --> M4
+    M3 --> M4
+    M4 --> S1
+    S1 --> E1
+    S1 --> E2
+    S1 --> E3
 ```
 
 | Step | Module | Key Pages |
@@ -27,7 +53,7 @@ End-to-end recipe for guided protein sequence generation, based on [ProteinGuide
 
 ## Step 1: Organize your data
 
-Prepare your fitness/property dataset for training a predictive model and (optionally) homologous sequences for fine-tuning.
+Prepare your assay-labeled dataset for training a predictive model and (optionally) homologous sequence data for fine-tuning.
 
 **Assay data** — load labeled variants into a `ProteinDataset` and set up [Data Splits](data-splits.md) for train/eval:
 
