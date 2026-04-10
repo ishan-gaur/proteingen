@@ -5,6 +5,7 @@ repo_name: ishan-gaur/protstar
 
 theme:
   name: material
+  favicon: assets/images/blank-favicon.png
   palette:
     - scheme: default
       primary: amber

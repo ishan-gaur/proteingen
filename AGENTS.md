@@ -10,7 +10,7 @@ Available skills:
 
 ## Project Management
 
-- Use `uv` for all package management and running Python code [×7]
+- Use `uv` for all package management and running Python code [×8]
   - Install dependencies: `uv add <package>`
   - Run scripts: `uv run python <script>`
   - Sync environment: `uv sync`
