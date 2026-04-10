@@ -25,11 +25,11 @@ import torch.nn.functional as F
 import wandb
 from torch.utils.data import DataLoader, Dataset
 from esm.utils.constants import esm3 as ESM3_CONSTANTS
-from proteingen.eval.likelihood_curves import (
+from protstar.eval.likelihood_curves import (
     LogProbTrajectory,
     plot_log_prob_trajectories,
 )
-from proteingen.models.esm import ESM3
+from protstar.models.esm import ESM3
 
 DATA_DIR = Path(__file__).parent
 
@@ -258,7 +258,7 @@ def main():
     parser.add_argument(
         "--wandb-project",
         type=str,
-        default="proteingen-finetune",
+        default="protstar-finetune",
     )
     parser.add_argument("--save-dir", type=str, default=None)
     parser.add_argument(

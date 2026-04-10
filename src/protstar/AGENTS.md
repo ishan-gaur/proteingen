@@ -1,6 +1,6 @@
 # Core Library — Agent Notes
 
-ProteinGen's core abstractions for probabilistic protein modeling, sampling, and guidance.
+ProtStar's core abstractions for probabilistic protein modeling, sampling, and guidance.
 
 ## Architecture Overview
 

@@ -24,15 +24,15 @@ from scipy.stats import gaussian_kde
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from proteingen.models.esm import ESM3
-from proteingen.models.rocklin_ddg.stability_predictor import (
+from protstar.models.esm import ESM3
+from protstar.models.rocklin_ddg.stability_predictor import (
     PreTrainedStabilityPredictor,
     StabilityPMPNN,
 )
-from proteingen.models.rocklin_ddg.data_utils import compute_seq_id
-from proteingen.models.utils import pdb_to_atom37_and_seq
-from proteingen.sampling import sample_ctmc_linear_interpolation
-from proteingen.guide import TAG
+from protstar.models.rocklin_ddg.data_utils import compute_seq_id
+from protstar.models.utils import pdb_to_atom37_and_seq
+from protstar.sampling import sample_ctmc_linear_interpolation
+from protstar.guide import TAG
 
 # -------------------------------------------------------------------------
 # Configuration
@@ -57,7 +57,7 @@ output_dir.mkdir(exist_ok=True)
 # -------------------------------------------------------------------------
 def predict_stability_raw(oracle_model, sequences, cond, device):
     """Get raw stability predictions (not log-sigmoid) for ddG computation."""
-    from proteingen.generative_modeling import MPNNTokenizer
+    from protstar.generative_modeling import MPNNTokenizer
 
     tokenizer = MPNNTokenizer()
     tokens = tokenizer(sequences)["input_ids"].to(device)

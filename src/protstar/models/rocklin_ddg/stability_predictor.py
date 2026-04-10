@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint
-from proteingen.predictive_modeling import PredictiveModel, binary_logits
+from protstar.predictive_modeling import PredictiveModel, binary_logits
 from typing import TypedDict
 
 
@@ -434,7 +434,7 @@ class PreTrainedStabilityPredictor(PredictiveModel):
     def __init__(
         self, ckpt_path, vocab_size=21, device="cuda", one_hot_encode_input=False
     ):
-        from proteingen.generative_modeling import MPNNTokenizer
+        from protstar.generative_modeling import MPNNTokenizer
 
         tokenizer = MPNNTokenizer(include_mask_token=True)
         super().__init__(tokenizer=tokenizer)
@@ -467,7 +467,7 @@ class PreTrainedStabilityPredictor(PredictiveModel):
     @staticmethod
     def prepare_conditioning(pdb_path, device="cpu") -> StabilityPredictorConditioning:
         """Load PDB and build conditioning tensors (batch_size=1)."""
-        from proteingen.models.rocklin_ddg.data_utils import load_pdb_to_graph_dict, featurize
+        from protstar.models.rocklin_ddg.data_utils import load_pdb_to_graph_dict, featurize
 
         graph = load_pdb_to_graph_dict(pdb_path)
         X, S, mask, lengths, chain_M, residue_idx, mask_self, chain_encoding_all = (

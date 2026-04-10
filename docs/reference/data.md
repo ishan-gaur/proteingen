@@ -124,4 +124,4 @@ Both are required arguments to `collator()` — there are no defaults. Use the e
 
 ## API Reference
 
-::: proteingen.data
+::: protstar.data

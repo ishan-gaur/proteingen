@@ -11,8 +11,8 @@ ESM3-open (1.4B parameters). Supports optional structure conditioning via atom37
 ESM3 accepts atom37-format coordinates as conditioning input, enabling structure-conditioned sequence generation (inverse folding). For inference, the `set_condition_()` method runs the VQ-VAE structure encoder once (expensive), then all subsequent calls use cached structure tokens:
 
 ```python
-from proteingen.models import ESM3
-from proteingen.sampling import sample_ctmc_linear_interpolation
+from protstar.models import ESM3
+from protstar.sampling import sample_ctmc_linear_interpolation
 
 model = ESM3("esm3-open").cuda()
 coords = ...  # atom37 format, shape (L, 37, 3)

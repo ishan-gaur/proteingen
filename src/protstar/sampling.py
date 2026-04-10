@@ -5,7 +5,7 @@ import sys
 import torch
 from torch.nn import functional as F
 from typing import Callable, Optional, List, TypedDict, TextIO
-from proteingen.generative_modeling import GenerativeModel, TransitionFunc
+from protstar.generative_modeling import GenerativeModel, TransitionFunc
 from tqdm import tqdm
 
 

@@ -23,4 +23,4 @@ A plot showing average log p(true token) at masked positions vs. fraction unmask
 
 See the [Likelihood Curves workflow](../workflows/likelihood-curves.md) for interpretation and usage.
 
-**Source**: [`examples/trpb_likelihood_curves.py`](https://github.com/ishan-gaur/proteingen/blob/main/examples/trpb_likelihood_curves.py)
+**Source**: [`examples/trpb_likelihood_curves.py`](https://github.com/ishan-gaur/protstar/blob/main/examples/trpb_likelihood_curves.py)

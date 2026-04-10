@@ -1,6 +1,6 @@
 # Contributing
 
-ProteinGen is designed to make model contributions straightforward — whether you're using an AI coding agent or adding one by hand.
+ProtStar is designed to make model contributions straightforward — whether you're using an AI coding agent or adding one by hand.
 
 ## Using an agent
 
@@ -8,12 +8,12 @@ The recommended way to add a model is to use an AI coding agent (e.g. Claude Cod
 
 To kick it off, prompt your agent with:
 
-> "Read the skill file at `.agents/skills/add-generative-model/SKILL.md` and follow it to add **[model name]** to ProteinGen."
+> "Read the skill file at `.agents/skills/add-generative-model/SKILL.md` and follow it to add **[model name]** to ProtStar."
 
 
 or for predictive models:
 
-> "Read the skill file at `.agents/skills/add-predictive-model/SKILL.md` and follow it to add **[model name]** to ProteinGen."
+> "Read the skill file at `.agents/skills/add-predictive-model/SKILL.md` and follow it to add **[model name]** to ProtStar."
 
 ### What the agent does
 
@@ -33,7 +33,7 @@ The agent pauses at checkpoints throughout the process. These are the moments wh
 - **Output `TypedDict`** — same review if the model returns structured output beyond raw logits.
 - *(Predictive models only)* **Four-layer decomposition** — check that the agent isn't reinventing something that already exists. Does an existing binary logit function work? Does an existing template class fit?
 
-**After tests** — The agent writes an output-matching test that runs the same real protein input through both the original library and the ProteinGen wrapper, asserting outputs match with `torch.allclose`. This is the single most important test — if it passes, the wrapper is faithful. Confirm it ran and passed.
+**After tests** — The agent writes an output-matching test that runs the same real protein input through both the original library and the ProtStar wrapper, asserting outputs match with `torch.allclose`. This is the single most important test — if it passes, the wrapper is faithful. Confirm it ran and passed.
 
 **Before the PR** — Skim the final code for organization. Models follow a consistent layout: `__init__.py` for re-exports, one `.py` per model class, optional `utils.py` for shared helpers, and a `<provider>.md` design doc. Make sure the new model fits the pattern.
 
@@ -43,12 +43,12 @@ If you're adding a model without an agent, here's what you need to know.
 
 ### Generative models
 
-ProteinGen has two generative model base classes (see [generative_modeling](reference/generative_modeling.md) for the full API):
+ProtStar has two generative model base classes (see [generative_modeling](reference/generative_modeling.md) for the full API):
 
 **[`GenerativeModel`](reference/generative_modeling.md#generativemodel)** — wraps any `nn.Module` via composition. You pass in the model, tokenizer, and a logit formatter. Use this when you don't need gradient access to the embedding layer.
 
 ```python
-from proteingen import GenerativeModel, MaskedModelLogitFormatter
+from protstar import GenerativeModel, MaskedModelLogitFormatter
 
 model = load_my_model(checkpoint)
 tokenizer = load_my_tokenizer()
@@ -75,7 +75,7 @@ Predictive models answer "what is log p(target | sequence)?" and are used by TAG
 
 Integrating a predictive model means decomposing it into four separable layers:
 
-**Layer 1: Raw Predictor** — the original pretrained model, ported with minimal changes. This isn't proteingen-specific — just get it loading and running inference.
+**Layer 1: Raw Predictor** — the original pretrained model, ported with minimal changes. This isn't protstar-specific — just get it loading and running inference.
 
 **Layer 2: Binary Logit Function** — a standalone function that converts the raw predictor's output to `(B, 2)` binary logits. This is independent of the model — the same predictor could use different functions depending on the use case. Existing functions:
 
@@ -86,7 +86,7 @@ Integrating a predictive model means decomposing it into four separable layers:
 | `point_estimate_binary_logits` | Thresholded regression | ⚠️ Large k saturates gradients |
 | `gaussian_binary_logits` | Mean + variance | ✅ |
 
-If none of these fit, write a new one — it's just a function that returns `(B, 2)`. Add it to `src/proteingen/predictive_modeling.py`.
+If none of these fit, write a new one — it's just a function that returns `(B, 2)`. Add it to `src/protstar/predictive_modeling.py`.
 
 **Layer 3: Template Model Class** *(optional)* — a reusable `PredictiveModel` subclass that defines an architecture pattern but leaves `format_raw_to_logits` abstract. Existing templates: `LinearProbe`, `OneHotMLP`, `EmbeddingMLP`, `PairwiseLinearModel`. If the predictor's architecture is generalizable, consider adding a new template. If it's one-off, skip this and subclass `PredictiveModel` directly.
 
@@ -104,7 +104,7 @@ If none of these fit, write a new one — it's just a function that returns `(B,
 
 ### Directory layout
 
-Each model family lives under `src/proteingen/models/<provider>/`:
+Each model family lives under `src/protstar/models/<provider>/`:
 
 ```
 models/<provider>/
@@ -114,14 +114,14 @@ models/<provider>/
 └── <provider>.md      # design doc
 ```
 
-Update `src/proteingen/models/__init__.py` to export the new class and any conditioning `TypedDict`s.
+Update `src/protstar/models/__init__.py` to export the new class and any conditioning `TypedDict`s.
 
 ### Required tests
 
 Create `tests/test_<name>.py` covering:
 
 - **Construction & forward** — model loads, `forward()` returns expected shape
-- **Output matching** — same real protein input through original library and ProteinGen wrapper, `torch.allclose` on outputs. This is the most important test.
+- **Output matching** — same real protein input through original library and ProtStar wrapper, `torch.allclose` on outputs. This is the most important test.
 - **Log probabilities** — valid (all ≤ 0, sum to ~1 after exp), temperature scaling works
 - **Batching** — single vs batched results are consistent
 - **Conditioning** — if applicable: `set_condition_()`, `conditioned_on()`, `collate_observations`
@@ -132,12 +132,12 @@ Create `tests/test_<name>.py` covering:
 
 - Add the model to the table in [Models](models/index.md) and create a dedicated page in `docs/models/` with code examples
 - Document conditioning `TypedDict`s (fields, types, meaning) if applicable
-- Write a design doc at `src/proteingen/models/<provider>/<provider>.md`
-- Update `src/proteingen/models/AGENTS.md`
+- Write a design doc at `src/protstar/models/<provider>/<provider>.md`
+- Update `src/protstar/models/AGENTS.md`
 
 ## Code standards
 
-- Follow the patterns in existing models — look at `src/proteingen/models/esm/` for generative, `models/rocklin_ddg/` for predictive
+- Follow the patterns in existing models — look at `src/protstar/models/esm/` for generative, `models/rocklin_ddg/` for predictive
 - Use type hints on all function signatures
 - Keep docstrings concise — don't restate what the code already says
 - Annotate tensor shapes on every intermediate variable (e.g. `# [B, L, D] - transformer output`)
@@ -146,4 +146,4 @@ Create `tests/test_<name>.py` covering:
 
 ## Getting help
 
-Open an issue on [GitHub](https://github.com/ishan-gaur/proteingen/issues).
+Open an issue on [GitHub](https://github.com/ishan-gaur/protstar/issues).

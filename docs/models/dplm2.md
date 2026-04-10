@@ -18,7 +18,7 @@ HuggingFace hub (`airkingbd/`):
 | `airkingbd/dplm2_3b` | 3B | 2560 | 36 |
 
 ```python
-from proteingen.models import DPLM2
+from protstar.models import DPLM2
 
 model = DPLM2("airkingbd/dplm2_650m").cuda()  # default checkpoint
 log_probs = model.get_log_probs_from_string(["ACDEFGHIK"])
@@ -27,7 +27,7 @@ log_probs = model.get_log_probs_from_string(["ACDEFGHIK"])
 DPLM-2 works with the same sampling, guidance, and probe infrastructure as the ESM models:
 
 ```python
-from proteingen.sampling import sample_ctmc_linear_interpolation
+from protstar.sampling import sample_ctmc_linear_interpolation
 
 init_tokens = model.tokenizer(["<mask>" * 100], return_tensors="pt")["input_ids"].cuda()
 sequences = sample_ctmc_linear_interpolation(model, init_tokens, n_steps=100)

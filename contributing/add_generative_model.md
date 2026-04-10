@@ -1,6 +1,6 @@
 # Adding a Generative Model
 
-Checklist for integrating a new generative (transition) model into ProteinGen. For the full step-by-step agent skill, see [`.agents/skills/add-generative-model/SKILL.md`](../.agents/skills/add-generative-model/SKILL.md).
+Checklist for integrating a new generative (transition) model into ProtStar. For the full step-by-step agent skill, see [`.agents/skills/add-generative-model/SKILL.md`](../.agents/skills/add-generative-model/SKILL.md).
 
 ## Choose a Base Class
 
@@ -10,7 +10,7 @@ Checklist for integrating a new generative (transition) model into ProteinGen. F
 ## Directory Layout
 
 ```
-src/proteingen/models/<provider>/
+src/protstar/models/<provider>/
 ├── __init__.py        # re-exports only
 ├── <model>.py         # one file per model class
 ├── utils.py           # optional shared helpers
@@ -21,7 +21,7 @@ src/proteingen/models/<provider>/
 
 ### GenerativeModelWithEmbedding (most common)
 
-Reference: `src/proteingen/models/esm/esmc.py`
+Reference: `src/protstar/models/esm/esmc.py`
 
 - [ ] `__init__`: call `super().__init__(model, tokenizer, logit_formatter)`, set `EMB_DIM` and `OUTPUT_DIM`
 - [ ] `differentiable_embedding(ohe_seq_SPT)` — OHE → deep embeddings via `ohe @ embed.weight` + transformer body
@@ -46,7 +46,7 @@ Reference: `src/proteingen/models/esm/esmc.py`
 Create `tests/test_<name>.py`:
 
 - [ ] **Construction & forward** — model loads, `forward()` returns expected shape
-- [ ] **Output matching** — same real protein input through original library AND ProteinGen wrapper, `torch.allclose` on outputs ← most important test
+- [ ] **Output matching** — same real protein input through original library AND ProtStar wrapper, `torch.allclose` on outputs ← most important test
 - [ ] **Embedding path** (GenerativeModelWithEmbedding only) — `embed()` shape, `embedding_to_outputs(embed(seq))` ≈ `forward(seq)`, gradients flow
 - [ ] **Log probabilities** — valid (all ≤ 0, sum to ~1 after exp), temperature scaling works
 - [ ] **Batching** — single vs batched results are consistent
@@ -56,10 +56,10 @@ Create `tests/test_<name>.py`:
 
 ## Documentation
 
-- [ ] Design doc at `src/proteingen/models/<provider>/<provider>.md`
-- [ ] Add to `src/proteingen/models/AGENTS.md` registry
+- [ ] Design doc at `src/protstar/models/<provider>/<provider>.md`
+- [ ] Add to `src/protstar/models/AGENTS.md` registry
 - [ ] Add to `docs/models.md` with code examples and conditioning docs
-- [ ] Export from `src/proteingen/models/__init__.py`
+- [ ] Export from `src/protstar/models/__init__.py`
 - [ ] Update `mkdocs.yml` if new pages needed
 
 ## Common Gotchas
@@ -73,4 +73,4 @@ Create `tests/test_<name>.py`:
 
 Prompt your agent with:
 
-> "Read the skill file at `.agents/skills/add-generative-model/SKILL.md` and follow it to add **[model name]** to ProteinGen."
+> "Read the skill file at `.agents/skills/add-generative-model/SKILL.md` and follow it to add **[model name]** to ProtStar."

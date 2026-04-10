@@ -31,4 +31,4 @@ This trains the model to predict randomly masked amino acids from surrounding se
 
 See the [Fine-tuning workflow](../workflows/finetune-generative.md) for details on the training loop and LoRA setup.
 
-**Source**: [`examples/finetune_esm3/finetune_esm3_ephb1.py`](https://github.com/ishan-gaur/proteingen/blob/main/examples/finetune_esm3/finetune_esm3_ephb1.py)
+**Source**: [`examples/finetune_esm3/finetune_esm3_ephb1.py`](https://github.com/ishan-gaur/protstar/blob/main/examples/finetune_esm3/finetune_esm3_ephb1.py)

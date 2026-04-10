@@ -1,8 +1,8 @@
 # Examples
 
-Concrete implementations showing how to compose ProteinGen's [modules](../workflows/index.md) into working pipelines. Each example includes an **Architecture Breakdown** at the top that maps its components to the four library design areas (Data, Models, Sampling, Evaluation) and links to the relevant modules and reference docs.
+Concrete implementations showing how to compose ProtStar's [modules](../workflows/index.md) into working pipelines. Each example includes an **Architecture Breakdown** at the top that maps its components to the four library design areas (Data, Models, Sampling, Evaluation) and links to the relevant modules and reference docs.
 
-All examples live in the [`examples/`](https://github.com/ishan-gaur/proteingen/tree/main/examples) directory. Run them with `uv run python examples/path-to-script.py`.
+All examples live in the [`examples/`](https://github.com/ishan-gaur/protstar/tree/main/examples) directory. Run them with `uv run python examples/path-to-script.py`.
 
 ---
 

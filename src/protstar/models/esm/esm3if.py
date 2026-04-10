@@ -11,7 +11,7 @@ Migration::
     model.set_condition_({"coords_RAX": coords})
 
     # New
-    from proteingen.models import ESM3
+    from protstar.models import ESM3
     model = ESM3().cuda()
     model.set_condition_({"coords_RAX": coords})
 """
@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import warnings
 
-from proteingen.models.esm.esm3 import ESM3
+from protstar.models.esm.esm3 import ESM3
 
 
 class ESM3IF(ESM3):

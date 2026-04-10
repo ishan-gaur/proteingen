@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from torch import nn
 from torch.nn import functional as F
 
-from proteingen.predictive_modeling import EmbeddingMLP, OneHotMLP, binary_logits
+from protstar.predictive_modeling import EmbeddingMLP, OneHotMLP, binary_logits
 
 
 # ---------------------------------------------------------------------------

@@ -5,8 +5,8 @@ from torch import nn
 from typing import Any, Optional
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from proteingen.generative_modeling import GenerativeModelWithEmbedding
-from proteingen.probability_model import ProbabilityModel
+from protstar.generative_modeling import GenerativeModelWithEmbedding
+from protstar.probability_model import ProbabilityModel
 from transformers import PreTrainedTokenizerBase
 
 class PredictiveModel(ProbabilityModel, ABC):
@@ -216,7 +216,7 @@ def gaussian_binary_logits(
 # ── Template predictive models ──────────────────────────────────────────────
 #
 # Subclass these and implement format_raw_to_logits using the functions above.
-# See proteingen/models/ and examples/ for concrete usage.
+# See protstar/models/ and examples/ for concrete usage.
 
 
 class LinearProbe(PredictiveModel, ABC):

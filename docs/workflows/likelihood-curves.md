@@ -20,11 +20,11 @@ A better model produces higher log probabilities at every noise level.
 ## Basic usage
 
 ```python
-from proteingen.eval.likelihood_curves import (
+from protstar.eval.likelihood_curves import (
     compute_log_prob_trajectory,
     plot_log_prob_trajectories,
 )
-from proteingen.models.esm import ESMC
+from protstar.models.esm import ESMC
 
 model = ESMC("esmc_300m").to("cuda").eval()
 

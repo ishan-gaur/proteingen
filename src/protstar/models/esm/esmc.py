@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 from torch.nn import functional as F
 
-from proteingen.generative_modeling import (
+from protstar.generative_modeling import (
     GenerativeModelWithEmbedding,
     MaskedModelLogitFormatter,
 )

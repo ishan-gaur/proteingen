@@ -1,12 +1,12 @@
 # Design Philosophy
 
-ProteinGen is organized around four modules — **Data**, **Models**, **Sampling**, and **Evaluation** — that mirror the stages of a library design pipeline. The **Models** module contains the core abstractions: a small number of composable classes that mirror the math of guided generation. Understanding these base classes is all you need to use the library.
+ProtStar is organized around four modules — **Data**, **Models**, **Sampling**, and **Evaluation** — that mirror the stages of a library design pipeline. The **Models** module contains the core abstractions: a small number of composable classes that mirror the math of guided generation. Understanding these base classes is all you need to use the library.
 
 ## The core abstractions (Models module)
 
 ### ProbabilityModel
 
-All models in ProteinGen are subclasses of `ProbabilityModel` — an `nn.Module` that produces log-probability distributions. This shared base class provides:
+All models in ProtStar are subclasses of `ProbabilityModel` — an `nn.Module` that produces log-probability distributions. This shared base class provides:
 
 
 - **Temperature** — scale the sharpness of distributions
@@ -62,7 +62,7 @@ Subclasses implement `_save_args()` to return JSON-serializable constructor kwar
 A **concrete** `ProbabilityModel` subclass that wraps any `nn.Module` generative model via composition:
 
 ```python
-from proteingen import GenerativeModel, MaskedModelLogitFormatter
+from protstar import GenerativeModel, MaskedModelLogitFormatter
 
 model = GenerativeModel(
     model=my_nn_module,
@@ -105,7 +105,7 @@ class MyPredictor(PredictiveModel):
 
 A predictive model integration decomposes into four separable layers. Understanding this decomposition makes it clear what you're building vs reusing:
 
-1. **Raw Predictor** — the original pretrained model (architecture + weights), ported with minimal changes. Not proteingen-specific.
+1. **Raw Predictor** — the original pretrained model (architecture + weights), ported with minimal changes. Not protstar-specific.
 2. **Binary Logit Function** — converts raw output to `(B, 2)` binary logits. Independent of the model — the same predictor could use different functions. The library provides `binary_logits`, `categorical_binary_logits`, `point_estimate_binary_logits`, and `gaussian_binary_logits`.
 3. **Template Model Class** *(optional)* — a reusable architecture pattern (e.g. `LinearProbe`, `EmbeddingMLP`). If the predictor's architecture generalizes, add a template. If it's one-off, subclass `PredictiveModel` directly.
 4. **PredictiveModel Subclass** — thin glue wiring 1–3 together with conditioning, tokenizer, and OHE basis. If the other layers are well-designed, this should be mostly boilerplate.
@@ -160,8 +160,8 @@ Both are `GenerativeModel` subclasses — they produce guided log-probs that can
 `sample` generates sequences by unmasking positions one (or `n_parallel`) at a time, using `model.get_log_probs` at each step. With no `in_order` argument, positions are unmasked in random order:
 
 ```python
-from proteingen import sample
-from proteingen.models import ESMC
+from protstar import sample
+from protstar.models import ESMC
 
 model = ESMC().cuda()
 sequences = sample(model, ["<mask>" * 100] * 8)["sequences"]
@@ -178,8 +178,8 @@ $$
 Tokens are resampled from this mixture at every position simultaneously, so the distribution gradually shifts from the initial state (fully masked) to the model's predicted distribution. Unlike ancestral sampling which unmasks one position at a time, linear interpolation updates all positions in parallel at each step.
 
 ```python
-from proteingen.sampling import sample_ctmc_linear_interpolation
-from proteingen.models import ESMC
+from protstar.sampling import sample_ctmc_linear_interpolation
+from protstar.models import ESMC
 
 model = ESMC().cuda()
 sequences = sample_ctmc_linear_interpolation(model, ["<mask>" * 100] * 8, n_steps=50)
@@ -192,8 +192,8 @@ sequences = sample_ctmc_linear_interpolation(model, ["<mask>" * 100] * 8, n_step
 When a predictive model is provided, guidance is applied by reweighting the rate matrix with likelihood ratios — either via enumeration (DEG-style) or first-order Taylor approximation (TAG-style).
 
 ```python
-from proteingen.sampling import sample_flow_matching_legacy
-from proteingen.models import ESMC
+from protstar.sampling import sample_flow_matching_legacy
+from protstar.models import ESMC
 
 model = ESMC().cuda()
 sequences = sample_flow_matching_legacy(model, ["<mask>" * 100] * 8, dt=0.01)

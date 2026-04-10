@@ -15,7 +15,7 @@ from types import SimpleNamespace
 from torch.nn import functional as F
 from esm.models.esmc import ESMC
 from esm.tokenization.sequence_tokenizer import EsmSequenceTokenizer
-from proteingen.predictive_modeling import EmbeddingMLP, binary_logits
+from protstar.predictive_modeling import EmbeddingMLP, binary_logits
 
 # ── 1. Define the target vocabulary (20 standard amino acids + padding) ──────
 

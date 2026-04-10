@@ -9,11 +9,11 @@ import pytest
 from torch import nn
 from torch.nn import functional as F
 
-from proteingen.generative_modeling import (
+from protstar.generative_modeling import (
     GenerativeModel,
     PassThroughLogitFormatter,
 )
-from proteingen.sampling import any_order_ancestral_step, sample
+from protstar.sampling import any_order_ancestral_step, sample
 
 
 # ---------------------------------------------------------------------------

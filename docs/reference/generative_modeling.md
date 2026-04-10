@@ -1,6 +1,6 @@
 # generative_modeling
 
-This module contains the `GenerativeModel` class hierarchy, `LogitFormatter` protocol, `MPNNTokenizer`, and LoRA support. These are the building blocks for wrapping any generative model (masked LMs, flow-matching models, ProteinMPNN) into ProteinGen's interface.
+This module contains the `GenerativeModel` class hierarchy, `LogitFormatter` protocol, `MPNNTokenizer`, and LoRA support. These are the building blocks for wrapping any generative model (masked LMs, flow-matching models, ProteinMPNN) into ProtStar's interface.
 
 ## GenerativeModel
 
@@ -109,4 +109,4 @@ model.load_lora("adapters/my_adapter")
 
 ## API Reference
 
-::: proteingen.generative_modeling
+::: protstar.generative_modeling

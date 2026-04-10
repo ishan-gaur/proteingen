@@ -17,7 +17,7 @@ from transformers import PreTrainedTokenizerBase
 from typing import Protocol, runtime_checkable, Optional, Callable, Dict, List, Any
 from contextlib import contextmanager
 from abc import ABC, abstractmethod
-from proteingen.probability_model import ProbabilityModel
+from protstar.probability_model import ProbabilityModel
 
 
 TransitionFunc = Callable[

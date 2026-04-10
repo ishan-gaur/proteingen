@@ -18,7 +18,7 @@ The full pipeline: fold MSA sequences with AF3, then fine-tune ESM3 to predict s
 Step 1 requires a running [AF3 inference server](https://github.com/ishan-gaur/af3-server). Install the client package:
 
 ```bash
-# From the proteingen repo — already listed as a dev dependency
+# From the protstar repo — already listed as a dev dependency
 uv sync
 
 # Or install standalone
@@ -63,4 +63,4 @@ The structure-conditioned model improves from -2.075 to -0.798 while sequence-on
 
 See the [Fine-tuning workflow](../workflows/finetune-generative.md) and [MSA → Dataset workflow](../workflows/msa-to-dataset.md) for the full walkthrough.
 
-**Source**: [`examples/finetune_esm3/`](https://github.com/ishan-gaur/proteingen/blob/main/examples/finetune_esm3/)
+**Source**: [`examples/finetune_esm3/`](https://github.com/ishan-gaur/protstar/blob/main/examples/finetune_esm3/)

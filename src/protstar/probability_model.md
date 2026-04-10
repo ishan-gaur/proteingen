@@ -6,7 +6,7 @@
 
 ## Dependencies
 
-- None within proteingen (this is the root of the hierarchy)
+- None within protstar (this is the root of the hierarchy)
 - `torch.nn.Module` — inherits from nn.Module for parameter management, device tracking, serialization
 
 ## Used By

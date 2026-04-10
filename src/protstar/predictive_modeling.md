@@ -138,7 +138,7 @@ Post-construction method that initializes embeddings from PCA of a pretrained mo
 
 - ESMC `embed`: `Embedding(64, 960)` — 64 tokens (33 real + 31 alignment padding)
 - First 20 PCs of 20 AA embeddings capture ~100% variance (rank 19 after centering)
-- `pca_embed_init()` is an internal helper — not exported from `proteingen.__init__`
+- `pca_embed_init()` is an internal helper — not exported from `protstar.__init__`
 
 ## PairwiseLinearModel
 
@@ -151,4 +151,4 @@ Post-construction method that initializes embeddings from PCA of a pretrained mo
 ## Testing Notes
 
 - Mock tokenizer for tests: `SimpleNamespace(vocab_size=N, pad_token_id=M)`
-- Exports from `proteingen.__init__`: `OneHotMLP`, `EmbeddingMLP`, `PairwiseLinearModel` (not `pca_embed_init`)
+- Exports from `protstar.__init__`: `OneHotMLP`, `EmbeddingMLP`, `PairwiseLinearModel` (not `pca_embed_init`)

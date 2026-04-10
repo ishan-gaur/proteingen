@@ -13,7 +13,7 @@ This workflow walks through `examples/stability_guidance/main.py`, which redesig
 
 | Component | Role | Source |
 |-----------|------|--------|
-| **ESM3** | Generative model — predicts sequence from structure | `proteingen.models.esm.ESM3` |
+| **ESM3** | Generative model — predicts sequence from structure | `protstar.models.esm.ESM3` |
 | **Noisy stability classifier** | Guides sampling toward stable sequences | `PreTrainedStabilityPredictor` with pretrained weights |
 | **Stability oracle** | Evaluates final sequences (not used during sampling) | Raw `StabilityPMPNN` regression model |
 | **Target backbone** | Structure conditioning input | PDB file (5KPH) |
@@ -27,8 +27,8 @@ The noisy classifier is a ProteinMPNN-based binary stability predictor trained o
 ### 1. Load models
 
 ```python
-from proteingen.models.esm import ESM3
-from proteingen.models.rocklin_ddg.stability_predictor import (
+from protstar.models.esm import ESM3
+from protstar.models.rocklin_ddg.stability_predictor import (
     PreTrainedStabilityPredictor,
     StabilityPMPNN,
 )
@@ -52,7 +52,7 @@ oracle_model = oracle_model.to(device).eval()
 Both models need structure information, but in different formats:
 
 ```python
-from proteingen.models.utils import pdb_to_atom37_and_seq
+from protstar.models.utils import pdb_to_atom37_and_seq
 
 # ESM3 uses atom37 coordinates → VQ-VAE structure tokens
 coords_RAX, wt_seq = pdb_to_atom37_and_seq(pdb_path, backbone_only=True)
@@ -71,8 +71,8 @@ classifier.set_temp_(0.03)  # lower = stronger guidance
 ### 3. Sample — unguided vs. guided
 
 ```python
-from proteingen.sampling import sample_ctmc_linear_interpolation
-from proteingen.guide import TAG
+from protstar.sampling import sample_ctmc_linear_interpolation
+from protstar.guide import TAG
 
 # Fully masked starting point
 init_tokens = tokenizer(["<mask>" * len(wt_seq)])["input_ids"].to(device)
@@ -99,7 +99,7 @@ guided_seqs = sample_ctmc_linear_interpolation(
 ### 4. Evaluate with the oracle
 
 ```python
-from proteingen.models.rocklin_ddg.data_utils import compute_seq_id
+from protstar.models.rocklin_ddg.data_utils import compute_seq_id
 
 # ddG relative to wildtype (lower = more stable)
 unguided_preds = predict_stability_raw(oracle_model, unguided_seqs, stability_cond, device)

@@ -33,8 +33,8 @@ from af3_server import AF3Client
 
 from esm.utils.structure.protein_chain import ProteinChain
 
-from proteingen.data import aligned_sequences_to_raw, read_fasta
-from proteingen.models.esm import ESM3
+from protstar.data import aligned_sequences_to_raw, read_fasta
+from protstar.models.esm import ESM3
 
 DATA_DIR = Path(__file__).parent
 

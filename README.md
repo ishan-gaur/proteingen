@@ -1,4 +1,4 @@
-# ProteinGen
+# ProtStar
 
 <!-- TODO[pi]: write detailed workflow sub-pages (data org, predictive model setup, training, guidance, sampling, evaluation) -->
 <!-- TODO[pi]: add evaluation workflow for wetlab scientists to assess generated sequence quality -->
@@ -41,7 +41,7 @@ uv pip install "af3-server @ git+https://github.com/ishan-gaur/af3-server.git"
 ## Project Structure
 
 ```
-src/proteingen/
+src/protstar/
 ├── probability_model.py    # ProbabilityModel — shared ABC for all models
 ├── generative_modeling.py  # GenerativeModel, GenerativeModelWithEmbedding, LogitFormatter,
 │                           #   MaskedModelLogitFormatter, PassThroughLogitFormatter, MPNNTokenizer

@@ -1,7 +1,7 @@
-site_name: ProteinGen
-site_url: https://ishan-gaur.github.io/proteingen/
-repo_url: https://github.com/ishan-gaur/proteingen
-repo_name: ishan-gaur/proteingen
+site_name: ProtStar
+site_url: https://ishan-gaur.github.io/protstar/
+repo_url: https://github.com/ishan-gaur/protstar
+repo_name: ishan-gaur/protstar
 
 theme:
   name: material

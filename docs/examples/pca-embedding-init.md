@@ -23,4 +23,4 @@ ESMC's 960-dim token embeddings encode useful amino acid similarities, but are t
 
 The result is a compact embedding layer that starts from a meaningful representation rather than random initialization — useful when training data is limited.
 
-**Source**: [`examples/pca_embedding_init.py`](https://github.com/ishan-gaur/proteingen/blob/main/examples/pca_embedding_init.py)
+**Source**: [`examples/pca_embedding_init.py`](https://github.com/ishan-gaur/protstar/blob/main/examples/pca_embedding_init.py)

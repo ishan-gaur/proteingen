@@ -7,8 +7,8 @@ import biotite.structure as bts
 import pytest
 import urllib.request
 from pathlib import Path
-from proteingen.models.mpnn import ProteinMPNN
-from proteingen.models.utils import load_pdb, PDBStructure
+from protstar.models.mpnn import ProteinMPNN
+from protstar.models.utils import load_pdb, PDBStructure
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────

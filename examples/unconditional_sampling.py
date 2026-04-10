@@ -1,5 +1,5 @@
-from proteingen.models import ESMC
-from proteingen.sampling import sample
+from protstar.models import ESMC
+from protstar.sampling import sample
 
 len_sample = 128
 n_samples = 8

@@ -1,6 +1,6 @@
 # Tests — Agent Notes
 
-Pytest test suite for proteingen. Run with `uv run python -m pytest tests/ -v`.
+Pytest test suite for protstar. Run with `uv run python -m pytest tests/ -v`.
 
 ## Current Status
 

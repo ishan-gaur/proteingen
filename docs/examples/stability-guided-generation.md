@@ -41,12 +41,12 @@ The example uses **TAG (Twisted Annealed Guidance)** to combine:
 At each denoising step, TAG reweights ESM3's predicted token distribution using the classifier's stability signal. The `guide_temp` parameter controls guidance strength (lower = stronger).
 
 ```python
-from proteingen.models.esm import ESM3
-from proteingen.models.rocklin_ddg.stability_predictor import (
+from protstar.models.esm import ESM3
+from protstar.models.rocklin_ddg.stability_predictor import (
     PreTrainedStabilityPredictor,
 )
-from proteingen.guide import TAG
-from proteingen.sampling import sample_ctmc_linear_interpolation
+from protstar.guide import TAG
+from protstar.sampling import sample_ctmc_linear_interpolation
 
 esm_model = ESM3().cuda()
 esm_model.set_condition_({"coords_RAX": coords})
@@ -73,4 +73,4 @@ sequences = sample_ctmc_linear_interpolation(guided_model, init_tokens, n_steps=
 - [ProteinGuide workflow](../workflows/protein-guide.md) — the guided sampling framework
 - [Models → StabilityPMPNN](../models/stability-pmpnn.md) — the stability predictor architecture
 
-**Source**: [`examples/stability_guidance/`](https://github.com/ishan-gaur/proteingen/blob/main/examples/stability_guidance/)
+**Source**: [`examples/stability_guidance/`](https://github.com/ishan-gaur/protstar/blob/main/examples/stability_guidance/)

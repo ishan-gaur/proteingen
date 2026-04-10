@@ -7,7 +7,7 @@ ESM-C masked language model, available in 300m and 600m parameter variants. Wrap
 - **LoRA support**: yes, via `apply_lora()`
 
 ```python
-from proteingen.models import ESMC
+from protstar.models import ESMC
 
 model = ESMC("esmc_300m").cuda()  # or "esmc_600m"
 ```

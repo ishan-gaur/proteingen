@@ -9,7 +9,7 @@ import pytest
 from torch import nn
 from torch.nn import functional as F
 
-from proteingen.generative_modeling import (
+from protstar.generative_modeling import (
     GenerativeModel,
     LogitFormatter,
     PassThroughLogitFormatter,

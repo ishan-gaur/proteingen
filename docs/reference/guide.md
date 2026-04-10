@@ -122,4 +122,4 @@ If `projection` is not provided to TAG, it auto-creates a `LinearGuidanceProject
 
 ## API Reference
 
-::: proteingen.guide
+::: protstar.guide

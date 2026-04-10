@@ -1,7 +1,7 @@
 import torch
 from torch import nn
-from proteingen.generative_modeling import GenerativeModel
-from proteingen.predictive_modeling import PredictiveModel
+from protstar.generative_modeling import GenerativeModel
+from protstar.predictive_modeling import PredictiveModel
 from transformers import PreTrainedTokenizerBase
 from contextlib import contextmanager
 from typing import Optional, List

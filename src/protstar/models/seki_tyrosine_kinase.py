@@ -1,5 +1,5 @@
-from proteingen import ESM3
-from proteingen import PredictiveModel, LinearProbe
+from protstar import ESM3
+from protstar import PredictiveModel, LinearProbe
 import atomworks.io as aio
 from esm.tokenization.sequence_tokenizer import EsmSequenceTokenizer
 

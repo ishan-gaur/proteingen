@@ -4,7 +4,7 @@ import torch
 import torch.utils.checkpoint
 from typing import TypedDict
 
-from proteingen.generative_modeling import (
+from protstar.generative_modeling import (
     GenerativeModelWithEmbedding,
     LogitFormatter,
     MPNNTokenizer,
@@ -49,7 +49,7 @@ class ProteinMPNN(GenerativeModelWithEmbedding):
     """ProteinMPNN structure-conditioned sequence design model.
 
     Wraps Foundry's ProteinMPNN as a GenerativeModelWithEmbedding for use
-    with proteingen's sampling, guidance, and probe infrastructure.
+    with protstar's sampling, guidance, and probe infrastructure.
 
     Structure conditioning is **required** — call ``set_condition_()`` or
     ``conditioned_on()`` before ``forward`` / ``get_log_probs`` / ``embed``.
@@ -80,7 +80,7 @@ class ProteinMPNN(GenerativeModelWithEmbedding):
 
     Example::
 
-        from proteingen.models.utils import load_pdb
+        from protstar.models.utils import load_pdb
 
         model = ProteinMPNN()
         structure = load_pdb("1YCR.pdb")
@@ -176,7 +176,7 @@ class ProteinMPNN(GenerativeModelWithEmbedding):
         node/edge features and graph topology are cached and reused for
         every subsequent forward pass.
         """
-        from proteingen.models.utils import PDBStructure
+        from protstar.models.utils import PDBStructure
 
         structure = observations["structure"]
         assert isinstance(structure, PDBStructure)

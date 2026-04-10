@@ -14,8 +14,8 @@ Generate protein sequences from scratch using ESMC as a masked language model.
 ## Quick Start
 
 ```python
-from proteingen.models import ESMC
-from proteingen import sample
+from protstar.models import ESMC
+from protstar import sample
 
 model = ESMC().cuda()
 initial_x = ["<mask>" * 256 for _ in range(5)]
@@ -32,4 +32,4 @@ This starts from fully masked sequences and iteratively unmasks positions using 
 
 The decoding order is random by default — positions are unmasked in a uniformly random permutation. This means each run produces different sequences even from the same starting point.
 
-**Source**: [`examples/unconditional_sampling.py`](https://github.com/ishan-gaur/proteingen/blob/main/examples/unconditional_sampling.py)
+**Source**: [`examples/unconditional_sampling.py`](https://github.com/ishan-gaur/protstar/blob/main/examples/unconditional_sampling.py)

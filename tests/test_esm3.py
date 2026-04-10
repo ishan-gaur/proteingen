@@ -1,4 +1,4 @@
-"""Tests for proteingen.models.esm.ESM3 (GenerativeModelWithEmbedding)."""
+"""Tests for protstar.models.esm.ESM3 (GenerativeModelWithEmbedding)."""
 
 import pytest
 import torch
@@ -7,7 +7,7 @@ from torch.nn import functional as F
 
 @pytest.fixture(scope="module")
 def model():
-    from proteingen.models.esm import ESM3
+    from protstar.models.esm import ESM3
 
     return ESM3()
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 from transformers import AutoConfig, AutoModelForMaskedLM, EsmTokenizer
 
-from proteingen.generative_modeling import (
+from protstar.generative_modeling import (
     GenerativeModelWithEmbedding,
     MaskedModelLogitFormatter,
 )
@@ -118,7 +118,7 @@ class DPLM2(GenerativeModelWithEmbedding):
     """DPLM-2 discrete diffusion protein language model.
 
     Wraps ByteDance's DPLM-2 (multimodal diffusion protein LM) as a
-    GenerativeModelWithEmbedding for use with proteingen's sampling,
+    GenerativeModelWithEmbedding for use with protstar's sampling,
     guidance, and probe infrastructure.
 
     Currently supports sequence-only mode: input is [<cls_aa>, AA..., <eos_aa>].

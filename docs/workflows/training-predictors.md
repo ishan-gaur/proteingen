@@ -89,4 +89,4 @@ The binary logit function determines how raw predictions become guidance signals
 
 If using TAG guidance, prefer `gaussian_binary_logits` — it provides smooth gradients. For DEG guidance, `point_estimate_binary_logits` works fine regardless of `k` since DEG only needs rankings.
 
-<!-- TODO: add training scripts as reusable functions in proteingen.train -->
+<!-- TODO: add training scripts as reusable functions in protstar.train -->

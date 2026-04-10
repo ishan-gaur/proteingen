@@ -27,15 +27,15 @@ from config import DATA_DIR, MASK_FRACTIONS, MODEL_CONFIGS, N_ORDERS, OUTPUT_DIR
 def load_model(family: str, checkpoint: str, device: str):
     """Instantiate a GenerativeModel by family and checkpoint."""
     if family == "esmc":
-        from proteingen.models.esm import ESMC
+        from protstar.models.esm import ESMC
 
         return ESMC(checkpoint).to(device).eval()
     elif family == "esm3":
-        from proteingen.models.esm import ESM3
+        from protstar.models.esm import ESM3
 
         return ESM3(checkpoint).to(device).eval()
     elif family == "dplm2":
-        from proteingen.models import DPLM2
+        from protstar.models import DPLM2
 
         return DPLM2(checkpoint).to(device).eval()
     else:
@@ -133,7 +133,7 @@ def run_generation_for_model(
     """Run ordered ancestral sampling for one model across all configs."""
     import math
 
-    from proteingen.sampling import sample
+    from protstar.sampling import sample
 
     print(f"\n{'=' * 60}")
     print(f"Generating with {display_name} ({checkpoint})")

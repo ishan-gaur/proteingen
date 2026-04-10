@@ -4,7 +4,7 @@ import torch
 import pytest
 from torch.nn import functional as F
 
-from proteingen.generative_modeling import MaskedModelLogitFormatter, LogitFormatter
+from protstar.generative_modeling import MaskedModelLogitFormatter, LogitFormatter
 
 # ---------------------------------------------------------------------------
 # Constants — mask token strings per tokenizer

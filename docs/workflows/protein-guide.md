@@ -32,7 +32,7 @@ Prepare your fitness/property dataset for training a predictive model and (optio
 **Assay data** — load labeled variants into a `ProteinDataset` and set up [Data Splits](data-splits.md) for train/eval:
 
 ```python
-from proteingen.data import ProteinDataset
+from protstar.data import ProteinDataset
 
 dataset = ProteinDataset(sequences=my_sequences, labels=my_labels)
 ```
@@ -118,8 +118,8 @@ Combine your trained predictive model with a generative model using guidance.
 === "TAG (Taylor-Approximate Guidance)"
 
     ```python
-    from proteingen.guide import TAG
-    from proteingen.models import ESMC
+    from protstar.guide import TAG
+    from protstar.models import ESMC
 
     gen = ESMC("esmc_300m").cuda()
     guided = TAG(gen, predictor).cuda()
@@ -141,8 +141,8 @@ Combine your trained predictive model with a generative model using guidance.
 === "DEG (Discrete Enumeration Guidance)"
 
     ```python
-    from proteingen.guide import DEG
-    from proteingen.models import ESMC
+    from protstar.guide import DEG
+    from protstar.models import ESMC
 
     gen = ESMC("esmc_300m").cuda()
     guided = DEG(gen, predictor).cuda()
@@ -178,7 +178,7 @@ There is **no separate `guidance_scale` parameter**. Temperature controls guidan
 When gen and pred models use different tokenizers (e.g. ESM with 33 tokens vs. MPNN with 21), TAG auto-creates a `LinearGuidanceProjection` that maps between token spaces. You can also provide your own:
 
 ```python
-from proteingen.guide import TAG, LinearGuidanceProjection
+from protstar.guide import TAG, LinearGuidanceProjection
 
 projection = LinearGuidanceProjection(
     gen.tokenizer, pred.tokenizer,
@@ -198,7 +198,7 @@ Generate candidate sequences using one of the available samplers.
 === "Ancestral (any-order)"
 
     ```python
-    from proteingen import sample
+    from protstar import sample
 
     masked = ["<mask>" * 100] * 8
     sequences = sample(guided, masked)["sequences"]
@@ -209,7 +209,7 @@ Generate candidate sequences using one of the available samplers.
 === "Linear interpolation"
 
     ```python
-    from proteingen import sample_ctmc_linear_interpolation
+    from protstar import sample_ctmc_linear_interpolation
 
     sequences = sample_ctmc_linear_interpolation(guided, masked, n_steps=100)
     ```
@@ -219,7 +219,7 @@ Generate candidate sequences using one of the available samplers.
 === "Euler (legacy)"
 
     ```python
-    from proteingen.sampling import sample_flow_matching_legacy
+    from protstar.sampling import sample_flow_matching_legacy
 
     sequences = sample_flow_matching_legacy(guided, masked, dt=0.01)
     ```

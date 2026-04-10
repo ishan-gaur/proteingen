@@ -29,14 +29,14 @@ import torch.nn.functional as F
 import wandb
 from torch.utils.data import DataLoader
 
-from proteingen.data import (
+from protstar.data import (
     ProteinDataset,
     read_fasta,
     aligned_sequences_to_raw,
     uniform_mask_noise,
     uniform_time,
 )
-from proteingen.models.esm import ESM3
+from protstar.models.esm import ESM3
 
 DATA_DIR = Path(__file__).parent
 CONSTRUCT_LENGTH = 295  # EphB1 kinase domain construct (UniProt 602-896)
@@ -116,7 +116,7 @@ def main():
     parser.add_argument(
         "--wandb-project",
         type=str,
-        default="proteingen-finetune",
+        default="protstar-finetune",
         help="Wandb project name",
     )
     parser.add_argument(

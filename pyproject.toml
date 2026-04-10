@@ -1,5 +1,5 @@
 [project]
-name = "proteingen"
+name = "protstar"
 version = "0.1.0"
 description = "Everything you need for training, sampling from, and guiding discrete sequence models in research. We support using them as part of discrete flow matching, discrete diffusion, any-order autoregressive, or masked language models. You can also do basic training and sampling for both conditional and unconditional models."
 readme = "README.md"
@@ -22,6 +22,7 @@ dependencies = [
     "mkdocstrings[python]>=1.0.3",
     "tmtools>=0.3.0",
     "rc-foundry>=0.1.11",
+    "mkdocs-liveedit",
 ]
 
 [dependency-groups]
@@ -33,4 +34,7 @@ dev = [
 [build-system]
 requires = ["uv_build>=0.9.22,<0.10.0"]
 build-backend = "uv_build"
+
+[tool.uv.sources]
+mkdocs-liveedit = { git = "https://github.com/ishan-gaur/mkdocs-liveedit.git" }
 

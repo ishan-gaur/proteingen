@@ -128,7 +128,7 @@ ESM3-Open (1.4B) occupies an interesting middle ground — its sequence recovery
 
 ### Prerequisites
 
-Step 3 requires a running [AF3 inference server](https://github.com/ishan-gaur/af3-server). The client is included as a dependency of proteingen — just `uv sync`. See the [af3-server README](https://github.com/ishan-gaur/af3-server) for server setup.
+Step 3 requires a running [AF3 inference server](https://github.com/ishan-gaur/af3-server). The client is included as a dependency of protstar — just `uv sync`. See the [af3-server README](https://github.com/ishan-gaur/af3-server) for server setup.
 
 ```bash
 # 1. Prepare data (sample from Swiss-Prot, generate orders)
@@ -146,4 +146,4 @@ uv run python examples/benchmark_model_families/fold.py --server http://localhos
 uv run python examples/benchmark_model_families/analyze.py
 ```
 
-See [`examples/benchmark_model_families/README.md`](https://github.com/ishan-gaur/proteingen/tree/main/examples/benchmark_model_families) for full details.
+See [`examples/benchmark_model_families/README.md`](https://github.com/ishan-gaur/protstar/tree/main/examples/benchmark_model_families) for full details.

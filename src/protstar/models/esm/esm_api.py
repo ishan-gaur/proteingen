@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from proteingen.generative_modeling import (
+from protstar.generative_modeling import (
     GenerativeModel,
     MaskedModelLogitFormatter,
 )

@@ -16,7 +16,7 @@ import torch.nn.functional as F
 from typing import Optional, Callable
 from tqdm import tqdm
 
-from proteingen.models.rocklin_ddg.data_utils import (
+from protstar.models.rocklin_ddg.data_utils import (
     PMPNN_ALPHABET,
     ESM_ALPHABET,
     ESM3_ALPHABET_SIZE,

@@ -48,4 +48,4 @@ Legacy flow-matching sampler with `dt` and `x1_temp` parameters. Kept for reprod
 
 ## API Reference
 
-::: proteingen.sampling
+::: protstar.sampling
