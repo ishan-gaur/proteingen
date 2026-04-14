@@ -7,6 +7,7 @@ from typing import TypedDict
 
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 from tqdm import tqdm
 
@@ -39,6 +40,129 @@ class LogProbTrajectory(TypedDict):
 
     time_points: torch.Tensor
     avg_log_probs: torch.Tensor
+
+
+class DecodingLogProbTrajectory(TypedDict):
+    """Per-sequence teacher-forced decode trajectories.
+
+    percent_unmasked: list[(n_steps_s,)] — per-sequence fraction of positions
+        already unmasked before each decode step.
+    decoded_position_log_probs: list[(n_steps_s,)] — log p(true token) at the
+        position decoded at each step, in the same order.
+    """
+
+    percent_unmasked: list[torch.Tensor]
+    decoded_position_log_probs: list[torch.Tensor]
+
+
+def _get_maskable_positions(
+    true_tokens_SP: torch.LongTensor, tokenizer
+) -> torch.BoolTensor:
+    """Return maskability mask for tokenized sequences."""
+    S, P = true_tokens_SP.shape
+    special_ids: set[int] = set()
+    for attr in ("cls_token_id", "eos_token_id", "pad_token_id", "mask_token_id"):
+        tid = getattr(tokenizer, attr, None)
+        if tid is not None:
+            special_ids.add(tid)
+    if hasattr(tokenizer, "added_tokens_decoder"):
+        special_ids |= set(tokenizer.added_tokens_decoder.keys())
+
+    maskable_SP = torch.ones(S, P, dtype=torch.bool)
+    for sid in special_ids:
+        maskable_SP &= true_tokens_SP != sid
+    return maskable_SP
+
+
+@torch.no_grad()
+def compute_decoding_log_prob_trajectory(
+    sequences: list[str],
+    model: GenerativeModel,
+    orders: list[torch.LongTensor],
+    batch_size: int = 32,
+) -> DecodingLogProbTrajectory:
+    """Teacher-forced log p(true token) along fixed decoding orders.
+
+    Each sequence starts with all order positions masked. At decode step k, the
+    model predicts the true residue at order[k] given the partially unmasked
+    context from earlier steps (order[:k]). This returns one trajectory per
+    sequence at native step resolution.
+
+    Args:
+        sequences: protein sequences to evaluate.
+        model: a GenerativeModel with a tokenizer mask token.
+        orders: one token-position order per sequence (same tokenizer space as model).
+        batch_size: number of decode steps to score per forward pass.
+
+    Returns:
+        DecodingLogProbTrajectory with per-sequence step fractions and log probs.
+    """
+    if len(sequences) != len(orders):
+        raise ValueError(
+            f"Got {len(sequences)} sequences but {len(orders)} orders; expected one order per sequence"
+        )
+
+    tokenizer = model.tokenizer
+    mask_token_id = tokenizer.mask_token_id
+    assert mask_token_id is not None, "Tokenizer must have a mask_token_id"
+
+    tokenized = tokenizer(sequences, padding=True, return_tensors="pt")
+    true_tokens_SP = tokenized["input_ids"]  # [S, P]
+    maskable_SP = _get_maskable_positions(true_tokens_SP, tokenizer)  # [S, P]
+
+    percent_unmasked: list[torch.Tensor] = []
+    decoded_position_log_probs: list[torch.Tensor] = []
+
+    for s_idx, order in enumerate(tqdm(orders, desc="Scoring decode trajectories")):
+        order = order.to(torch.long).cpu()
+        if order.numel() == 0:
+            percent_unmasked.append(torch.empty(0, dtype=torch.float32))
+            decoded_position_log_probs.append(torch.empty(0, dtype=torch.float32))
+            continue
+
+        valid_positions = maskable_SP[s_idx]  # [P]
+        if not bool(valid_positions[order].all()):
+            raise ValueError(
+                f"Order for sequence {s_idx} contains non-maskable positions"
+            )
+
+        n_steps = order.numel()
+        x_masked_P = true_tokens_SP[s_idx].clone()  # [P]
+        x_masked_P[order] = mask_token_id
+
+        seq_log_probs = torch.empty(n_steps, dtype=torch.float32)  # [K]
+
+        for start in range(0, n_steps, batch_size):
+            end = min(start + batch_size, n_steps)
+            batch_states = []
+            step_positions = []
+
+            for step_idx in range(start, end):
+                state_P = x_masked_P.clone()  # [P]
+                if step_idx > 0:
+                    revealed = order[:step_idx]  # [step_idx]
+                    state_P[revealed] = true_tokens_SP[s_idx, revealed]
+                batch_states.append(state_P)
+                step_positions.append(int(order[step_idx]))
+
+            state_BP = torch.stack(batch_states, dim=0)  # [B, P]
+            log_probs_BPT = model.get_log_probs(
+                state_BP.to(model.device)
+            ).cpu()  # [B, P, T]
+            pos_B = torch.tensor(step_positions, dtype=torch.long)  # [B]
+            true_tokens_B = true_tokens_SP[s_idx, pos_B].to(torch.long)  # [B]
+            row_B = torch.arange(pos_B.numel(), dtype=torch.long)  # [B]
+            seq_log_probs[start:end] = log_probs_BPT[row_B, pos_B, true_tokens_B]
+
+        step_idx_K = torch.arange(n_steps, dtype=torch.float32)  # [K]
+        frac_K = step_idx_K / float(n_steps)  # [K]
+        percent_unmasked.append(frac_K)
+        decoded_position_log_probs.append(seq_log_probs)
+
+    return DecodingLogProbTrajectory(
+        percent_unmasked=percent_unmasked,
+        decoded_position_log_probs=decoded_position_log_probs,
+    )
 
 
 @torch.no_grad()
@@ -76,17 +200,7 @@ def compute_log_prob_trajectory(
     S, P = true_tokens_SP.shape
 
     # Identify maskable positions (non-special tokens in the original sequence)
-    special_ids: set[int] = set()
-    for attr in ("cls_token_id", "eos_token_id", "pad_token_id", "mask_token_id"):
-        tid = getattr(tokenizer, attr, None)
-        if tid is not None:
-            special_ids.add(tid)
-    if hasattr(tokenizer, "added_tokens_decoder"):
-        special_ids |= set(tokenizer.added_tokens_decoder.keys())
-
-    maskable_SP = torch.ones(S, P, dtype=torch.bool)
-    for sid in special_ids:
-        maskable_SP &= true_tokens_SP != sid
+    maskable_SP = _get_maskable_positions(true_tokens_SP, tokenizer)
 
     # n_time_points points from 0 to just below 1
     time_points = torch.linspace(0, 1, n_time_points + 1)[:-1]
@@ -177,6 +291,71 @@ def plot_log_prob_trajectories(
 
     ax.set_xlabel("Fraction unmasked (t)")
     ax.set_ylabel("Avg log p(x_true) at masked positions")
+    ax.set_title(title)
+    ax.legend()
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_decoding_log_prob_trajectories(
+    trajectories: list[DecodingLogProbTrajectory],
+    labels: list[str],
+    output_path: str | Path,
+    show_individual: bool = False,
+    max_individual: int = 20,
+    n_grid_points: int = 100,
+    title: str = "Teacher-forced decoding log-likelihood",
+) -> None:
+    """Plot teacher-forced decode trajectories on a normalized x-axis.
+
+    Sequence lengths differ, so each per-sequence curve is linearly interpolated
+    to a shared [0, 1] grid (percent unmasked) before model-level aggregation.
+    """
+    assert len(trajectories) == len(labels), (
+        f"Got {len(trajectories)} trajectories but {len(labels)} labels"
+    )
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    grid = np.linspace(0.0, 1.0, n_grid_points)
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    for idx, (traj, label) in enumerate(zip(trajectories, labels)):
+        color = _COLORS[idx % len(_COLORS)]
+        per_seq_interp = []
+
+        for frac_K, lp_K in zip(
+            traj["percent_unmasked"],
+            traj["decoded_position_log_probs"],
+        ):
+            if frac_K.numel() == 0:
+                continue
+
+            x = frac_K.detach().cpu().numpy()
+            y = lp_K.detach().cpu().numpy()
+            if x[-1] < 1.0:
+                x = np.concatenate([x, np.array([1.0])])
+                y = np.concatenate([y, np.array([y[-1]])])
+
+            interp = np.interp(grid, x, y)
+            per_seq_interp.append(interp)
+
+            if show_individual and len(per_seq_interp) <= max_individual:
+                ax.plot(grid, interp, color=color, alpha=0.1, linewidth=0.5)
+
+        if not per_seq_interp:
+            continue
+
+        interp_arr = np.asarray(per_seq_interp)
+        mean = interp_arr.mean(axis=0)
+        std = interp_arr.std(axis=0)
+
+        ax.plot(grid, mean, color=color, linewidth=2, label=label)
+        ax.fill_between(grid, mean - std, mean + std, color=color, alpha=0.15)
+
+    ax.set_xlabel("Percent unmasked")
+    ax.set_ylabel("Log p(true token at decoded position)")
     ax.set_title(title)
     ax.legend()
     fig.savefig(output_path, dpi=150, bbox_inches="tight")

@@ -1,8 +1,10 @@
-"""Step 2: Generate sequences with all models at all masking levels.
+"""Step 2: Generate sequences and teacher-forced decode likelihood trajectories.
 
-Loads the prepared data from step 1, then for each model runs ordered
-ancestral sampling on every (sequence, order, mask_fraction) combination.
-Saves per-step log probabilities and generated sequences.
+Loads prepared SwissProt sequences/orders from step 1. For each model it:
+1) Computes teacher-forced log p(true token) at each decoded position along the
+   shared decoding order (one order per sequence).
+2) Runs ordered ancestral sampling on every (sequence, order, mask_fraction)
+   combination for downstream structure/sequence metrics.
 
 Can be run for a single model (useful for parallel/SLURM execution):
     uv run python examples/benchmark_model_families/generate.py --model esmc_300m
@@ -40,22 +42,6 @@ def load_model(family: str, checkpoint: str, device: str):
         return DPLM2(checkpoint).to(device).eval()
     else:
         raise ValueError(f"Unknown model family: {family}")
-
-
-def get_unmask_tail(
-    order: list[int], mask_frac: float, mask_token_id: int, masked_tokens: list[int]
-) -> torch.LongTensor:
-    """Get the tail of the order that corresponds to masked positions.
-
-    Returns the positions in unmask order (first element = first to unmask).
-    """
-    import math
-
-    n_maskable = len(order)
-    n_to_mask = math.ceil(mask_frac * n_maskable)
-    n_keep = n_maskable - n_to_mask
-    # The tail of the order = positions that were masked
-    return torch.LongTensor(order[n_keep:])
 
 
 def retokenize_for_model(sequence: str, model) -> torch.LongTensor:
@@ -124,6 +110,46 @@ def translate_unmask_order(
     return torch.LongTensor(model_positions)
 
 
+def save_teacher_forced_trajectory(
+    model,
+    model_dir,
+    sequences: list[str],
+    all_orders: list[list[list[int]]],
+):
+    """Compute and save per-step teacher-forced decode likelihoods."""
+    from protstar.eval import compute_decoding_log_prob_trajectory
+
+    tf_path = model_dir / "teacher_forced_trajectory.json"
+    if tf_path.exists():
+        print(f"Teacher-forced trajectory already exists: {tf_path}")
+        return
+
+    model_orders: list[torch.LongTensor] = []
+    for seq_idx, seq in enumerate(sequences):
+        esm_order = all_orders[seq_idx][0]  # single benchmark order per sequence
+        model_order = translate_unmask_order(esm_order, seq, model)
+        model_orders.append(model_order)
+
+    trajectory = compute_decoding_log_prob_trajectory(
+        sequences=sequences,
+        model=model,
+        orders=model_orders,
+        batch_size=32,
+    )
+
+    serialized = {
+        "seq_count": len(sequences),
+        "order_idx": 0,
+        "percent_unmasked": [x.tolist() for x in trajectory["percent_unmasked"]],
+        "decoded_position_log_probs": [
+            y.tolist() for y in trajectory["decoded_position_log_probs"]
+        ],
+    }
+    with open(tf_path, "w") as f:
+        json.dump(serialized, f, indent=2)
+    print(f"Saved teacher-forced trajectory: {tf_path}")
+
+
 def run_generation_for_model(
     family: str,
     display_name: str,
@@ -160,6 +186,13 @@ def run_generation_for_model(
     model_dir = OUTPUT_DIR / display_name.replace(" ", "_")
     model_dir.mkdir(parents=True, exist_ok=True)
     out_path = model_dir / "generation_results.json"
+
+    save_teacher_forced_trajectory(
+        model=model,
+        model_dir=model_dir,
+        sequences=sequences,
+        all_orders=all_orders,
+    )
 
     results = {}
     if out_path.exists():

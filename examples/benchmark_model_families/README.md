@@ -7,9 +7,9 @@ quality at different masking levels?
 ## Experiment Design
 
 **Setup:**
-- 10 sequences randomly sampled from Swiss-Prot (reviewed UniProt, 80–300 aa)
+- 20 sequences randomly sampled from Swiss-Prot (reviewed UniProt, 80–300 aa)
 - 4 masking levels: 10%, 25%, 50%, 100%
-- 5 random decoding orders per protein (shared across all models)
+- 1 random decoding order per protein (shared across all models)
 - Orders are generated up-front; positions are masked according to the order
   tail, and unmasked in that same order during generation
 
@@ -26,7 +26,8 @@ quality at different masking levels?
 
 **Metrics:**
 - **Sequence recovery**: % identity between generated and original sequence
-- **Generation log-likelihood**: per-step log p(sampled token) during ancestral sampling
+- **Teacher-forced decoding log-likelihood**: per-step log p(true token at decoded position)
+  along a shared order, evaluated at every generation step and plotted vs. percent unmasked
 - **AF3 pLDDT**: AlphaFold 3 predicted local distance difference test (structural confidence)
 - **AF3 pTM**: predicted template modeling score
 - **TM-score**: structural similarity between generated and original AF3 structures
@@ -82,25 +83,29 @@ uv run python examples/benchmark_model_families/analyze.py
 ```
 outputs/
 ├── ESMC-300M/generation_results.json
+├── ESMC-300M/teacher_forced_trajectory.json
 ├── ESMC-600M/generation_results.json
+├── ESMC-600M/teacher_forced_trajectory.json
 ├── ESM3-Open/generation_results.json
+├── ESM3-Open/teacher_forced_trajectory.json
 ├── DPLM2-150M/generation_results.json
+├── DPLM2-150M/teacher_forced_trajectory.json
 ├── DPLM2-650M/generation_results.json
+├── DPLM2-650M/teacher_forced_trajectory.json
 ├── DPLM2-3B/generation_results.json
+├── DPLM2-3B/teacher_forced_trajectory.json
 ├── fold_results/
 │   ├── fold_results.json
 │   └── cif_files/
 ├── metrics.json
 └── plots/
-    ├── likelihood_trajectories.png
+    ├── teacher_forced_likelihood_trajectories.png
     ├── sequence_identity.png
-    ├── mean_step_log_prob.png
     ├── plddt.png
     ├── ptm.png
     ├── tm_score.png
     ├── fold_class_agreement.png
     ├── scaling_sequence_identity.png
-    ├── scaling_mean_step_log_prob.png
     ├── scaling_plddt.png
     └── scaling_tm_score.png
 ```
@@ -108,7 +113,7 @@ outputs/
 ## Design Notes
 
 ### Controlled decoding orders
-The 5 decoding orders are generated once per protein and shared across all
+A single decoding order is generated once per protein and shared across all
 models. This controls for the effect of random masking patterns — any
 performance difference between models at the same masking level and order
 is attributable to the model, not the random mask.

@@ -10,7 +10,7 @@ Available skills:
 
 ## Project Management
 
-- Use `uv` for all package management and running Python code [×8]
+- Use `uv` for all package management and running Python code [×9]
   - Install dependencies: `uv add <package>`
   - Run scripts: `uv run python <script>`
   - Sync environment: `uv sync`
@@ -49,6 +49,11 @@ Available skills:
 - `docs/` — MkDocs documentation site. See → [docs/AGENTS.md](docs/AGENTS.md)
 - `TODO.md`, `PLAN.md`, `DESIGN.md` — roadmap and design docs
 
+
+## Benchmark Model Families Notes
+
+- `examples/benchmark_model_families/prepare_data.py` currently queries `(reviewed:true) AND (length:[min TO max])` without an organism diversity constraint; with seed 42 this can return all-human sequence sets. If taxonomic diversity matters, add an explicit organism filter/sampling strategy.
+- New teacher-forced trajectories are saved per model at `outputs/<MODEL>/teacher_forced_trajectory.json` and plotted by `analyze.py` as `teacher_forced_likelihood_trajectories.png`.
 
 ## AF3 Server
 
