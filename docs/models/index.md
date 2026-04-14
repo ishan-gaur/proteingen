@@ -10,6 +10,7 @@
 | [ESM3](esm3.md) | `protstar.models.ESM3` | [EvolutionaryScale/esm](https://github.com/evolutionaryscale/esm) | Structure (atom37 coords) | `(B, L, 64)` logits |
 | [ESM Forge API](esm-forge-api.md) | `protstar.models.ESMForgeAPI` | [EvolutionaryScale Forge](https://forge.evolutionaryscale.ai) | Structure (ESM3 only) | `(B, L, 64)` logits |
 | [DPLM-2](dplm2.md) | `protstar.models.DPLM2` | [bytedance/dplm](https://github.com/bytedance/dplm) | None (masked diffusion) | `(B, L, 8229)` logits |
+| [Frame2seq](frame2seq.md) | `protstar.models.Frame2seq` | [dakpinaroglu/Frame2seq](https://github.com/dakpinaroglu/Frame2seq) | Structure (`pdb_path`, `chain_id`) | `(B, L, 22)` logits |
 | Dayhoff | *coming soon* | [microsoft/Dayhoff](https://huggingface.co/microsoft/Dayhoff-170m-UR50) | None (masked LM) | Sequence logits |
 | ProGen3 | *coming soon* | [Profluent-AI/progen3](https://github.com/Profluent-AI/progen3) | None (autoregressive LM) | Sequence logits |
 | EvoDiff | *coming soon* | [microsoft/evodiff](https://github.com/microsoft/evodiff) | None (discrete diffusion) | Sequence logits |

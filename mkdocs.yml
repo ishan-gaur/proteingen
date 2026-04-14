@@ -87,6 +87,7 @@ nav:
     - ESMC: models/esmc.md
     - ESM3: models/esm3.md
     - DPLM-2: models/dplm2.md
+    - Frame2seq: models/frame2seq.md
     - ESM Forge API: models/esm-forge-api.md
     - ProteinMPNN: models/proteinmpnn.md
     - StabilityPMPNN: models/stability-pmpnn.md

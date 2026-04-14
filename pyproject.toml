@@ -23,6 +23,7 @@ dependencies = [
     "tmtools>=0.3.0",
     "rc-foundry>=0.1.11",
     "mkdocs-liveedit",
+    "frame2seq>=0.0.8",
 ]
 
 [dependency-groups]

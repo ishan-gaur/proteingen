@@ -10,7 +10,7 @@ Available skills:
 
 ## Project Management
 
-- Use `uv` for all package management and running Python code [×14]
+- Use `uv` for all package management and running Python code [×15]
   - Install dependencies: `uv add <package>`
   - Run scripts: `uv run python <script>`
   - Sync environment: `uv sync`
@@ -19,7 +19,7 @@ Available skills:
   - Run formatter: `uv run ruff format`
   - Run lineter: `uv run ruff check`
 - Use this file to note down project-related info important to know across sessions
-- **Discuss design decisions before implementing** - especially for abstractions and class structures
+- **Discuss design decisions before implementing** - especially for abstractions and class structures [×1]
 - **Ask for clarification when instructions seem contradictory** - don't guess intent, surface the confusion
 
 ## Code Style
@@ -27,7 +27,7 @@ Available skills:
 - Follow PEP 8 conventions
 - Use type hints for function signatures
 - Keep functions focused and modular
-- **Tensor shape annotations on every intermediate variable** — every tensor assignment in model/pipeline code should have an inline comment with shape and meaning, e.g. `# h_EXV [B, L, K, 3H] - encoder edge+node features masked by anti-causal`. Define an index legend at the top of each model class (e.g. `S: batch, P: position, T: token dim, D: embedding dim, K: neighbors, H: hidden`) and reference those letters in all shape comments. This is the single most effective thing for making tensor code readable — learned from Foundry's MPNN implementation.
+- **Tensor shape annotations on every intermediate variable** — every tensor assignment in model/pipeline code should have an inline comment with shape and meaning, e.g. `# h_EXV [B, L, K, 3H] - encoder edge+node features masked by anti-causal`. Define an index legend at the top of each model class (e.g. `S: batch, P: position, T: token dim, D: embedding dim, K: neighbors, H: hidden`) and reference those letters in all shape comments. This is the single most effective thing for making tensor code readable — learned from Foundry's MPNN implementation. [×1]
 - Make user-provided inputs required, not optional - if the user needs to provide something, the interface should demand it
 - Prefer strict interfaces that prevent misuse over permissive ones that raise errors at runtime
 - Let code crash naturally rather than wrapping in try/catch - silent failures hide bugs

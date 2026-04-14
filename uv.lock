@@ -727,6 +727,24 @@ wheels = [
 ]
 
 [[package]]
+name = "frame2seq"
+version = "0.0.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "biopython" },
+    { name = "dm-tree" },
+    { name = "einops" },
+    { name = "pandas" },
+    { name = "pytorch-lightning" },
+    { name = "scipy" },
+    { name = "torch" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6d/c7/9262a263ff9344aaab14fa9422b5d68f564e65fb7f0e97543fcb1fc3a669/frame2seq-0.0.8.tar.gz", hash = "sha256:aea4f9e7d9cc357ff5f600699bc925a453c68c1803002400e78ae68d5222064b", size = 86354996, upload-time = "2024-01-31T20:46:32.717Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/41/f9/6212fa5e84d58397b1616aef61c3cc746a624448f0f8c366f4327b59cf44/frame2seq-0.0.8-py3-none-any.whl", hash = "sha256:9a9b9dd82f18e4e36f4e751d7c7fe3de6b12114411df52f10885f5462f115f56", size = 86401038, upload-time = "2024-01-31T20:45:01.155Z" },
+]
+
+[[package]]
 name = "frozendict"
 version = "2.4.7"
 source = { registry = "https://pypi.org/simple" }
@@ -1880,6 +1898,7 @@ source = { editable = "." }
 dependencies = [
     { name = "datasets" },
     { name = "esm" },
+    { name = "frame2seq" },
     { name = "matplotlib" },
     { name = "mkdocs-liveedit" },
     { name = "mkdocs-material" },
@@ -1905,6 +1924,7 @@ dev = [
 requires-dist = [
     { name = "datasets", specifier = ">=2.14.4" },
     { name = "esm", specifier = ">=3.2.3" },
+    { name = "frame2seq", specifier = ">=0.0.8" },
     { name = "matplotlib" },
     { name = "mkdocs-liveedit", git = "https://github.com/ishan-gaur/mkdocs-liveedit.git" },
     { name = "mkdocs-material", specifier = ">=9.7.5" },

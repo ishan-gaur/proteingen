@@ -20,6 +20,8 @@ from protstar.modeling.models import (
     ESM3IF,
     ESMC,
     ESMForgeAPI,
+    Frame2seq,
+    Frame2seqConditioning,
 )
 
 __all__ = [
@@ -29,6 +31,8 @@ __all__ = [
     "ESMForgeAPI",
     "DPLM2",
     "DPLM2Tokenizer",
+    "Frame2seq",
+    "Frame2seqConditioning",
 ]
 
 # Optional model classes
@@ -55,6 +59,7 @@ _MODULE_ALIASES = {
     "esm3if": "protstar.modeling.models.esm.esm3if",
     "esm_api": "protstar.modeling.models.esm.esm_api",
     "dplm2": "protstar.modeling.models.dplm2",
+    "frame2seq": "protstar.modeling.models.frame2seq",
     "mpnn": "protstar.modeling.models.mpnn",
     "rocklin_ddg": "protstar.modeling.models.rocklin_ddg",
     "utils": "protstar.data.structure",
