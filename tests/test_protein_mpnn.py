@@ -7,8 +7,8 @@ import biotite.structure as bts
 import pytest
 import urllib.request
 from pathlib import Path
-from protstar.models.mpnn import ProteinMPNN
-from protstar.models.utils import load_pdb, PDBStructure
+from protstar.modeling import ProteinMPNN
+from protstar.data import load_pdb, PDBStructure
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────
@@ -26,19 +26,17 @@ def _make_structure(L: int = 20, n_chains: int = 1):
     atom_array.res_name = np.array(["ALA"] * n_atoms)
     atom_array.atom_name = np.tile(["N", "CA", "C", "O"], L)
     atom_array.element = np.tile(["N", "C", "C", "O"], L)
-    atom_array.set_annotation(
-        "occupancy", np.ones(n_atoms, dtype=np.float32)
-    )
-    atom_array.set_annotation(
-        "atomize", np.zeros(n_atoms, dtype=bool)
-    )
+    atom_array.set_annotation("occupancy", np.ones(n_atoms, dtype=np.float32))
+    atom_array.set_annotation("atomize", np.zeros(n_atoms, dtype=bool))
 
     # Assign chain IDs
     chain_ids_per_res = []
     for c in range(n_chains):
         chain_ids_per_res.extend([chr(ord("A") + c)] * residues_per_chain)
     # Handle remainder
-    chain_ids_per_res.extend([chr(ord("A") + n_chains - 1)] * (L - len(chain_ids_per_res)))
+    chain_ids_per_res.extend(
+        [chr(ord("A") + n_chains - 1)] * (L - len(chain_ids_per_res))
+    )
     atom_array.chain_id = np.repeat(chain_ids_per_res, atoms_per_res)
 
     residue_starts = bts.get_residue_starts(atom_array)
@@ -52,6 +50,36 @@ def _make_structure(L: int = 20, n_chains: int = 1):
             sequence=sequence,
         )
     }
+
+
+def test_load_pdb_downloads_when_missing(monkeypatch, tmp_path):
+    """Missing local file should trigger PDB-id-based download to cache dir."""
+    import protstar.data.structure as structure_mod
+
+    dummy_structure = _make_structure(4)["structure"]
+    seen: dict[str, object] = {}
+
+    def fake_download(pdb_id: str, destination: Path):
+        seen["pdb_id"] = pdb_id
+        seen["destination"] = destination
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text("MOCK")
+        return destination
+
+    def fake_parse(path: str):
+        seen["parse_path"] = Path(path)
+        return {"assemblies": {"1": [dummy_structure.atom_array]}}
+
+    monkeypatch.setattr(structure_mod, "_download_pdb_to_path", fake_download)
+    monkeypatch.setattr(structure_mod.aio, "parse", fake_parse)
+
+    structure = load_pdb("1abc.pdb", cache_dir=tmp_path)
+
+    expected_path = tmp_path / "1ABC.pdb"
+    assert seen["pdb_id"] == "1ABC"
+    assert seen["destination"] == expected_path
+    assert seen["parse_path"] == expected_path
+    assert isinstance(structure, PDBStructure)
 
 
 @pytest.fixture

@@ -24,9 +24,9 @@ from huggingface_hub import hf_hub_download
 from scipy.stats import spearmanr
 from torch.utils.data import DataLoader, TensorDataset
 
-from protstar.guide import TAG
-from protstar.models.esm import ESMC
-from protstar.predictive_modeling import LinearProbe, point_estimate_binary_logits
+from protstar.modeling import TAG
+from protstar.modeling import ESMC
+from protstar.modeling import LinearProbe, point_estimate_binary_logits
 from protstar.sampling import sample
 
 

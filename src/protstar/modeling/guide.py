@@ -1,7 +1,7 @@
 import torch
 from torch import nn
-from protstar.generative_modeling import GenerativeModel
-from protstar.predictive_modeling import PredictiveModel
+from .generative_modeling import GenerativeModel
+from .predictive_modeling import PredictiveModel
 from transformers import PreTrainedTokenizerBase
 from contextlib import contextmanager
 from typing import Optional, List
@@ -20,7 +20,7 @@ class PreparedGuidanceInput:
 
 
 class GuidanceProjection(nn.Module, ABC):
-    """Maps between generator token space and predictor OHE-gradient space."""
+    """Maps between predictor OHE-gradient space and generative model logit space."""
 
     @abstractmethod
     def prepare(
@@ -202,9 +202,9 @@ class LinearGuidanceProjection(GuidanceProjection):
         delta_gen_SPT = grad_pred_SPK.new_zeros(
             (S, prepared.gen_length, gen_output_dim)
         )
-        delta_gen_SPT[
-            :, prepared.pred_pos_to_gen_pos_P, :gen_vocab_size
-        ] = delta_vocab_SPT
+        delta_gen_SPT[:, prepared.pred_pos_to_gen_pos_P, :gen_vocab_size] = (
+            delta_vocab_SPT
+        )
         return delta_gen_SPT
 
 

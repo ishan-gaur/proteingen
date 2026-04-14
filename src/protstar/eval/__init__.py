@@ -1,11 +1,13 @@
+"""Evaluation utilities."""
+
 from .likelihood_curves import (
+    LogProbTrajectory,
     compute_log_prob_trajectory,
     plot_log_prob_trajectories,
-    LogProbTrajectory,
 )
 
 __all__ = [
+    "LogProbTrajectory",
     "compute_log_prob_trajectory",
     "plot_log_prob_trajectories",
-    "LogProbTrajectory",
 ]

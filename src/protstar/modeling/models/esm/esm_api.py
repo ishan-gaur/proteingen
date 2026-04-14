@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from protstar.generative_modeling import (
+from ...generative_modeling import (
     GenerativeModel,
     MaskedModelLogitFormatter,
 )

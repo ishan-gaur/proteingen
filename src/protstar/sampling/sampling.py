@@ -5,7 +5,7 @@ import sys
 import torch
 from torch.nn import functional as F
 from typing import Callable, Optional, List, TypedDict, TextIO
-from protstar.generative_modeling import GenerativeModel, TransitionFunc
+from ..modeling.generative_modeling import GenerativeModel, TransitionFunc
 from tqdm import tqdm
 
 
@@ -522,7 +522,7 @@ def build_legacy_predictor_log_prob(tag_model):
     - integer token input: ``(B, P)`` in generator token space
     - one-hot input: ``(B, P, T_gen)`` for TAG Taylor guidance
     """
-    from dfm.guide import LinearGuidanceProjection
+    from ..modeling.guide import LinearGuidanceProjection
 
     projection = tag_model.projection
     if not isinstance(projection, LinearGuidanceProjection):

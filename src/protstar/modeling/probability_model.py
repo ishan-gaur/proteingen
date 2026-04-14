@@ -10,7 +10,7 @@ from torch import nn
 from torch.nn import functional as F
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, TypedDict
 
 
 class ProbabilityModel(nn.Module, ABC):
@@ -39,16 +39,21 @@ class ProbabilityModel(nn.Module, ABC):
         and calling super().
     """
 
+    ConditioningInputType: TypedDict
+    RawOutputType: TypedDict
+
     def __init__(self):
         super().__init__()
         self.temp = 1.0
-        self.observations: Optional[Dict] = None
+        self.observations: Optional[ProbabilityModel.ConditioningInputType] = None
 
     @property
     def device(self):
         return next(self.parameters()).device
 
-    def preprocess_observations(self, observations: Dict[str, Any]) -> Dict[str, Any]:
+    def preprocess_observations(
+        self, observations: ProbabilityModel.ConditioningInputType
+    ) -> Dict[str, Any]:
         """Transform raw observations into cached form.
 
         Called once when ``set_condition_()`` or ``conditioned_on()`` is

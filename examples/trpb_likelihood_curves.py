@@ -21,7 +21,7 @@ from protstar.eval.likelihood_curves import (
     compute_log_prob_trajectory,
     plot_log_prob_trajectories,
 )
-from protstar.models.esm import ESMC
+from protstar.modeling import ESMC
 
 DATASET_ID = "SaProtHub/Dataset-TrpB_fitness_landsacpe"
 

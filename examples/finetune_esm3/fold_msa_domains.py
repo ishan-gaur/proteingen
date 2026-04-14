@@ -20,41 +20,24 @@ Usage:
 
 import argparse
 import sys
-import tempfile
 import time
 import warnings
 from pathlib import Path
 
-import biotite.structure.io.pdb as pdb_io
-import biotite.structure.io.pdbx as pdbx
 import torch
 
 from af3_server import AF3Client
 
-from esm.utils.structure.protein_chain import ProteinChain
-
-from protstar.data import aligned_sequences_to_raw, read_fasta
-from protstar.models.esm import ESM3
+from protstar.data import (
+    aligned_sequences_to_raw,
+    fold_sequence_to_atom37,
+    read_fasta,
+)
+from protstar.modeling import ESM3
 
 DATA_DIR = Path(__file__).parent
 
 warnings.filterwarnings("ignore", category=UserWarning, module="biotite")
-
-
-def cif_to_atom37(cif_path: str) -> torch.Tensor:
-    """Convert an AF3 output CIF to atom37 coordinates (L, 37, 3)."""
-    f = pdbx.CIFFile.read(cif_path)
-    atoms = pdbx.get_structure(f, model=1, extra_fields=["b_factor", "occupancy"])
-
-    with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
-        pdb_file = pdb_io.PDBFile()
-        pdb_file.set_structure(atoms)
-        pdb_file.write(tmp.name)
-        tmp_path = tmp.name
-
-    pc = ProteinChain.from_pdb(tmp_path, chain_id="A")
-    Path(tmp_path).unlink()
-    return torch.from_numpy(pc.atom37_positions).float()
 
 
 def main():
@@ -138,11 +121,7 @@ def main():
     for i, seq in enumerate(to_fold):
         name = f"ephb1_{len(data['sequences']):05d}"
         try:
-            result = client.fold(seq, name=name)
-
-            # Download and convert CIF → atom37
-            cif_path = f"{result.output_dir.replace('/app/af_output', '/data/af3_server_output')}/{result.name}_model.cif"
-            coords = cif_to_atom37(cif_path)
+            result, coords = fold_sequence_to_atom37(client, sequence=seq, name=name)
             assert coords.shape[0] == len(seq), (
                 f"Length mismatch: coords {coords.shape[0]} vs seq {len(seq)}"
             )

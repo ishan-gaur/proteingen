@@ -24,6 +24,8 @@ from config import AF3_POLL_INTERVAL, AF3_SERVER_URL, AF3_TIMEOUT, DATA_DIR, OUT
 
 from af3_server import AF3Client
 
+from protstar.data import fold_sequence_and_download_cif
+
 
 def collect_sequences_to_fold() -> dict[str, str]:
     """Collect all unique sequences that need folding: originals + generated.
@@ -90,7 +92,14 @@ def fold_all(
         print(f"\n[{idx + 1}/{total}] Folding {name} ({len(seq)} aa)...", flush=True)
 
         try:
-            result = client.fold(sequence=seq, name=name)
+            cif_dir = output_dir / "cif_files"
+            cif_path = cif_dir / f"{name}.cif"
+            result, saved_cif_path = fold_sequence_and_download_cif(
+                client=client,
+                sequence=seq,
+                name=name,
+                cif_path=cif_path,
+            )
 
             results[name] = {
                 "sequence": seq,
@@ -100,6 +109,7 @@ def fold_all(
                 "output_dir": result.output_dir,
                 "elapsed_seconds": result.elapsed_seconds,
                 "job_id": result.job_id,
+                "cif_path": str(saved_cif_path),
             }
 
             ptm = result.summary_confidences.get("ptm", None)
@@ -108,12 +118,6 @@ def fold_all(
                 f"ranking_score={result.best_ranking_score:.4f}, "
                 f"pTM={ptm}"
             )
-
-            # Download CIF
-            cif_dir = output_dir / "cif_files"
-            cif_dir.mkdir(parents=True, exist_ok=True)
-            cif_path = cif_dir / f"{name}.cif"
-            client.download_cif(result.job_id, cif_path)
 
         except Exception as e:
             print(f"  FAILED: {e}")

@@ -11,6 +11,12 @@
 
 The full pipeline: fold MSA sequences with AF3, then fine-tune ESM3 to predict sequence from structure.
 
+## Acknowledgement
+
+We thank **Kosuke Seki** for providing the EphB1 MSA dataset used in this example.
+
+**Citation:** Seki, K. *et al.* (2025). bioRxiv preprint. https://doi.org/10.1101/2025.08.03.668353 ([link](https://www.biorxiv.org/content/10.1101/2025.08.03.668353v1)).
+
 ## Prerequisites
 
 ### AF3 Server

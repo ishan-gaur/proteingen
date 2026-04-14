@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 from transformers import AutoConfig, AutoModelForMaskedLM, EsmTokenizer
 
-from protstar.generative_modeling import (
+from ...generative_modeling import (
     GenerativeModelWithEmbedding,
     MaskedModelLogitFormatter,
 )

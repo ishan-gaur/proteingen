@@ -7,7 +7,7 @@ from torch.nn import functional as F
 
 @pytest.fixture(scope="module")
 def model():
-    from protstar.models.esm import ESM3
+    from protstar.modeling import ESM3
 
     return ESM3()
 

@@ -36,7 +36,7 @@ from protstar.data import (
     uniform_mask_noise,
     uniform_time,
 )
-from protstar.models.esm import ESM3
+from protstar.modeling import ESM3
 
 DATA_DIR = Path(__file__).parent
 CONSTRUCT_LENGTH = 295  # EphB1 kinase domain construct (UniProt 602-896)

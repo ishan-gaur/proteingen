@@ -1,6 +1,6 @@
 import torch
 import pytest
-from protstar.models.dplm2 import DPLM2
+from protstar.modeling import DPLM2
 
 
 @pytest.fixture(scope="module")

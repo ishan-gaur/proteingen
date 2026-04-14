@@ -1,4 +1,4 @@
-from protstar.models import ESM3, ExprStabilityProbePredictor
+from protstar.modeling import ESM3, ExprStabilityProbePredictor
 from protstar.datasets.seki_tyrosine_kinase import WT_LABELS
 import atomworks.io as aio
 

@@ -5,9 +5,10 @@ from torch import nn
 from typing import Any, Optional
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from protstar.generative_modeling import GenerativeModelWithEmbedding
-from protstar.probability_model import ProbabilityModel
+from .generative_modeling import GenerativeModelWithEmbedding
+from .probability_model import ProbabilityModel
 from transformers import PreTrainedTokenizerBase
+
 
 class PredictiveModel(ProbabilityModel, ABC):
     """Base class for predictive models used in guidance.
@@ -68,6 +69,7 @@ class PredictiveModel(ProbabilityModel, ABC):
         OHE dimension is defined by ``tokens_to_ohe`` / ``token_ohe_basis``."""
         ...
 
+    # TODO[pi] add the decorator which gives this instance-variable semantics
     def token_ohe_basis(self) -> torch.FloatTensor:
         """Return token-id → OHE feature matrix (T, K).
 

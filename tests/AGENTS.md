@@ -1,6 +1,6 @@
 # Tests — Agent Notes
 
-Pytest test suite for protstar. Run with `uv run python -m pytest tests/ -v`.
+Pytest test suite for protstar. Run with `uv run python -m pytest tests/ -v`. [×1]
 
 ## Current Status
 
@@ -39,3 +39,4 @@ Pytest test suite for protstar. Run with `uv run python -m pytest tests/ -v`.
 
 - Run tests with `uv run python -m pytest` (not `uv run pytest` — pytest may not be on PATH directly)
 - ESM3 structure conditioning tests need the VQ-VAE encoder — triggers lazy loading, slow first run
+- `test_protein_mpnn.py::test_soluble_mpnn` checks Foundry checkpoint path existence before constructing `ProteinMPNN("solublempnn")`; if the file is missing, the test skips even though the wrapper can lazy-download at runtime.

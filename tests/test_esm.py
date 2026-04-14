@@ -1,6 +1,6 @@
 import torch
 import pytest
-from protstar.models.esm import ESMC
+from protstar.modeling import ESMC
 
 
 @pytest.fixture

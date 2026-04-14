@@ -11,7 +11,7 @@ import pytest
 from types import SimpleNamespace
 from torch import nn
 from torch.nn import functional as F
-from protstar.predictive_modeling import EmbeddingMLP, binary_logits
+from protstar.modeling import EmbeddingMLP, binary_logits
 
 
 # ---------------------------------------------------------------------------

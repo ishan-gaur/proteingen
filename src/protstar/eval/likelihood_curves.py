@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import torch
 from tqdm import tqdm
 
-from protstar.generative_modeling import GenerativeModel
+from ..modeling.generative_modeling import GenerativeModel
 
 matplotlib.use("Agg")
 

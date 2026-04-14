@@ -13,14 +13,14 @@ import argparse
 import numpy as np
 import torch
 
-from dfm.models.esm import ESM3
-from dfm.models.rocklin_ddg.stability_predictor import (
+from protstar.modeling import ESM3
+from protstar.modeling.models.rocklin_ddg.stability_predictor import (
     PreTrainedStabilityPredictor,
     StabilityPMPNN,
 )
-from dfm.models.utils import pdb_to_atom37_and_seq
-from dfm.guide import TAG
-from dfm.sampling import (
+from protstar.data import pdb_to_atom37_and_seq
+from protstar.modeling import TAG
+from protstar.sampling import (
     sample_ctmc_linear_interpolation,
     sample_flow_matching_legacy,
     build_legacy_predictor_log_prob,
@@ -29,7 +29,7 @@ from dfm.sampling import (
 
 def predict_stability_raw(oracle_model, sequences, cond, device):
     """Get raw stability predictions for ddG computation."""
-    from dfm.generative_modeling import MPNNTokenizer
+    from protstar.modeling import MPNNTokenizer
 
     tokenizer = MPNNTokenizer()
     tokens = tokenizer(sequences)["input_ids"].to(device)

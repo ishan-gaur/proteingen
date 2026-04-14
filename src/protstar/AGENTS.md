@@ -52,6 +52,14 @@ Cross-tokenizer gotchas are documented in [guide.md](guide.md) (TAG projection) 
 - Importing from `atomworks` prints env var warnings (CCD_MIRROR_PATH, PDB_MIRROR_PATH) — harmless
 - `peft>=0.13.0` for LoRA adapter support
 
+### Structure / Folding Utilities
+
+- Structure helpers live in `protstar.data.structure` (`PDBStructure`, `load_pdb`, `pdb_to_atom37_and_seq`).
+- `load_pdb()` now auto-downloads missing structures from RCSB into repo-local `data/pdbs/` (inferred via `__file__` + `pyproject.toml`).
+- AF3 server helpers for examples live in `protstar.data.folding` (`cif_to_atom37`, `af3_result_cif_path`, `fold_sequence_and_download_cif`, `fold_sequence_to_atom37`).
+- `examples/finetune_esm3/fold_msa_domains.py` uses `fold_sequence_to_atom37`; `examples/benchmark_model_families/fold.py` uses `fold_sequence_and_download_cif`.
+- `protstar.modeling.models.utils` is now a compatibility re-export; new code should import structure utilities from `protstar.data`.
+
 ### Stale Code / Known Tech Debt
 
 - `models/seki_tyrosine_kinase.py` — manually sets `self.input_dim`, shadowing any future property

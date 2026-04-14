@@ -9,7 +9,7 @@ import torch
 import pytest
 from torch import nn
 
-from protstar.generative_modeling import GenerativeModel, PassThroughLogitFormatter
+from protstar.modeling import GenerativeModel, PassThroughLogitFormatter
 from protstar.eval.likelihood_curves import (
     compute_log_prob_trajectory,
     plot_log_prob_trajectories,

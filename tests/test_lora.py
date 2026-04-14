@@ -6,12 +6,12 @@ import pytest
 from torch import nn
 from peft import PeftModel
 
-from protstar.generative_modeling import (
+from protstar.modeling import (
     GenerativeModel,
     GenerativeModelWithEmbedding,
     PassThroughLogitFormatter,
 )
-from protstar.probability_model import ProbabilityModel
+from protstar.modeling import ProbabilityModel
 from esm.tokenization.sequence_tokenizer import EsmSequenceTokenizer
 
 

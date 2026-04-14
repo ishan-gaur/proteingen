@@ -4,7 +4,7 @@ import torch
 import torch.utils.checkpoint
 from typing import TypedDict
 
-from protstar.generative_modeling import (
+from ...generative_modeling import (
     GenerativeModelWithEmbedding,
     LogitFormatter,
     MPNNTokenizer,
@@ -80,7 +80,7 @@ class ProteinMPNN(GenerativeModelWithEmbedding):
 
     Example::
 
-        from protstar.models.utils import load_pdb
+        from protstar.data import load_pdb
 
         model = ProteinMPNN()
         structure = load_pdb("1YCR.pdb")
@@ -103,6 +103,12 @@ class ProteinMPNN(GenerativeModelWithEmbedding):
             )
 
             install_model(checkpoint, get_default_checkpoint_dirs()[0])
+            checkpoint_path = checkpoint_info.get_default_path()
+
+        if not checkpoint_path.exists():
+            raise FileNotFoundError(
+                f"Could not find Foundry checkpoint for '{checkpoint}' at {checkpoint_path}"
+            )
 
         # Load model with legacy weights
         mpnn = _ProteinMPNN()
@@ -163,9 +169,7 @@ class ProteinMPNN(GenerativeModelWithEmbedding):
             "residue_mask": torch.ones(L, dtype=torch.bool),
         }
 
-    def preprocess_observations(
-        self, observations: dict
-    ) -> dict[str, torch.Tensor]:
+    def preprocess_observations(self, observations: dict) -> dict[str, torch.Tensor]:
         """Encode structure via graph featurization + MPNN encoder.
 
         Args:
@@ -176,7 +180,7 @@ class ProteinMPNN(GenerativeModelWithEmbedding):
         node/edge features and graph topology are cached and reused for
         every subsequent forward pass.
         """
-        from protstar.models.utils import PDBStructure
+        from protstar.data import PDBStructure
 
         structure = observations["structure"]
         assert isinstance(structure, PDBStructure)

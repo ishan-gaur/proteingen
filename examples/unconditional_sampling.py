@@ -1,4 +1,4 @@
-from protstar.models import ESMC
+from protstar.modeling import ESMC
 from protstar.sampling import sample
 
 len_sample = 128

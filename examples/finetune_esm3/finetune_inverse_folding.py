@@ -29,7 +29,7 @@ from protstar.eval.likelihood_curves import (
     LogProbTrajectory,
     plot_log_prob_trajectories,
 )
-from protstar.models.esm import ESM3
+from protstar.modeling import ESM3
 
 DATA_DIR = Path(__file__).parent
 

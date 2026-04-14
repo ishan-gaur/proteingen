@@ -11,6 +11,12 @@
 
 Fine-tune ESM3 with LoRA on ~10k EphB1 kinase domain homologs using masked language modeling.
 
+## Acknowledgement
+
+We thank **Kosuke Seki** for providing the EphB1 MSA dataset used in this example.
+
+**Citation:** Seki, K. *et al.* (2025). bioRxiv preprint. https://doi.org/10.1101/2025.08.03.668353 ([link](https://www.biorxiv.org/content/10.1101/2025.08.03.668353v1)).
+
 ## Quick Start
 
 ```bash

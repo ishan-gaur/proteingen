@@ -27,15 +27,15 @@ from config import DATA_DIR, MASK_FRACTIONS, MODEL_CONFIGS, N_ORDERS, OUTPUT_DIR
 def load_model(family: str, checkpoint: str, device: str):
     """Instantiate a GenerativeModel by family and checkpoint."""
     if family == "esmc":
-        from protstar.models.esm import ESMC
+        from protstar.modeling import ESMC
 
         return ESMC(checkpoint).to(device).eval()
     elif family == "esm3":
-        from protstar.models.esm import ESM3
+        from protstar.modeling import ESM3
 
         return ESM3(checkpoint).to(device).eval()
     elif family == "dplm2":
-        from protstar.models import DPLM2
+        from protstar.modeling import DPLM2
 
         return DPLM2(checkpoint).to(device).eval()
     else:
