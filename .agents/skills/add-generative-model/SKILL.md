@@ -289,6 +289,18 @@ git push -u origin pr/<model-name>
 
 Before opening the PR, walk through every item in the checklist below and actually verify it — run the tests, check the exports, read the docs page. Don't just check the boxes from memory.
 
+### Add direct code links in the PR body
+
+Include a short **Code Links** section in the PR body that points reviewers to the key files and tests:
+
+- wrapper class implementation
+- conditioning `TypedDict`
+- export wiring (`models/__init__.py`)
+- logit-matching test
+- docs page for the new model
+
+Use **stable commit permalinks** (`.../blob/<commit-sha>/path#Lx-Ly`) rather than branch links so references don't break after rebases/force-pushes. In GitHub file view, press `y` to convert to a commit permalink.
+
 Use the following template for the PR description — copy it directly into the GitHub PR body and fill in each section:
 
 ```markdown
