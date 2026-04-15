@@ -45,5 +45,6 @@ conditioning = Frame2seq.condition_from_pdb("1YCR.pdb", "A")
 ## Notes
 
 - Conditioning is required; calling `get_log_probs` without `set_condition_` raises `ValueError`.
-- The model blocks unknown (`X`) and `<mask>` outputs, so sampling/log-probs are over canonical amino acids only.
+- Masked inputs are supported: the wrapper's `<mask>` input token is mapped internally to Frame2seq's native `X` (unknown/masked) input channel.
+- Output logits for `X` and `<mask>` are blocked (`-inf`), so sampling/log-probs normalize over the 20 canonical amino acids.
 - Frame2seq checkpoints are loaded via PyTorch Lightning and may print a one-time checkpoint-upgrade notice.
