@@ -44,45 +44,33 @@ How well do models reconstruct the original sequence at each masking level?
 
 ![Sequence identity vs masking level](../assets/images/benchmark/sequence_identity.png)
 
-At low masking (10%), all models achieve >90% sequence identity — they're good at filling in a few gaps. The real separation happens at **50% masking**: ESM-C models (71–73%) and DPLM2-3B (66%) lead, while smaller DPLM2 models and ESM3 lag behind (56–62%).
+At 10% masking, all models achieve >91% sequence identity — filling in a few gaps is easy. The real separation happens at **50% masking**: ESMC-600M (75.3%) and ESMC-300M (73.6%) lead, followed by DPLM2-3B (67.9%). Smaller DPLM2 models and ESM3 lag behind: DPLM2-650M (59.8%), ESM3-Open (62.2%), DPLM2-150M (56.0%).
 
-At 100% masking (fully unconditional generation), all models converge to ~6% identity — essentially random, as expected.
+At 100% masking (fully unconditional generation), all models converge to ~6% identity — essentially random, as expected for a 20-letter alphabet.
 
 ### Teacher-Forced Decode Log-Likelihood Trajectories
 
 How well does each model score the *true* residue at the position being decoded?
 
-This plot no longer averages log-probabilities of sampled tokens. Instead, each curve is teacher-forced along one fixed decoding order per sequence: at each generation step we evaluate log p(true token at decoded position), then plot those values against a normalized x-axis (percent unmasked).
+Instead of averaging log-probabilities of *sampled* tokens, this metric teacher-forces along one fixed decoding order per sequence: at each generation step we evaluate log p(true token at the decoded position), then plot those values against a normalized x-axis (percent unmasked). This isolates model quality from sampling luck.
 
 ![Teacher-forced likelihood trajectories](../assets/images/benchmark/teacher_forced_likelihood_trajectories.png)
 
-### Structural Quality (AF3 pLDDT)
+The curves start around −3.0 (no context — all positions masked) and rise as context accumulates. Key observations:
 
-Does higher sequence recovery translate to better-folding proteins?
+- **ESMC-600M is the strongest model at every point along the curve**, reaching −1.0 by 80% unmasked
+- **ESMC-300M is close behind**, confirming ESM-C's parameter efficiency
+- **DPLM2-3B tracks ESMC well** in the first half of the curve but doesn't climb as steeply near the end, suggesting it uses context less efficiently at the residue level
+- **ESM3-Open underperforms its size** (1.4B) — its trajectory sits below DPLM2-650M for most of the curve
+- **DPLM2-150M is the weakest** throughout, with the flattest trajectory
 
-![pLDDT vs masking](../assets/images/benchmark/scaling_plddt.png)
-
-At low masking, all models produce sequences with similar AF3 pLDDT (~50–52). As masking increases, **DPLM2-3B maintains structural quality best** (pLDDT 52→37), while smaller DPLM2 models degrade faster (50→34). ESM-C models hold up well in the middle range.
-
-At 100% masking, all models produce low-confidence structures (pLDDT 34–39), but there's still a clear advantage for larger models.
-
-### Fold Preservation (TM-score)
-
-Do generated sequences fold into the same structure as the original?
-
-![TM-score scaling](../assets/images/benchmark/scaling_tm_score.png)
-
-TM-score to the original structure tells the structural similarity story:
-
-- **10% masking**: ESM-C leads (TM-score ~0.58–0.60), followed by DPLM2-3B (0.52)
-- **50% masking**: ESM-C (0.43–0.47) > DPLM2-3B (0.42) > ESM3 (0.41) > DPLM2-150M/650M (0.35–0.36)
-- **100% masking**: All models ~0.24–0.26 (essentially unrelated structures)
+The spread between models is widest in the middle of the curve (30–70% unmasked) where context-dependent predictions matter most. At the extremes (no context or full context), all models converge.
 
 ## Scaling Analysis
 
 ### Within ESM-C (300M → 600M)
 
-The 600M model consistently outperforms the 300M across all metrics and masking levels, but the improvement is modest (~1–3% in sequence identity, ~0.02 in TM-score). The scaling benefit is most visible at 50% masking.
+The 600M model consistently outperforms the 300M across all masking levels, but the improvement is modest: ~1% at 10% masking, ~2% at 50%. The teacher-forced trajectory shows a visible but small gap that grows slightly in the high-context regime.
 
 ### Within DPLM2 (150M → 650M → 3B)
 
@@ -90,52 +78,49 @@ DPLM2 shows **dramatic scaling benefits**:
 
 ![Scaling: sequence identity](../assets/images/benchmark/scaling_sequence_identity.png)
 
-- **Sequence identity at 50%**: 56% (150M) → 58% (650M) → **66% (3B)**
-- **pLDDT at 50%**: 42 (150M) → 44 (650M) → **51 (3B)**
+- **Sequence identity at 50% masking**: 56% (150M) → 60% (650M) → **68% (3B)**
+- **Mean step log-prob at 50%**: −2.62 (150M) → −2.32 (650M) → **−1.67 (3B)**
 
-The jump from 650M to 3B is particularly striking — it's a larger improvement than 150M to 650M despite a similar relative parameter increase.
+The jump from 650M to 3B is larger than 150M to 650M, suggesting DPLM2's scaling benefits are far from saturated.
 
 ### Cross-Family Comparison
 
 Comparing models of similar size across families:
 
-- **~300M range**: ESMC-300M clearly beats DPLM2-150M in both sequence recovery and structural quality
-- **~600M range**: ESMC-600M beats DPLM2-650M, suggesting ESM-C's architecture/training is more sample-efficient
-- **At the top**: DPLM2-3B approaches ESM-C performance for sequence identity and structural metrics
+- **~300M range**: ESMC-300M (73.6% at 50% masking) clearly beats DPLM2-150M (56.0%)
+- **~600M range**: ESMC-600M (75.3%) beats DPLM2-650M (59.8%), a 15-point gap suggesting ESM-C's architecture/training is far more sample-efficient
+- **At the top**: DPLM2-3B (67.9%) approaches but doesn't match ESMC-300M (73.6%) despite being 10× larger
 
-ESM3-Open (1.4B) occupies an interesting middle ground — its sequence recovery is between ESMC and DPLM2 at moderate masking.
+ESM3-Open (1.4B) occupies an interesting middle ground — its sequence recovery at 50% (62.2%) is between ESMC and DPLM2, and its teacher-forced trajectory is flatter than both ESMC models and DPLM2-3B. This likely reflects ESM3's multi-modal training objective diluting its sequence-only generation ability.
 
 ## Key Takeaways
 
-1. **ESM-C is the most efficient generator per parameter**: At 300M and 600M params, it outperforms similarly-sized DPLM2 models on all metrics.
+1. **ESM-C is the most efficient generator per parameter**: ESMC-300M outperforms DPLM2-3B (a model 10× its size) on both sequence recovery and teacher-forced log-likelihood.
 
-2. **DPLM2 scales aggressively**: The 3B model closes most of the gap to ESM-C, and the scaling curve suggests even larger DPLM2 models could surpass it.
+2. **DPLM2 scales aggressively**: The 3B model closes most of the gap to ESM-C. The scaling curve is steep enough that even larger DPLM2 models could potentially surpass ESM-C.
 
-3. **Teacher-forced decode trajectories provide a cleaner likelihood diagnostic**: scoring the true token at each decoded position avoids conflating model quality with sampled token quality.
+3. **Teacher-forced decode trajectories provide a cleaner likelihood diagnostic**: By scoring the true token at each decoded position rather than averaging over sampled tokens, this metric avoids conflating model quality with sampling noise and reveals how effectively each model uses partial context.
 
-4. **Masking level is the dominant factor**: The difference between 10% and 100% masking dwarfs the difference between any two models. At 100% masking, all models produce essentially random sequences with poor structural quality.
+4. **Masking level is the dominant factor**: The difference between 10% and 100% masking dwarfs the difference between any two models. At 100% masking, all models produce essentially random sequences.
 
-5. **Structure quality tracks sequence recovery**: AF3 pLDDT and TM-score are strongly correlated with sequence identity. Models that better reconstruct the original sequence also produce more foldable proteins.
+5. **ESM3 underperforms for unconditional generation**: Despite being 1.4B params, ESM3-Open's sequence recovery and likelihood trajectory lag behind ESMC-300M, likely because its multi-modal training (structure + function + sequence) distributes capacity across modalities.
 
 ## Reproducing This Benchmark
 
 ### Prerequisites
 
-Step 3 requires a running [AF3 inference server](https://github.com/ishan-gaur/af3-server). The client is included as a dependency of protstar — just `uv sync`. See the [af3-server README](https://github.com/ishan-gaur/af3-server) for server setup.
+For AF3 structural validation (optional), a running [AF3 inference server](https://github.com/ishan-gaur/af3-server) is needed. The client is included as a dependency of protstar — just `uv sync`. See the [af3-server README](https://github.com/ishan-gaur/af3-server) for server setup.
 
 ```bash
 # 1. Prepare data (sample from Swiss-Prot, generate orders)
 uv run python examples/benchmark_model_families/prepare_data.py
 
-# 2. Generate sequences (run per model for parallelism)
+# 2. Generate sequences (run per model, or use --model all)
 CUDA_VISIBLE_DEVICES=0 uv run python examples/benchmark_model_families/generate.py --model esmc_300m --device cuda
 CUDA_VISIBLE_DEVICES=1 uv run python examples/benchmark_model_families/generate.py --model esm3-open --device cuda
 # ... etc for all 6 models
 
-# 3. Fold with AF3 (requires AF3 server running)
-uv run python examples/benchmark_model_families/fold.py --server http://localhost:8080
-
-# 4. Analyze and plot
+# 3. Analyze and plot
 uv run python examples/benchmark_model_families/analyze.py
 ```
 
