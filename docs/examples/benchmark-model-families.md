@@ -11,7 +11,7 @@
 
 How do different protein language model families compare when generating sequences, and does bigger always mean better?
 
-We ran a controlled experiment generating proteins with **6 models across 3 families** (ESM-C, ESM3, DPLM-2) at 4 masking levels, then folded all 480 generated sequences with AlphaFold 3.
+We ran a controlled experiment generating proteins with **6 models across 3 families** (ESM-C, ESM3, DPLM-2) at 4 masking levels, evaluating sequence recovery and teacher-forced log-likelihood on 20 sequences. Structural metrics (pLDDT, TM-score) are from a prior run with 10 sequences × 5 orders, folded with AlphaFold 3.
 
 ## Experiment Setup
 
@@ -32,9 +32,9 @@ We ran a controlled experiment generating proteins with **6 models across 3 fami
 
 **Controls**: 1 random decoding order per protein, generated up-front and shared across all models. For X% masking, the last X% of positions in each order are masked, and during generation positions are unmasked following that same order. This means differences between models at the same masking level and order are attributable to the model, not randomness in the mask pattern.
 
-**Evaluation**: Each model is additionally scored with teacher forcing at every decode step, measuring log p(true token at the decoded position) vs. percent unmasked. Generated sequences are folded with AlphaFold 3 for structural metrics.
+**Evaluation**: Each model is additionally scored with teacher forcing at every decode step, measuring log p(true token at the decoded position) vs. percent unmasked. Structural metrics (AF3 pLDDT, TM-score) come from a prior run (10 sequences × 5 orders, see [structural sections](#structural-quality-af3-plddt) below).
 
-**Total**: 20 sequences × 1 order × 4 masking levels × 6 models = **480 generated sequences**, all folded with AF3.
+**Total**: 20 sequences × 1 order × 4 masking levels × 6 models = **480 generated sequences** (sequence recovery + teacher-forced likelihood), plus **1200 folded sequences** from the prior run (structural metrics).
 
 ## Results
 
@@ -69,6 +69,8 @@ The spread between models is widest in the middle of the curve (30–70% unmaske
 ### Structural Quality (AF3 pLDDT)
 
 Does higher sequence recovery translate to better-folding proteins?
+
+> **Note**: The structural metrics below are from a prior benchmark run with 10 sequences × 5 orders (1200 samples). The sequence identity and teacher-forced trajectory results above use 20 sequences × 1 order (480 samples). The ranking between models is consistent across both runs.
 
 ![pLDDT vs masking](../assets/images/benchmark/scaling_plddt.png)
 
