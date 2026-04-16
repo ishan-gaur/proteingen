@@ -66,6 +66,28 @@ The curves start around −3.0 (no context — all positions masked) and rise as
 
 The spread between models is widest in the middle of the curve (30–70% unmasked) where context-dependent predictions matter most. At the extremes (no context or full context), all models converge.
 
+### Structural Quality (AF3 pLDDT)
+
+Does higher sequence recovery translate to better-folding proteins?
+
+![pLDDT vs masking](../assets/images/benchmark/scaling_plddt.png)
+
+At low masking, all models produce sequences with similar AF3 pLDDT (~50–52). As masking increases, **DPLM2-3B maintains structural quality best** (pLDDT 52→37), while smaller DPLM2 models degrade faster (50→34). ESM-C models hold up well in the middle range.
+
+At 100% masking, all models produce low-confidence structures (pLDDT 34–39), but there's still a clear advantage for larger models.
+
+### Fold Preservation (TM-score)
+
+Do generated sequences fold into the same structure as the original?
+
+![TM-score scaling](../assets/images/benchmark/scaling_tm_score.png)
+
+TM-score to the original structure tells the structural similarity story:
+
+- **10% masking**: ESM-C leads (TM-score ~0.58–0.60), followed by DPLM2-3B (0.52)
+- **50% masking**: ESM-C (0.43–0.47) > DPLM2-3B (0.42) > ESM3 (0.41) > DPLM2-150M/650M (0.35–0.36)
+- **100% masking**: All models ~0.24–0.26 (essentially unrelated structures)
+
 ## Scaling Analysis
 
 ### Within ESM-C (300M → 600M)
@@ -80,6 +102,7 @@ DPLM2 shows **dramatic scaling benefits**:
 
 - **Sequence identity at 50% masking**: 56% (150M) → 60% (650M) → **68% (3B)**
 - **Mean step log-prob at 50%**: −2.62 (150M) → −2.32 (650M) → **−1.67 (3B)**
+- **pLDDT at 50%**: 42 (150M) → 44 (650M) → **51 (3B)**
 
 The jump from 650M to 3B is larger than 150M to 650M, suggesting DPLM2's scaling benefits are far from saturated.
 
@@ -105,6 +128,8 @@ ESM3-Open (1.4B) occupies an interesting middle ground — its sequence recovery
 
 5. **ESM3 underperforms for unconditional generation**: Despite being 1.4B params, ESM3-Open's sequence recovery and likelihood trajectory lag behind ESMC-300M, likely because its multi-modal training (structure + function + sequence) distributes capacity across modalities.
 
+6. **Structure quality tracks sequence recovery**: AF3 pLDDT and TM-score are strongly correlated with sequence identity. Models that better reconstruct the original sequence also produce more foldable proteins.
+
 ## Reproducing This Benchmark
 
 ### Prerequisites
@@ -115,12 +140,15 @@ For AF3 structural validation (optional), a running [AF3 inference server](https
 # 1. Prepare data (sample from Swiss-Prot, generate orders)
 uv run python examples/benchmark_model_families/prepare_data.py
 
-# 2. Generate sequences (run per model, or use --model all)
+# 2. Generate sequences (run per model for parallelism)
 CUDA_VISIBLE_DEVICES=0 uv run python examples/benchmark_model_families/generate.py --model esmc_300m --device cuda
 CUDA_VISIBLE_DEVICES=1 uv run python examples/benchmark_model_families/generate.py --model esm3-open --device cuda
 # ... etc for all 6 models
 
-# 3. Analyze and plot
+# 3. Fold with AF3 (requires AF3 server running)
+uv run python examples/benchmark_model_families/fold.py --server http://localhost:8080
+
+# 4. Analyze and plot
 uv run python examples/benchmark_model_families/analyze.py
 ```
 
