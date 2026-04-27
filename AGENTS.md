@@ -10,7 +10,7 @@ Available skills:
 
 ## Project Management
 
-- Use `uv` for all package management and running Python code [×18]
+- Use `uv` for all package management and running Python code [×21]
   - Install dependencies: `uv add <package>`
   - Run scripts: `uv run python <script>`
   - Sync environment: `uv sync`
@@ -19,7 +19,7 @@ Available skills:
   - Run formatter: `uv run ruff format`
   - Run lineter: `uv run ruff check`
 - Use this file to note down project-related info important to know across sessions
-- **Discuss design decisions before implementing** - especially for abstractions and class structures [×1]
+- **Discuss design decisions before implementing** - especially for abstractions and class structures [×2]
 - **Ask for clarification when instructions seem contradictory** - don't guess intent, surface the confusion
 
 ## Code Style
@@ -92,6 +92,9 @@ Available skills:
 - `proteingen[pmpnn]` → `rc-foundry[all]`, `proteingen[progen3]` → `progen3`, `proteingen[af3]` → `af3-server`
 - `pmpnn` and `progen3` are marked as conflicting extras in `[tool.uv.conflicts]` (CUDA stack mismatch: Foundry wants newer cu12 libs; ProGen3 pins `torch<2.5.2`). They need separate env syncs.
 - Dev convenience groups mirror optional model deps: `dev-pmpnn`, `dev-progen3`, `dev-af3` (use `uv sync --group <name>` in addition to `--group dev` as needed).
+- Current `progen3` package metadata does not install `megablocks`; `uv sync --group dev --group dev-progen3` can still fail at runtime (`ModuleNotFoundError: megablocks`) when constructing `ProGen3`.
+- Known-working ProGen test env (from `dfm-worktrees/progen/.venv`) had `torch==2.7.0`, `progen3==0.1.0`, `megablocks==0.10.0`, `grouped_gemm==0.3.0`, `flash-attn==2.8.3`; `tests/test_progen3.py` passed 24/24 there.
+- `tests/test_progen3.py` currently gates on `find_spec("progen3")` only, so in partially-installed envs tests error during fixture setup instead of skipping.
 - `models/__init__.py` guards ProteinMPNN and PreTrainedStabilityPredictor imports with `try/except ImportError` so base `import proteingen` works without optional extras
 - ProteinMPNN weights auto-download on first use via `foundry_cli.download_checkpoints.install_model` — no manual `foundry install proteinmpnn` step needed
 - `af3-server` is not imported anywhere in proteingen source — purely a convenience dependency for users
@@ -103,6 +106,7 @@ Available skills:
 - Setup docs use tab pairs: always show both "uv" and "conda / pip" paths
 - Conda tab recommends Miniforge (ships with mamba) but calls everything "conda" to avoid confusing users
 - `??? note` admonition = collapsed by default (used for Installing Claude Code section)
+- Material announcement bars require a theme override (`docs/overrides/main.html` with `{% block announce %}`) plus `theme.custom_dir`; `extra.announcement` alone does not render in this setup.
 
 ## ProteinDataset Design Decisions
 
@@ -142,6 +146,7 @@ Replaces old `GuidanceDataset`. Key design choices from discussion:
 - If a worktree folder was manually deleted, run `git worktree prune --verbose` in the main repo to remove stale registrations (`git worktree remove` cannot run if the path is already gone).
 - Current registered worktrees: `main`, `spawn/pbrr-walkthrough`, `spawn/progen`, `spawn/recursive-modules`, `docs`, `spawn/pmpnn`, `spawn/gaussian-predictors`.
 - `spawn/progen` was based on pre-reorg layout (`docs/models.md`, `src/proteingen/models/progen3`). Integrating it into current main requires mapping to `docs/models/index.md` and `src/proteingen/modeling/models/progen3`.
+- ProGen branch integration pattern used: cherry-pick branch-unique commits (`b36e956`, `5959cdb`), then namespace/layout fixups, then `git merge -s ours spawn/progen` to mark the branch merged without replaying stale tree-wide changes.
 - Deleted branches that still have stale local/remote refs: `spawn/cinderdrella`, `spawn/likelihood-curves` — can be cleaned with `git branch -d` / `git push origin --delete`
 - One stash exists on `spawn/landing-page` branch: `WIP on spawn/landing-page: 1d4d90d`
 - `dfm-worktrees/landing-page-copy/` also exists — status unknown

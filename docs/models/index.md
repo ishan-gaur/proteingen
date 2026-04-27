@@ -12,7 +12,7 @@
 | [DPLM-2](dplm2.md) | `proteingen.models.DPLM2` | [bytedance/dplm](https://github.com/bytedance/dplm) | None (masked diffusion) | `(B, L, 8229)` logits |
 | [Frame2seq](frame2seq.md) | `proteingen.models.Frame2seq` | [dakpinaroglu/Frame2seq](https://github.com/dakpinaroglu/Frame2seq) | Structure (`pdb_path`, `chain_id`) | `(B, L, 22)` logits |
 | Dayhoff | *coming soon* | [microsoft/Dayhoff](https://huggingface.co/microsoft/Dayhoff-170m-UR50) | None (masked LM) | Sequence logits |
-| ProGen3 | `proteingen.models.ProGen3` | [Profluent-AI/progen3](https://github.com/Profluent-AI/progen3) | None (autoregressive LM) | `(B, L, 134)` logits |
+| [ProGen3](progen3.md) | `proteingen.models.ProGen3` | [Profluent-AI/progen3](https://github.com/Profluent-AI/progen3) | None (autoregressive LM) | `(B, L, 134)` logits |
 | EvoDiff | *coming soon* | [microsoft/evodiff](https://github.com/microsoft/evodiff) | None (discrete diffusion) | Sequence logits |
 | SaProt | *coming soon* | [westlake-repl/SaProt](https://github.com/westlake-repl/SaProt) | Structure (Foldseek tokens) | Sequence logits |
 | AMPLIFY | *coming soon* | [chandar-lab/AMPLIFY](https://github.com/chandar-lab/AMPLIFY) | None (masked LM) | Sequence logits |

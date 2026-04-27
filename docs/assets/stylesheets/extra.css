@@ -9,3 +9,11 @@
 .md-nav__button.md-logo {
   display: none !important;
 }
+
+/* Announcement banner: centered */
+.md-banner__inner {
+  justify-content: center;
+  text-align: center;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
