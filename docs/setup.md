@@ -8,7 +8,7 @@
 
 ## 1. (Recommended) Install a Coding Agent
 
-ProtStar was designed to facilitate the use of AI coding agents for writing design pipelines.
+ProteinGen was designed to facilitate the use of AI coding agents for writing design pipelines.
 
 
 
@@ -48,17 +48,17 @@ We recommend [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/c
 Once you install the agent, the easiest way to complete the setup is just to copy the link to this guide
 
 ```bash
-https://ishan-gaur.github.io/protstar/setup/
+https://ishan-gaur.github.io/proteingen/setup/
 ```
 
 and ask it to walk you through the setup. If your agent doesn't have internet access, just clone the repo
 
 ```bash
-git clone https://github.com/ishan-gaur/protstar.git
+git clone https://github.com/ishan-gaur/proteingen.git
 ```
-and point your model to `protstar/docs/setup.md`. 
+and point your model to `proteingen/docs/setup.md`. 
 
-If you'd like to continue on manually, we still include the full details to setup ProtStar below.
+If you'd like to continue on manually, we still include the full details to setup ProteinGen below.
 
 ## 2. (Optional) Install a Package Manager
 
@@ -138,9 +138,9 @@ We use [uv](https://docs.astral.sh/uv/) for all dependency management and runnin
     conda activate my-protein-project
     ```
 
-## 3. Install ProtStar
+## 3. Install ProteinGen
 
-ProtStar is designed to be a library you own: that you and your agents can adapt as you find what works for you. Accordingly, we recommend doing an editable local install, however you can also install it as a dependency directly from GitHub.
+ProteinGen is designed to be a library you own: that you and your agents can adapt as you find what works for you. Accordingly, we recommend doing an editable local install, however you can also install it as a dependency directly from GitHub.
 
 !!! tip "Requirements"
     **Python 3.12** is required (`>=3.12.0, <3.13`). Check with `python --version`. If you're using uv, it will manage the Python version for you. For conda, specify `python=3.12` when creating the environment.
@@ -152,12 +152,12 @@ ProtStar is designed to be a library you own: that you and your agents can adapt
     === "uv"
 
         ```bash
-        # Clone ProtStar alongside your project
-        git clone https://github.com/ishan-gaur/protstar.git
+        # Clone ProteinGen alongside your project
+        git clone https://github.com/ishan-gaur/proteingen.git
     
-        # Add ProtStar as an editable dependency of your project
+        # Add ProteinGen as an editable dependency of your project
         cd my-protein-project
-        uv add --editable ../protstar
+        uv add --editable ../proteingen
         ```
 
     === "conda / pip"
@@ -166,34 +166,34 @@ ProtStar is designed to be a library you own: that you and your agents can adapt
         # Ensure your Conda environment is active, can skip if using just pip
         conda activate name-of-your-env
     
-        # Clone ProtStar alongside your project
-        git clone https://github.com/ishan-gaur/protstar.git
+        # Clone ProteinGen alongside your project
+        git clone https://github.com/ishan-gaur/proteingen.git
     
         # Install
-        cd protstar
+        cd proteingen
         pip install -e .
         ```
 
 === "Direct Install"
 
 
-    If you don't want to modify ProtStar's source:
+    If you don't want to modify ProteinGen's source:
 
     === "uv"
 
         ```bash
-        uv add "protstar @ git+https://github.com/ishan-gaur/protstar.git"
+        uv add "proteingen @ git+https://github.com/ishan-gaur/proteingen.git"
         ```
 
     === "conda / pip"
 
         ```bash
-        pip install "protstar @ git+https://github.com/ishan-gaur/protstar.git"
+        pip install "proteingen @ git+https://github.com/ishan-gaur/proteingen.git"
         ```
 
 ### ProteinMPNN model assets (required)
 
-ProteinMPNN support is installed by default with ProtStar, but you still need to download the ProteinMPNN assets once:
+ProteinMPNN support is installed by default with ProteinGen, but you still need to download the ProteinMPNN assets once:
 
 === "uv"
 
@@ -247,30 +247,30 @@ ProteinMPNN support is installed by default with ProtStar, but you still need to
 === "uv"
 
     ```bash
-    uv run python -c "import protstar; print('ProtStar installed successfully')"
+    uv run python -c "import proteingen; print('ProteinGen installed successfully')"
     ```
 
 === "conda / pip"
 
     ```bash
-    python -c "import protstar; print('ProtStar installed successfully')"
+    python -c "import proteingen; print('ProteinGen installed successfully')"
     ```
 
-## 4. Configure Your Agent to Use ProtStar
+## 4. Configure Your Agent to Use ProteinGen
 
-Copy this into your **project's** `AGENTS.md` or `CLAUDE.md` (whatever your agent reads). It instructs your agent to find ProtStar and use its documentation.
+Copy this into your **project's** `AGENTS.md` or `CLAUDE.md` (whatever your agent reads). It instructs your agent to find ProteinGen and use its documentation.
 
 ```bash
-## ProtStar
+## ProteinGen
 
-Upon your first use of protstar, complete the following tasks. First, find the path of the installed dependency and add it below. Second, find the .agents/skills/ directory in the protstar folder and copy that into your main skills folder. The correct location will depend on your agent harness, so look it up or check with your user if unsure.
+Upon your first use of proteingen, complete the following tasks. First, find the path of the installed dependency and add it below. Second, find the .agents/skills/ directory in the proteingen folder and copy that into your main skills folder. The correct location will depend on your agent harness, so look it up or check with your user if unsure.
 
 - Library location: {FILL THIS IN}
-- When using ProtStar, read `../protstar/AGENTS.md` for working knowledge about the library's internals, gotchas, and design decisions. Make sure to recursively follow the AGENTS.md to the appropriate markdown file discussing the feature of the library you need to use for your task
-- Documentation: `../protstar/docs/` or https://ishan-gaur.github.io/protstar/
+- When using ProteinGen, read `../proteingen/AGENTS.md` for working knowledge about the library's internals, gotchas, and design decisions. Make sure to recursively follow the AGENTS.md to the appropriate markdown file discussing the feature of the library you need to use for your task
+- Documentation: `../proteingen/docs/` or https://ishan-gaur.github.io/proteingen/
 ```
 
-The above text will instruct your model to look at markdown files we've included throughout the codebase that accumulate fixes to errors and gotchas we've found when using agents with ProtStar over time. It also installs the agent skills ProtStar ships with. Skills are step-by-step workflows your coding agent can follow for common tasks (e.g. adding a new generative model). See the [available skills](workflows/index.md#skills) for a full listing.
+The above text will instruct your model to look at markdown files we've included throughout the codebase that accumulate fixes to errors and gotchas we've found when using agents with ProteinGen over time. It also installs the agent skills ProteinGen ships with. Skills are step-by-step workflows your coding agent can follow for common tasks (e.g. adding a new generative model). See the [available skills](workflows/index.md#skills) for a full listing.
 
 
 ## 5. Next Steps

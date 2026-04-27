@@ -1,11 +1,11 @@
 ---
 name: add-predictive-model
-description: Step-by-step workflow for integrating a new predictive model into the protstar library. Covers decomposing a pretrained predictor into four layers (raw model, binary logit function, template model class, PredictiveModel subclass), identifying what already exists vs what's missing, and only building the missing pieces. This skill is for predictive models only — not GenerativeModel subclasses.
+description: Step-by-step workflow for integrating a new predictive model into the proteingen library. Covers decomposing a pretrained predictor into four layers (raw model, binary logit function, template model class, PredictiveModel subclass), identifying what already exists vs what's missing, and only building the missing pieces. This skill is for predictive models only — not GenerativeModel subclasses.
 ---
 
 # Add a Predictive Model
 
-Workflow for integrating a new pretrained predictive model (e.g. a stability predictor, fitness oracle) into protstar's `PredictiveModel` hierarchy. Predictive models answer "what is log p(target | sequence)?" and are used by TAG/DEG guidance to steer generative sampling.
+Workflow for integrating a new pretrained predictive model (e.g. a stability predictor, fitness oracle) into proteingen's `PredictiveModel` hierarchy. Predictive models answer "what is log p(target | sequence)?" and are used by TAG/DEG guidance to steer generative sampling.
 
 **Progress tracking**: When returning control to the user, include a status line showing all phases and which one you're currently on. Example:
 
@@ -19,13 +19,13 @@ Integrating a predictive model means decomposing it into four separable layers. 
 
 ### Layer 1: Raw Predictor
 
-The original pretrained model — its architecture, weights, and forward pass. This is **not protstar-specific**. You port it with minimal changes, just enough to load and run inference. Examples: `StabilityPMPNN`, a pretrained CNN fitness predictor, a GNN binding model.
+The original pretrained model — its architecture, weights, and forward pass. This is **not proteingen-specific**. You port it with minimal changes, just enough to load and run inference. Examples: `StabilityPMPNN`, a pretrained CNN fitness predictor, a GNN binding model.
 
 ### Layer 2: Binary Logit Function
 
 A standalone function that converts the raw predictor's output to `(B, 2)` binary logits `[false_logit, true_logit]`. This is **independent of the model** — the same predictor could use different functions depending on the use case.
 
-Existing functions in `protstar.predictive_modeling`:
+Existing functions in `proteingen.predictive_modeling`:
 
 | Function | Input → Output | Use case | TAG compatible? |
 |----------|---------------|----------|-----------------|
@@ -53,7 +53,7 @@ The final glue class that wires layers 1–3 together. If layers 1–2 are well-
 Before writing any code:
 
 1. **Clone or access the original model repo** — get the upstream source code and pretrained weights.
-2. **Get an example script** — ask the user for a specific script they want to replicate using the protstar abstractions. This is the acceptance criterion.
+2. **Get an example script** — ask the user for a specific script they want to replicate using the proteingen abstractions. This is the acceptance criterion.
 3. **Clarify integration details** with the user:
    - What does the model predict? (stability, fitness, binding, classification, regression)
    - What **conditioning** does the model need? (structure coords, chain info, ligand, etc.)
@@ -106,7 +106,7 @@ Get explicit sign-off before proceeding to implementation.
 ## Phase 4: Create the Directory Structure
 
 ```bash
-mkdir -p src/protstar/models/<provider>/
+mkdir -p src/proteingen/models/<provider>/
 ```
 
 Files to create:
@@ -124,24 +124,24 @@ models/rocklin_ddg/
 └── rocklin_ddg.md           # design doc
 ```
 
-If adding a new binary logit function, it goes in `src/protstar/predictive_modeling.py` alongside the existing ones. If adding a new template model class, it also goes in `predictive_modeling.py`.
+If adding a new binary logit function, it goes in `src/proteingen/predictive_modeling.py` alongside the existing ones. If adding a new template model class, it also goes in `predictive_modeling.py`.
 
-Update `src/protstar/models/__init__.py` to export the new class and any conditioning/output `TypedDict`s.
-Update `src/protstar/models/AGENTS.md` to add the model to the registry.
+Update `src/proteingen/models/__init__.py` to export the new class and any conditioning/output `TypedDict`s.
+Update `src/proteingen/models/AGENTS.md` to add the model to the registry.
 
 ## Phase 5: Implement
 
 Read the design docs:
 
-- `src/protstar/predictive_modeling.md` — PredictiveModel ABC, binary logit functions, template models
-- `src/protstar/probability_model.md` — ProbabilityModel base (conditioning, checkpointing)
-- `src/protstar/models/rocklin_ddg/stability_predictor.py` — reference implementation
+- `src/proteingen/predictive_modeling.md` — PredictiveModel ABC, binary logit functions, template models
+- `src/proteingen/probability_model.md` — ProbabilityModel base (conditioning, checkpointing)
+- `src/proteingen/models/rocklin_ddg/stability_predictor.py` — reference implementation
 
 ### Step 1: Port the raw predictor (Layer 1)
 
 Bring the original model code into the provider directory with minimal changes. The goal is a working `nn.Module` that can load pretrained weights and run inference.
 
-- Keep the original architecture intact — don't refactor it to match protstar patterns
+- Keep the original architecture intact — don't refactor it to match proteingen patterns
 - If the model has an encode/decode split, preserve it (you'll map this to preprocess/forward later)
 - If TAG is needed, make the embedding lookup differentiable: replace `self.embed(token_ids)` with accepting OHE input and doing `ohe @ self.embed.weight`
 
@@ -149,7 +149,7 @@ Bring the original model code into the provider directory with minimal changes. 
 
 If an existing function works, skip this step.
 
-If you need a new function, add it to `src/protstar/predictive_modeling.py`:
+If you need a new function, add it to `src/proteingen/predictive_modeling.py`:
 
 ```python
 def my_binary_logits(raw_output, ...) -> torch.FloatTensor:
@@ -157,13 +157,13 @@ def my_binary_logits(raw_output, ...) -> torch.FloatTensor:
     ...
 ```
 
-Export it from `protstar.__init__` and add it to the table in `src/protstar/predictive_modeling.md`.
+Export it from `proteingen.__init__` and add it to the table in `src/proteingen/predictive_modeling.md`.
 
 ### Step 3: Add or select the template class (Layer 3, optional)
 
 If the predictor's pattern is one-off, skip this step and subclass `PredictiveModel` directly.
 
-If you're adding a new template, add it to `src/protstar/predictive_modeling.py`. A template is an ABC that:
+If you're adding a new template, add it to `src/proteingen/predictive_modeling.py`. A template is an ABC that:
 - Subclasses `PredictiveModel`
 - Defines the architecture (forward pass, pooling, head)
 - Leaves `format_raw_to_logits` abstract (the user picks the binary logit function)
@@ -260,7 +260,7 @@ Create `tests/test_<name>.py`. Required test categories:
 - `predict(seq_SP)` returns raw output (no binary conversion)
 
 ### Output matching against original library
-- Run the same **real protein input** (not random data) through both the original library's model and the ProtStar wrapper
+- Run the same **real protein input** (not random data) through both the original library's model and the ProteinGen wrapper
 - Assert outputs match within floating-point tolerance (`torch.allclose` with appropriate `atol`/`rtol`)
 - This is the single most important test — it proves the wrapper faithfully reproduces the original model's behavior
 
@@ -316,12 +316,12 @@ Review these before considering the integration complete:
 - [ ] **`collate_observations` must use `expand`, not `repeat`** — `expand` shares memory (no copy), `repeat` allocates. For tiling a single structure to batch size, `expand` is correct.
 - [ ] **Import shadowing** — if your wrapper class has the same name as the upstream class, import as `from upstream import Model as _Model`.
 - [ ] **`from __future__ import annotations`** — if your file has forward references in type annotations, add this import at the top.
-- [ ] **New binary logit functions must be exported** — add to `protstar.__init__` and document in `predictive_modeling.md`.
-- [ ] **New template classes must be exported** — add to `protstar.__init__` and document in `predictive_modeling.md` and `docs/reference/predictive_modeling.md`.
+- [ ] **New binary logit functions must be exported** — add to `proteingen.__init__` and document in `predictive_modeling.md`.
+- [ ] **New template classes must be exported** — add to `proteingen.__init__` and document in `predictive_modeling.md` and `docs/reference/predictive_modeling.md`.
 
 ## Phase 7: Write the Design Doc
 
-Create `src/protstar/models/<provider>/<provider>.md` following the pattern in `models/rocklin_ddg/rocklin_ddg.md`:
+Create `src/proteingen/models/<provider>/<provider>.md` following the pattern in `models/rocklin_ddg/rocklin_ddg.md`:
 
 - **Dependencies** — what core abstractions and external packages it uses
 - **Used By** — which examples, tests, and downstream components consume it
@@ -338,7 +338,7 @@ After the model is implemented and tests pass, add user-facing documentation:
 
 1. **Update `docs/models.md`** — add the model to the Predictive Models table and write a section covering:
    - What the model predicts and where it comes from (paper, repo link)
-   - How to load and use it with protstar
+   - How to load and use it with proteingen
    - Code snippets for common workflows (prediction, conditioning, use with TAG/DEG)
    - Document the conditioning `TypedDict` — list each field, its type, and what it represents
    - Which binary logit function is used and what the target means
@@ -346,7 +346,7 @@ After the model is implemented and tests pass, add user-facing documentation:
 2. **If you added a new binary logit function or template class**, update `docs/reference/predictive_modeling.md` to document it.
 3. **Update `mkdocs.yml`** — add any new pages to the nav if needed.
 4. **Verify `models/AGENTS.md`** — confirm the model was added to the registry in Phase 4.
-5. **Verify exports** — confirm `src/protstar/models/__init__.py` exports the class and any conditioning `TypedDict`s. Confirm any new binary logit functions or template classes are exported from `protstar.__init__`.
+5. **Verify exports** — confirm `src/proteingen/models/__init__.py` exports the class and any conditioning `TypedDict`s. Confirm any new binary logit functions or template classes are exported from `proteingen.__init__`.
 
 ## Phase 9: Open a Pull Request
 
@@ -358,19 +358,19 @@ If your working branch has accumulated unrelated changes, isolate the model file
 git checkout main && git pull
 git checkout -b pr/<model-name>
 git checkout <feature-branch> -- \
-  src/protstar/models/<provider>/ \
-  src/protstar/predictive_modeling.py \
+  src/proteingen/models/<provider>/ \
+  src/proteingen/predictive_modeling.py \
   tests/test_<name>.py \
   docs/models.md \
-  src/protstar/models/__init__.py \
-  src/protstar/models/AGENTS.md
+  src/proteingen/models/__init__.py \
+  src/proteingen/models/AGENTS.md
 # Review staged files, then commit
 git diff --cached --stat
 git add -A && git commit -m "feat(models): add <ModelName> predictive model wrapper"
 git push -u origin pr/<model-name>
 ```
 
-Note: include `src/protstar/predictive_modeling.py` in the checkout if you added a new binary logit function or template class.
+Note: include `src/proteingen/predictive_modeling.py` in the checkout if you added a new binary logit function or template class.
 
 Before opening the PR, walk through every item in the checklist below and actually verify it — run the tests, check the exports, read the docs page. Don't just check the boxes from memory.
 
@@ -395,14 +395,14 @@ Use the following template for the PR description — copy it directly into the 
 ## Tests
 <!-- Describe each test category and what it covers. Must include an output-matching
      test that runs the same real input through both the original library
-     and the ProtStar wrapper, asserting outputs match within floating-point tolerance. -->
+     and the ProteinGen wrapper, asserting outputs match within floating-point tolerance. -->
 
 ## Checklist
-- [ ] Model class in `src/protstar/models/<provider>/`
+- [ ] Model class in `src/proteingen/models/<provider>/`
 - [ ] Exported from `models/__init__.py` (class and conditioning `TypedDict` if applicable)
 - [ ] Tests pass (`uv run python -m pytest tests/test_<name>.py -v`)
 - [ ] Includes output-matching test against original library on real input
-- [ ] Design doc at `src/protstar/models/<provider>/<provider>.md`
+- [ ] Design doc at `src/proteingen/models/<provider>/<provider>.md`
 - [ ] Listed in `docs/models.md` with code examples
 - [ ] Conditioning `TypedDict` documented in `docs/models.md` (if applicable)
 - [ ] `models/AGENTS.md` updated

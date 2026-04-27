@@ -9,7 +9,7 @@ import os
 import torch
 import pytest
 
-from protstar.modeling import ESMForgeAPI
+from proteingen.modeling import ESMForgeAPI
 
 FORGE_TOKEN = os.environ.get("FORGE_TOKEN", "")
 skip_no_key = pytest.mark.skipif(not FORGE_TOKEN, reason="FORGE_TOKEN not set")

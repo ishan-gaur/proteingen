@@ -4,8 +4,8 @@ Structure-conditioned autoregressive sequence design model from the Foundry (`rc
 
 ## Dependencies
 
-- **Core abstractions**: `GenerativeModelWithEmbedding`, `MaskedModelLogitFormatter`, `MPNNTokenizer` from `protstar.generative_modeling`
-- **Structure loading**: `load_pdb`, `PDBStructure` from `protstar.models.utils` — see [../utils.md](../utils.md) for the two-layer API
+- **Core abstractions**: `GenerativeModelWithEmbedding`, `MaskedModelLogitFormatter`, `MPNNTokenizer` from `proteingen.generative_modeling`
+- **Structure loading**: `load_pdb`, `PDBStructure` from `proteingen.models.utils` — see [../utils.md](../utils.md) for the two-layer API
 - **External**: `mpnn` package (via `rc-foundry[all]`) — provides `ProteinMPNN` model, `load_legacy_weights`, `cat_neighbors_nodes`, `gather_nodes`
 - **Checkpoint registry**: `foundry.inference_engines.checkpoint_registry.REGISTERED_CHECKPOINTS`
 
@@ -42,7 +42,7 @@ ProteinMPNN is a graph neural network for structure-conditioned protein sequence
 
 ### Wrapper design
 
-The protstar wrapper splits the model into two cached stages:
+The proteingen wrapper splits the model into two cached stages:
 
 - **`preprocess_observations`** (called once via `set_condition_()`): runs graph featurization + encoder. Caches `h_V`, `h_E`, `E_idx`, `residue_mask`. Uses `S=0` (ALA) as placeholder for backbone atom indexing — safe because backbone atoms N/CA/C/O are at positions 0-3 for all amino acids.
 - **`_run_decoder`** (called every forward): runs decoder with cached encoder features and the current sequence. Uses **conditional_minus_self** causality: each position sees all other positions' sequence embeddings but not its own. This gives a pseudo-likelihood at every position.

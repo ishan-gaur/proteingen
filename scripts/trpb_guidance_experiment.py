@@ -18,9 +18,9 @@ import torch.nn.functional as F
 from scipy.stats import spearmanr
 from torch.utils.data import DataLoader, TensorDataset
 
-from protstar.guide import DEG
-from protstar.models.esm import ESMC
-from protstar.sampling import sample
+from proteingen.guide import DEG
+from proteingen.models.esm import ESMC
+from proteingen.sampling import sample
 from examples.trpb_linear_probe import (
     TrpBFitnessPredictor,
     find_variable_positions,

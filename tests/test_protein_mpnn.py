@@ -7,8 +7,8 @@ import biotite.structure as bts
 import pytest
 import urllib.request
 from pathlib import Path
-from protstar.modeling import ProteinMPNN
-from protstar.data import load_pdb, PDBStructure
+from proteingen.modeling import ProteinMPNN
+from proteingen.data import load_pdb, PDBStructure
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ def _make_structure(L: int = 20, n_chains: int = 1):
 
 def test_load_pdb_downloads_when_missing(monkeypatch, tmp_path):
     """Missing local file should trigger PDB-id-based download to cache dir."""
-    import protstar.data.structure as structure_mod
+    import proteingen.data.structure as structure_mod
 
     dummy_structure = _make_structure(4)["structure"]
     seen: dict[str, object] = {}

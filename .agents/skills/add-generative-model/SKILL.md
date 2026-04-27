@@ -1,11 +1,11 @@
 ---
 name: add-generative-model
-description: Step-by-step workflow for integrating a new generative (transition) model into the protstar library. Covers choosing between GenerativeModel and GenerativeModelWithEmbedding, implementing abstract methods, writing tests, and avoiding common gotchas. This skill is for generative models only — not PredictiveModel subclasses.
+description: Step-by-step workflow for integrating a new generative (transition) model into the proteingen library. Covers choosing between GenerativeModel and GenerativeModelWithEmbedding, implementing abstract methods, writing tests, and avoiding common gotchas. This skill is for generative models only — not PredictiveModel subclasses.
 ---
 
 # Add a Generative Model
 
-Workflow for wrapping a new pretrained generative model (e.g. a protein language model) into protstar's `GenerativeModel` hierarchy. This skill covers `GenerativeModel` (composition) and `GenerativeModelWithEmbedding` (ABC with differentiable embeddings). It does **not** cover `PredictiveModel` subclasses — those are a separate concern.
+Workflow for wrapping a new pretrained generative model (e.g. a protein language model) into proteingen's `GenerativeModel` hierarchy. This skill covers `GenerativeModel` (composition) and `GenerativeModelWithEmbedding` (ABC with differentiable embeddings). It does **not** cover `PredictiveModel` subclasses — those are a separate concern.
 
 **Progress tracking**: When returning control to the user, include a status line showing all phases and which one you're currently on. Example:
 
@@ -18,7 +18,7 @@ This ensures the user always knows where you are and how much remains.
 Before writing any code:
 
 1. **Clone or access the original model repo** — get the upstream source code so you can read the actual implementation (forward pass, tokenizer, embedding layers, etc.). If it's a HuggingFace model, pull the relevant modeling files. If it's a private repo, ask the user for access.
-2. **Get an example script** — ask the user for a specific script or notebook they want to replicate using the protstar abstractions. This is the acceptance criterion: the example should work end-to-end with the new wrapper.
+2. **Get an example script** — ask the user for a specific script or notebook they want to replicate using the proteingen abstractions. This is the acceptance criterion: the example should work end-to-end with the new wrapper.
 3. **Clarify integration details** with the user before proceeding:
    - Which inputs are **conditioning variables** (e.g. structure, chain info) vs. sequence inputs?
    - How should **weights be stored and loaded**? (HuggingFace hub, local checkpoint path, bundled with the package?)
@@ -50,7 +50,7 @@ Get explicit sign-off before proceeding to implementation.
 ## Phase 4: Create the Directory Structure
 
 ```bash
-mkdir -p src/protstar/models/<provider>/
+mkdir -p src/proteingen/models/<provider>/
 ```
 
 Directory names should reflect the **provider or model family** (e.g. `esm/` for
@@ -77,8 +77,8 @@ models/esm/
 └── esm.md           # design doc
 ```
 
-Update `src/protstar/models/__init__.py` to export the new class (and any conditioning `TypedDict`s added in Phase 5).
-Update `src/protstar/models/AGENTS.md` to add the model to the registry.
+Update `src/proteingen/models/__init__.py` to export the new class (and any conditioning `TypedDict`s added in Phase 5).
+Update `src/proteingen/models/AGENTS.md` to add the model to the registry.
 
 ## Phase 5: Implement
 
@@ -86,8 +86,8 @@ Update `src/protstar/models/AGENTS.md` to add the model to the registry.
 
 Read the design docs to understand the two options:
 
-- `src/protstar/generative_modeling.md` — GenerativeModel and GenerativeModelWithEmbedding contracts
-- `src/protstar/probability_model.md` — ProbabilityModel base (conditioning, checkpointing) that both inherit from
+- `src/proteingen/generative_modeling.md` — GenerativeModel and GenerativeModelWithEmbedding contracts
+- `src/proteingen/probability_model.md` — ProbabilityModel base (conditioning, checkpointing) that both inherit from
 
 ```
 Can you access the model's embedding layer weights,
@@ -117,7 +117,7 @@ across models in the family. Export them from the directory's `__init__.py` (the
 
 ### Step 2a: GenerativeModelWithEmbedding (most common path)
 
-Use ESMC as the reference implementation: `src/protstar/models/esm/esmc.py`.
+Use ESMC as the reference implementation: `src/proteingen/models/esm/esmc.py`.
 
 #### Constructor checklist
 
@@ -173,7 +173,7 @@ def format_raw_to_logits(self, raw_output, seq_SP, **kwargs):
 For simpler cases where you just wrap an existing model without needing embedding access:
 
 ```python
-from protstar import GenerativeModel, MaskedModelLogitFormatter
+from proteingen import GenerativeModel, MaskedModelLogitFormatter
 
 model = load_my_model(checkpoint)
 tokenizer = load_my_tokenizer()
@@ -192,7 +192,7 @@ Create `tests/test_<name>.py`. Required test categories:
 - `forward(seq_SP)` returns expected output shape
 
 ### Logit matching against original library
-- Run the same **real protein sequence** (not random tokens) through both the original library's model and the ProtStar wrapper
+- Run the same **real protein sequence** (not random tokens) through both the original library's model and the ProteinGen wrapper
 - Assert logits match within floating-point tolerance (`torch.allclose` with appropriate `atol`/`rtol`)
 - This is the single most important test — it proves the wrapper faithfully reproduces the original model's behavior
 
@@ -242,7 +242,7 @@ Review these before considering the integration complete:
 
 ## Phase 7: Write the Design Doc
 
-Create `src/protstar/models/<provider>/<provider>.md` following the pattern in `models/esm/esm.md`:
+Create `src/proteingen/models/<provider>/<provider>.md` following the pattern in `models/esm/esm.md`:
 
 - **Dependencies** — what core abstractions and external packages it uses
 - **Used By** — which examples, tests, and downstream components consume it
@@ -258,13 +258,13 @@ After the model is implemented and tests pass, add user-facing documentation:
 
 1. **Update `docs/models.md`** — add the model to the appropriate table (Generative Models or Predictive Models) and write a section covering:
    - What the model does and where it comes from (paper, repo link)
-   - How to load and use it with protstar
+   - How to load and use it with proteingen
    - Code snippets for common workflows (forward pass, sampling, conditioning, guidance)
    - If the model supports conditioning, document the conditioning `TypedDict` — list each field, its type, and what it represents. Show a code example of constructing and passing conditioning.
    - Any model-specific configuration (variants, checkpoint sizes, device requirements)
 2. **Update `mkdocs.yml`** — add any new pages to the nav if needed.
 3. **Verify `models/AGENTS.md`** — confirm the model was added to the registry in Phase 4.
-4. **Verify exports** — confirm `src/protstar/models/__init__.py` exports the class and any conditioning `TypedDict`s.
+4. **Verify exports** — confirm `src/proteingen/models/__init__.py` exports the class and any conditioning `TypedDict`s.
 
 ## Phase 9: Open a Pull Request
 
@@ -276,11 +276,11 @@ If your working branch has accumulated unrelated changes, isolate the model file
 git checkout main && git pull
 git checkout -b pr/<model-name>
 git checkout <feature-branch> -- \
-  src/protstar/models/<provider>/ \
+  src/proteingen/models/<provider>/ \
   tests/test_<name>.py \
   docs/models.md \
-  src/protstar/models/__init__.py \
-  src/protstar/models/AGENTS.md
+  src/proteingen/models/__init__.py \
+  src/proteingen/models/AGENTS.md
 # Review staged files, then commit
 git diff --cached --stat
 git add -A && git commit -m "feat(models): add <ModelName> generative model wrapper"
@@ -305,7 +305,7 @@ Use the following template for the PR description — copy it directly into the 
 
 ```markdown
 ## Summary
-<!-- What model is being added? Link to paper/repo. What capabilities does this enable for protstar users? -->
+<!-- What model is being added? Link to paper/repo. What capabilities does this enable for proteingen users? -->
 
 ## Implementation
 - **Base class**: <!-- GenerativeModel / GenerativeModelWithEmbedding — why? -->
@@ -315,14 +315,14 @@ Use the following template for the PR description — copy it directly into the 
 ## Tests
 <!-- Describe each test category and what it covers. Must include a logit-matching
      test that runs the same real protein sequence through both the original library
-     and the ProtStar wrapper, asserting outputs match within floating-point tolerance. -->
+     and the ProteinGen wrapper, asserting outputs match within floating-point tolerance. -->
 
 ## Checklist
-- [ ] Model class in `src/protstar/models/<provider>/`
+- [ ] Model class in `src/proteingen/models/<provider>/`
 - [ ] Exported from `models/__init__.py` (class and conditioning `TypedDict` if applicable)
 - [ ] Tests pass (`uv run python -m pytest tests/test_<name>.py -v`)
 - [ ] Includes logit-matching test against original library on a real protein input
-- [ ] Design doc at `src/protstar/models/<provider>/<provider>.md`
+- [ ] Design doc at `src/proteingen/models/<provider>/<provider>.md`
 - [ ] Listed in `docs/models.md` with code examples
 - [ ] Conditioning `TypedDict` documented in `docs/models.md` (if applicable)
 - [ ] `models/AGENTS.md` updated

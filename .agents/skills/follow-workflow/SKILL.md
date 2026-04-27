@@ -1,15 +1,15 @@
 ---
 name: follow-workflow
-description: Guide the user through planning and implementing a protein design pipeline by following ProtStar workflows. Use when the user says they want to follow a workflow (e.g. ProteinGuide, Continued Pretraining) or wants help planning their library design pipeline. Walks through documentation in-order and recursively, helping the user make decisions at each step before writing code.
+description: Guide the user through planning and implementing a protein design pipeline by following ProteinGen workflows. Use when the user says they want to follow a workflow (e.g. ProteinGuide, Continued Pretraining) or wants help planning their library design pipeline. Walks through documentation in-order and recursively, helping the user make decisions at each step before writing code.
 ---
 
 # Follow Workflow
 
-Guide the user through a ProtStar workflow step-by-step, recursively following module documentation to plan their pipeline before coding it up.
+Guide the user through a ProteinGen workflow step-by-step, recursively following module documentation to plan their pipeline before coding it up.
 
 ## How This Works
 
-ProtStar documentation is organized around **workflows** (paper-level compositions) and **modules** (reusable building blocks in four areas: Data, Models, Sampling, Evaluation). This skill walks the user through a workflow by:
+ProteinGen documentation is organized around **workflows** (paper-level compositions) and **modules** (reusable building blocks in four areas: Data, Models, Sampling, Evaluation). This skill walks the user through a workflow by:
 
 1. Reading the workflow's top-level page to understand the full pipeline
 2. At each step, reading the referenced module page for details
@@ -122,7 +122,7 @@ Once the plan is confirmed, implement step-by-step. For each step:
 
 - **Don't skip evaluation steps** — it's tempting to go straight from training to generation. Always validate predictor–oracle agreement before trusting guided samples.
 - **Temperature tuning is critical** — the default temperatures are rarely optimal. Guide the user through trying 2-3 settings and comparing results.
-- **Start simple** — if the user has never used ProtStar before, start with unconditional sampling to verify their setup works, then add complexity.
+- **Start simple** — if the user has never used ProteinGen before, start with unconditional sampling to verify their setup works, then add complexity.
 - **ESM3 + AMP** — always use `--amp` (bfloat16) for ESM3 training. fp32 logits overflow.
 - **DEG + n_parallel** — DEG doesn't support unmasking multiple positions at once. Use `n_parallel=1`.
 - **LoRA rank** — r=4 is a good default. Higher ranks risk overfitting on small datasets.

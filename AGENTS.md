@@ -10,7 +10,7 @@ Available skills:
 
 ## Project Management
 
-- Use `uv` for all package management and running Python code [×15]
+- Use `uv` for all package management and running Python code [×16]
   - Install dependencies: `uv add <package>`
   - Run scripts: `uv run python <script>`
   - Sync environment: `uv sync`
@@ -40,7 +40,7 @@ Available skills:
 
 ## Project Structure
 
-- `src/protstar/` — core library, installed as editable package (`uv pip install -e .`). See → [src/protstar/AGENTS.md](src/protstar/AGENTS.md)
+- `src/proteingen/` — core library, installed as editable package (`uv pip install -e .`). See → [src/proteingen/AGENTS.md](src/proteingen/AGENTS.md)
   - Per-component design docs co-located with source (e.g. `probability_model.md` next to `probability_model.py`)
   - `models/` — each model in its own subdirectory with a `.md` (e.g. `models/esm/`, `models/rocklin_ddg/`)
 - `examples/` — end-to-end usage examples (sampling, guidance, probes, PCA init). See → [examples/AGENTS.md](examples/AGENTS.md)
@@ -64,7 +64,7 @@ Available skills:
 - Installed from GitHub: `af3-server @ git+https://github.com/ishan-gaur/af3-server.git`
 - Import: `from af3_server import AF3Client`
 - Package structure: `src/af3_server/` (client, pip-installable), `server/` (server.py + .def, runs inside container)
-- **Server's real value is cross-environment access** — AF3 runs in JAX/Apptainer container, protstar code runs in PyTorch env. The HTTP boundary bridges them. For batch-only workflows, a simpler in-container script would suffice. [×1]
+- **Server's real value is cross-environment access** — AF3 runs in JAX/Apptainer container, proteingen code runs in PyTorch env. The HTTP boundary bridges them. For batch-only workflows, a simpler in-container script would suffice. [×1]
 - **Official AF3 codebase is a full Python library** — `ModelRunner`, `predict_structure()`, `folding_input.Input` etc. are all importable, not just CLI. Our server wraps these same functions.
 - **Server config**: `num_diffusion_samples` (default 5) and `num_recycles` (default 10) are per-server env vars (`AF3_NUM_DIFFUSION_SAMPLES`, `AF3_NUM_RECYCLES`), NOT per-request — model config is set once at startup
 - **Single GPU only** — processes jobs sequentially. For multi-GPU, run multiple server instances on different ports/GPUs.
@@ -84,15 +84,15 @@ Available skills:
 - ProteinMPNN via Foundry: `rc-foundry[all]` — provides `mpnn` and `atomworks` packages
 - `peft>=0.13.0` for LoRA adapter support
 - Importing from `atomworks` prints env var warnings (CCD_MIRROR_PATH, PDB_MIRROR_PATH) — harmless
-- **Repo renamed to `protstar`** — display name is **ProtStar**, URLs/paths/package-slug stay lowercase `protstar`
-- Git remote: `git@github.com:ishan-gaur/protstar.git`
+- **Repo renamed to `proteingen`** — display name is **ProteinGen**, URLs/paths/package-slug stay lowercase `proteingen`
+- Git remote: `git@github.com:ishan-gaur/proteingen.git`
 
 ## Optional Dependency Extras
 
-- `protstar[pmpnn]` → `rc-foundry[all]`, `protstar[af3]` → `af3-server`, `protstar[all]` → both
-- `models/__init__.py` guards ProteinMPNN and PreTrainedStabilityPredictor imports with `try/except ImportError` so base `import protstar` works without optional extras
+- `proteingen[pmpnn]` → `rc-foundry[all]`, `proteingen[af3]` → `af3-server`, `proteingen[all]` → both
+- `models/__init__.py` guards ProteinMPNN and PreTrainedStabilityPredictor imports with `try/except ImportError` so base `import proteingen` works without optional extras
 - ProteinMPNN weights auto-download on first use via `foundry_cli.download_checkpoints.install_model` — no manual `foundry install proteinmpnn` step needed
-- `af3-server` is not imported anywhere in protstar source — purely a convenience dependency for users
+- `af3-server` is not imported anywhere in proteingen source — purely a convenience dependency for users
 - `mkdocs-liveedit` and `af3-server` both resolve via `[tool.uv.sources]` git URLs — pip users without uv can't resolve these from PyPI (af3-server: `pip install git+https://github.com/ishan-gaur/af3-server.git`)
 - Dev/docs dependencies (mkdocs, ruff, pytest, python-lsp-server) stay in base package — users are contributors by default
 
@@ -137,7 +137,8 @@ Replaces old `GuidanceDataset`. Key design choices from discussion:
 ## Worktree Cleanup Notes
 
 - `dfm-worktrees/` may contain orphaned directories not tracked by `git worktree list` — check with `ls` not just `git worktree list`
-- Remaining active worktrees: `spawn/pbrr-walkthrough` (3 commits ahead of main, not yet merged)
+- If a worktree folder was manually deleted, run `git worktree prune --verbose` in the main repo to remove stale registrations (`git worktree remove` cannot run if the path is already gone).
+- Current registered worktrees: `main`, `spawn/pbrr-walkthrough`, `spawn/progen`, `spawn/recursive-modules`, `docs`.
 - Deleted branches that still have stale local/remote refs: `spawn/cinderdrella`, `spawn/likelihood-curves` — can be cleaned with `git branch -d` / `git push origin --delete`
 - One stash exists on `spawn/landing-page` branch: `WIP on spawn/landing-page: 1d4d90d`
 - `dfm-worktrees/landing-page-copy/` also exists — status unknown

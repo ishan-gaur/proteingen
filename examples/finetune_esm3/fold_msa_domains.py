@@ -28,12 +28,12 @@ import torch
 
 from af3_server import AF3Client
 
-from protstar.data import (
+from proteingen.data import (
     aligned_sequences_to_raw,
     fold_sequence_to_atom37,
     read_fasta,
 )
-from protstar.modeling import ESM3
+from proteingen.modeling import ESM3
 
 DATA_DIR = Path(__file__).parent
 

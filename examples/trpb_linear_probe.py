@@ -24,10 +24,10 @@ from huggingface_hub import hf_hub_download
 from scipy.stats import spearmanr
 from torch.utils.data import DataLoader, TensorDataset
 
-from protstar.modeling import TAG
-from protstar.modeling import ESMC
-from protstar.modeling import LinearProbe, point_estimate_binary_logits
-from protstar.sampling import sample
+from proteingen.modeling import TAG
+from proteingen.modeling import ESMC
+from proteingen.modeling import LinearProbe, point_estimate_binary_logits
+from proteingen.sampling import sample
 
 
 DATASET_ID = "SaProtHub/Dataset-TrpB_fitness_landsacpe"

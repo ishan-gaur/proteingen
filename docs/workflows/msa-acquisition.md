@@ -31,4 +31,4 @@ For proteins with few sequence homologs (e.g. *de novo* designs, orphan proteins
 
 Once you have your MSA (as a FASTA file), proceed to [MSA → Dataset](msa-to-dataset.md) to prepare it for training.
 
-<!-- TODO: add convenience functions or CLI for running MMseqs2/Foldseek from protstar -->
+<!-- TODO: add convenience functions or CLI for running MMseqs2/Foldseek from proteingen -->

@@ -30,7 +30,7 @@ from config import (
 )
 
 sys.path.insert(0, str(DATA_DIR.parent))
-from protstar.sampling import generate_unmask_orders, mask_by_order
+from proteingen.sampling import generate_unmask_orders, mask_by_order
 
 
 def fetch_swissprot_sequences(

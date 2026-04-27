@@ -1,6 +1,6 @@
 # models
 
-Concrete model implementations that subclass the core abstractions. Each model wraps an external library (ESM, ProteinMPNN) into ProtStar's unified interface.
+Concrete model implementations that subclass the core abstractions. Each model wraps an external library (ESM, ProteinMPNN) into ProteinGen's unified interface.
 
 ## Tokenization landscape
 
@@ -16,4 +16,4 @@ Three tokenizer ecosystems coexist in the library — cross-tokenizer mapping is
 
 ## API Reference
 
-::: protstar.models
+::: proteingen.models

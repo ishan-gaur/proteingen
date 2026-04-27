@@ -126,4 +126,4 @@ Key details:
 
 ## API Reference
 
-::: protstar.modeling.predictive_modeling
+::: proteingen.modeling.predictive_modeling

@@ -18,7 +18,7 @@ From Foundry registry:
 | `solublempnn` | Trained on soluble proteins only |
 
 ```python
-from protstar.models import ProteinMPNN
+from proteingen.models import ProteinMPNN
 
 model = ProteinMPNN("proteinmpnn")  # or "solublempnn"
 ```
@@ -28,7 +28,7 @@ model = ProteinMPNN("proteinmpnn")  # or "solublempnn"
 ProteinMPNN **requires** backbone structure as input. Pass a `PDBStructure` from `load_pdb`:
 
 ```python
-from protstar.models.utils import load_pdb
+from proteingen.models.utils import load_pdb
 
 structure = load_pdb("1YCR.pdb")
 

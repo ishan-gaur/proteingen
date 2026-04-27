@@ -10,7 +10,7 @@ Remote inference via the [EvolutionaryScale Forge](https://forge.evolutionarysca
 
 ```python
 import os
-from protstar.models import ESMForgeAPI
+from proteingen.models import ESMForgeAPI
 
 # ESMC — no conditioning, just masked LM
 model = ESMForgeAPI("esmc-6b-2024-12", token=os.environ["FORGE_TOKEN"])

@@ -16,8 +16,8 @@ import argparse
 
 import torch
 
-from protstar.modeling import ESM3
-from protstar.sampling import sample
+from proteingen.modeling import ESM3
+from proteingen.sampling import sample
 
 
 def main():
@@ -36,7 +36,7 @@ def main():
 
     # ── Structure conditioning ───────────────────────────────────────────
     if args.pdb:
-        from protstar.data import pdb_to_atom37_and_seq
+        from proteingen.data import pdb_to_atom37_and_seq
 
         coords_RAX, wt_seq = pdb_to_atom37_and_seq(args.pdb, backbone_only=True)
         seq_len = len(wt_seq)

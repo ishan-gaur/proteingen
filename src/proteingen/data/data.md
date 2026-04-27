@@ -4,7 +4,7 @@ ProteinDataset, noise functions, time samplers, and FASTA utilities for training
 
 ## Dependencies
 
-- None within protstar (standalone utilities)
+- None within proteingen (standalone utilities)
 
 ## Used By
 

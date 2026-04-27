@@ -17,7 +17,7 @@ ByteDance's discrete diffusion protein language model (DPLM-2), wrapped as a `Ge
 
 ## Architecture
 
-DPLM-2 is a modified ESM-2 architecture extended for multimodal (sequence + structure) diffusion. In protstar, we load it via HuggingFace's `EsmForMaskedLM` for sequence-only use.
+DPLM-2 is a modified ESM-2 architecture extended for multimodal (sequence + structure) diffusion. In proteingen, we load it via HuggingFace's `EsmForMaskedLM` for sequence-only use.
 
 ### Model variants
 

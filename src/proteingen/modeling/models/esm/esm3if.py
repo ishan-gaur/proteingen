@@ -11,7 +11,7 @@ Migration::
     model.set_condition_({"coords_RAX": coords})
 
     # New
-    from protstar.modeling import ESM3
+    from proteingen.modeling import ESM3
     model = ESM3().cuda()
     model.set_condition_({"coords_RAX": coords})
 """

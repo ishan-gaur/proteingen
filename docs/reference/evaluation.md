@@ -7,7 +7,7 @@ Tools for sanity-checking your pipeline at each stage: data quality, model fidel
 The primary evaluation tool for generative models. Measures how well a model predicts masked amino acids as context is progressively revealed.
 
 ```python
-from protstar.eval import compute_log_prob_trajectory, plot_log_prob_trajectories
+from proteingen.eval import compute_log_prob_trajectory, plot_log_prob_trajectories
 
 traj = compute_log_prob_trajectory(sequences, model, n_time_points=20)
 plot_log_prob_trajectories([traj], ["ESMC-300M"], "likelihood.png")
@@ -17,7 +17,7 @@ For fixed-order teacher-forced decoding diagnostics (log p of the *true token* a
 the position currently being decoded):
 
 ```python
-from protstar.eval import (
+from proteingen.eval import (
     compute_decoding_log_prob_trajectory,
     plot_decoding_log_prob_trajectories,
 )
@@ -102,4 +102,4 @@ For critical applications, validate that generated sequences fold into the inten
 
 ## API Reference
 
-::: protstar.eval
+::: proteingen.eval

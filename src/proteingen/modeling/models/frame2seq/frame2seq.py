@@ -36,7 +36,7 @@ class Frame2seqTokenizer:
     Token Index Legend:
         AAs: 0-19 (A,C,D,E,F,G,H,I,K,L,M,N,P,Q,R,S,T,V,W,Y)
         X: 20 (unknown)
-        <mask>: 21 (input-only mask token used by protstar)
+        <mask>: 21 (input-only mask token used by proteingen)
     """
 
     _AA_ORDER = "ACDEFGHIKLMNPQRSTVWY"
@@ -170,7 +170,7 @@ class Frame2seq(GenerativeModelWithEmbedding):
     """Frame2seq structure-conditioned inverse folding model.
 
     Loads Frame2seq's bundled checkpoint ensemble and exposes it through
-    protstar's GenerativeModelWithEmbedding interface.
+    proteingen's GenerativeModelWithEmbedding interface.
 
     Conditioning is required and must be set with:
 
@@ -181,7 +181,7 @@ class Frame2seq(GenerativeModelWithEmbedding):
         P: residue position index
         A: atom index (N, CA, C, CB, O)
         U: Frame2seq sequence dim (21 = 20 AAs + X)
-        T: protstar tokenizer dim (22 = U + <mask>)
+        T: proteingen tokenizer dim (22 = U + <mask>)
         D: single-model embedding dim (128)
         E: concatenated ensemble embedding dim (D * n_models)
     """

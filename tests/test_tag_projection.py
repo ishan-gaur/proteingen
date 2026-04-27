@@ -5,9 +5,9 @@ from types import SimpleNamespace
 import torch
 from torch import nn
 
-from protstar.modeling import GenerativeModel, PassThroughLogitFormatter
-from protstar.modeling import PredictiveModel, binary_logits
-from protstar.modeling import TAG, LinearGuidanceProjection
+from proteingen.modeling import GenerativeModel, PassThroughLogitFormatter
+from proteingen.modeling import PredictiveModel, binary_logits
+from proteingen.modeling import TAG, LinearGuidanceProjection
 
 
 def make_tokenizer(

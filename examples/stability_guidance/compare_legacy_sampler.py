@@ -13,14 +13,14 @@ import argparse
 import numpy as np
 import torch
 
-from protstar.modeling import ESM3
-from protstar.modeling.models.rocklin_ddg.stability_predictor import (
+from proteingen.modeling import ESM3
+from proteingen.modeling.models.rocklin_ddg.stability_predictor import (
     PreTrainedStabilityPredictor,
     StabilityPMPNN,
 )
-from protstar.data import pdb_to_atom37_and_seq
-from protstar.modeling import TAG
-from protstar.sampling import (
+from proteingen.data import pdb_to_atom37_and_seq
+from proteingen.modeling import TAG
+from proteingen.sampling import (
     sample_ctmc_linear_interpolation,
     sample_flow_matching_legacy,
     build_legacy_predictor_log_prob,
@@ -29,7 +29,7 @@ from protstar.sampling import (
 
 def predict_stability_raw(oracle_model, sequences, cond, device):
     """Get raw stability predictions for ddG computation."""
-    from protstar.modeling import MPNNTokenizer
+    from proteingen.modeling import MPNNTokenizer
 
     tokenizer = MPNNTokenizer()
     tokens = tokenizer(sequences)["input_ids"].to(device)

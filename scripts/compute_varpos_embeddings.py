@@ -5,7 +5,7 @@ from pathlib import Path
 import time
 import sys; sys.path.insert(0, ".")
 
-from protstar.models.esm import ESMC
+from proteingen.models.esm import ESMC
 from examples.trpb_linear_probe import load_trpb_data, find_variable_positions
 
 import argparse

@@ -22,7 +22,7 @@ Structure-conditioned masked inverse folding model from Akpinaroglu et al.
 
 ## Architecture
 
-`Frame2seq` wraps an ensemble of Frame2seq checkpoints and exposes a 22-token protstar interface:
+`Frame2seq` wraps an ensemble of Frame2seq checkpoints and exposes a 22-token proteingen interface:
 
 - Frame2seq native vocab (`U=21`): 20 standard AAs + `X` unknown
 - Protstar wrapper vocab (`T=22`): native 21 + `<mask>` input token

@@ -17,7 +17,7 @@ Many protein engineering projects start with a family of homologous sequences. T
 Use `read_fasta` and `aligned_sequences_to_raw` to strip gap characters from aligned sequences:
 
 ```python
-from protstar.data import read_fasta, aligned_sequences_to_raw
+from proteingen.data import read_fasta, aligned_sequences_to_raw
 
 entries = read_fasta("EphB1_MSA.fasta")
 aligned = [seq for _, seq in entries]
@@ -85,7 +85,7 @@ On an RTX 6000 Ada (49GB), AF3 folds ~120-135 sequences per hour for domains of 
 If you only need sequences (no structure conditioning), skip the AF3 step and create a `ProteinDataset` directly:
 
 ```python
-from protstar.data import ProteinDataset, read_fasta, aligned_sequences_to_raw
+from proteingen.data import ProteinDataset, read_fasta, aligned_sequences_to_raw
 
 entries = read_fasta("my_msa.fasta")
 raw = aligned_sequences_to_raw([seq for _, seq in entries])

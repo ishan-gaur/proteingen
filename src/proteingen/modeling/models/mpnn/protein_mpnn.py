@@ -49,7 +49,7 @@ class ProteinMPNN(GenerativeModelWithEmbedding):
     """ProteinMPNN structure-conditioned sequence design model.
 
     Wraps Foundry's ProteinMPNN as a GenerativeModelWithEmbedding for use
-    with protstar's sampling, guidance, and probe infrastructure.
+    with proteingen's sampling, guidance, and probe infrastructure.
 
     Structure conditioning is **required** — call ``set_condition_()`` or
     ``conditioned_on()`` before ``forward`` / ``get_log_probs`` / ``embed``.
@@ -80,7 +80,7 @@ class ProteinMPNN(GenerativeModelWithEmbedding):
 
     Example::
 
-        from protstar.data import load_pdb
+        from proteingen.data import load_pdb
 
         model = ProteinMPNN()
         structure = load_pdb("1YCR.pdb")
@@ -180,7 +180,7 @@ class ProteinMPNN(GenerativeModelWithEmbedding):
         node/edge features and graph topology are cached and reused for
         every subsequent forward pass.
         """
-        from protstar.data import PDBStructure
+        from proteingen.data import PDBStructure
 
         structure = observations["structure"]
         assert isinstance(structure, PDBStructure)

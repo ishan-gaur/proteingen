@@ -17,11 +17,11 @@ import pandas as pd
 import torch
 from huggingface_hub import hf_hub_download
 
-from protstar.eval.likelihood_curves import (
+from proteingen.eval.likelihood_curves import (
     compute_log_prob_trajectory,
     plot_log_prob_trajectories,
 )
-from protstar.modeling import ESMC
+from proteingen.modeling import ESMC
 
 DATASET_ID = "SaProtHub/Dataset-TrpB_fitness_landsacpe"
 

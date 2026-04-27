@@ -1,10 +1,10 @@
 # Recursive Modules Documentation Refactor — Work Log
 
 ## Task Summary
-Reorganize ProtStar documentation around the four-module principle (Data, Models, Sampling, Evaluation) as the organizing abstraction. Workflows are named compositions of modules (like papers: ProteinGuide, CbAS, etc.). Examples are concrete instantiations. Modules are reusable mathematical implementations (TAG/DEG = Bayes' rule, likelihood curves = evaluation tool, etc.).
+Reorganize ProteinGen documentation around the four-module principle (Data, Models, Sampling, Evaluation) as the organizing abstraction. Workflows are named compositions of modules (like papers: ProteinGuide, CbAS, etc.). Examples are concrete instantiations. Modules are reusable mathematical implementations (TAG/DEG = Bayes' rule, likelihood curves = evaluation tool, etc.).
 
 ## Key References
-- Homepage with four modules: `docs/index.md` (bottom section "Library Design with ProtStar")
+- Homepage with four modules: `docs/index.md` (bottom section "Library Design with ProteinGen")
 - PbrR walkthrough (ProteinGuide impl): `~/dfm-worktrees/pbrr-walkthrough/examples/pbrr_walkthrough/`
 - ProteinGuide user guide notes: `proteinguide-userguide-high-level-draft.md`
 - Stability guidance example: `examples/stability_guidance/main.py` (uses `sample_ctmc_linear_interpolation`, TAG, ESM3)

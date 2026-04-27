@@ -34,4 +34,4 @@ Discrete Expert-based Guidance (DEG) uses the probe as an "expert" to bias the g
 
 See the [ProteinGuide workflow](../workflows/protein-guide.md) for the full guided sampling framework.
 
-**Source**: [`examples/trpb_linear_probe.py`](https://github.com/ishan-gaur/protstar/blob/main/examples/trpb_linear_probe.py)
+**Source**: [`examples/trpb_linear_probe.py`](https://github.com/ishan-gaur/proteingen/blob/main/examples/trpb_linear_probe.py)

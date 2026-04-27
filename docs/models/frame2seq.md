@@ -2,7 +2,7 @@
 
 Frame2seq is a structure-conditioned inverse folding model ([Akpinaroglu et al.](https://doi.org/10.1101/2023.12.15.571823)).
 
-- **Class**: `protstar.models.Frame2seq`
+- **Class**: `proteingen.models.Frame2seq`
 - **Source**: [dakpinaroglu/Frame2seq](https://github.com/dakpinaroglu/Frame2seq)
 - **Conditioning**: required (`pdb_path`, `chain_id`)
 - **Output dim**: 22 (20 canonical AAs + blocked `X` + blocked `<mask>`)
@@ -14,7 +14,7 @@ Frame2seq is a structure-conditioned inverse folding model ([Akpinaroglu et al.]
 
 ```python
 import torch
-from protstar.models import Frame2seq
+from proteingen.models import Frame2seq
 
 model = Frame2seq()
 model.set_condition_({"pdb_path": "1YCR.pdb", "chain_id": "A"})

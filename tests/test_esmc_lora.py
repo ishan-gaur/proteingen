@@ -11,8 +11,8 @@ import torch
 import pytest
 from peft import PeftModel
 
-from protstar.modeling import ESMC
-from protstar.modeling import LinearProbe, point_estimate_binary_logits
+from proteingen.modeling import ESMC
+from proteingen.modeling import LinearProbe, point_estimate_binary_logits
 
 
 @pytest.fixture(scope="module")

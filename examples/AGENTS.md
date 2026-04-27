@@ -1,6 +1,6 @@
 # Examples — Agent Notes
 
-End-to-end usage examples demonstrating protstar workflows.
+End-to-end usage examples demonstrating proteingen workflows.
 
 ## Examples
 
@@ -9,7 +9,7 @@ End-to-end usage examples demonstrating protstar workflows.
 | `unconditional_sampling.py` | ESMC unconditional masked diffusion sampling | Working |
 | `stability_guidance/main.py` | Stability-guided protein design using TAG + flow-matching | Working |
 | `stability_guidance/compare_legacy_sampler.py` | Comparison with original demo | **Stale** — uses `from dfm.*` imports |
-| `original_stability_guidance/` | Original working example (local utils, not protstar abstractions) | Working (legacy) |
+| `original_stability_guidance/` | Original working example (local utils, not proteingen abstractions) | Working (legacy) |
 | `pca_embedding_init.py` | ESMC PCA → EmbeddingMLP initialization | Working |
 | `trpb_linear_probe.py` | TrpB fitness predictor with ESMC LinearProbe | Working |
 | `conditional_scoring.py` | Structure-conditioned scoring | Working |

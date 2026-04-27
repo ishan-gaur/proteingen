@@ -22,8 +22,8 @@ Train the model to better predict masked amino acids within a protein family. Us
 ### Setup
 
 ```python
-from protstar.data import ProteinDataset, uniform_mask_noise, uniform_time
-from protstar.models.esm import ESM3
+from proteingen.data import ProteinDataset, uniform_mask_noise, uniform_time
+from proteingen.models.esm import ESM3
 from torch.utils.data import DataLoader
 
 # Load sequences (see MSA → Dataset workflow)
@@ -99,7 +99,7 @@ Train the model to predict sequence from structure. Each sequence has its own pr
 import torch
 from torch.utils.data import DataLoader
 
-from protstar.models.esm import ESM3
+from proteingen.models.esm import ESM3
 
 # Load pre-computed structures (see MSA → Dataset workflow)
 data = torch.load("ephb1_structures.pt", weights_only=False)
@@ -194,7 +194,7 @@ Both example scripts log to wandb. Key metrics:
 - `eval/likelihood_curves` — comparison plot uploaded as image
 
 ```python
-wandb.init(project="protstar-finetune", name="esm3_ephb1_IF_r4")
+wandb.init(project="proteingen-finetune", name="esm3_ephb1_IF_r4")
 # ... training loop with wandb.log() calls ...
 wandb.finish()
 ```

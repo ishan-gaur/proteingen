@@ -218,7 +218,7 @@ def gaussian_binary_logits(
 # ── Template predictive models ──────────────────────────────────────────────
 #
 # Subclass these and implement format_raw_to_logits using the functions above.
-# See protstar/models/ and examples/ for concrete usage.
+# See proteingen/models/ and examples/ for concrete usage.
 
 
 class LinearProbe(PredictiveModel, ABC):

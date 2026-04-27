@@ -6,7 +6,7 @@ import torch
 
 from frame2seq.utils.pdb2input import get_inference_inputs
 
-from protstar.models import Frame2seq
+from proteingen.models import Frame2seq
 
 
 PDB_1YCR = Path("/tmp/test_1YCR.pdb")

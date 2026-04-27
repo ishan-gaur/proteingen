@@ -1,4 +1,4 @@
-"""Tests for protstar.data module."""
+"""Tests for proteingen.data module."""
 
 import tempfile
 from unittest.mock import MagicMock
@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import torch
 import pytest
 
-from protstar.data import (
+from proteingen.data import (
     ProteinDataset,
     uniform_mask_noise,
     no_noise,

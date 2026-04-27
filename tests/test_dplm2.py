@@ -1,6 +1,6 @@
 import torch
 import pytest
-from protstar.modeling import DPLM2
+from proteingen.modeling import DPLM2
 
 
 @pytest.fixture(scope="module")

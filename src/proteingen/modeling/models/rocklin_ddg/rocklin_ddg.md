@@ -21,7 +21,7 @@ PMPNN-based stability predictor for protein design guidance. Developed by the **
   - `encode_structure()` is expensive (runs once per structure)
   - `decode()` is cheap (runs per sample)
   - This split maps to ProbabilityModel's `preprocess_observations` / `forward` pattern
-- `PreTrainedStabilityPredictor(PredictiveModel)` — wraps StabilityPMPNN into the protstar interface
+- `PreTrainedStabilityPredictor(PredictiveModel)` — wraps StabilityPMPNN into the proteingen interface
   - Uses binary logit pattern `[0, logit]`
   - Sets `_target = True` by default
   - No longer overrides `get_log_probs` — uses inherited pipeline
@@ -40,5 +40,5 @@ PMPNN-based stability predictor for protein design guidance. Developed by the **
 
 ## Gotchas
 
-- `data_utils.py` and `guidance_utils.py` in this directory are **legacy** — they predate the protstar abstractions. The old example (`examples/original_stability_guidance/`) uses them directly. The new example (`examples/stability_guidance/main.py`) uses protstar abstractions.
+- `data_utils.py` and `guidance_utils.py` in this directory are **legacy** — they predate the proteingen abstractions. The old example (`examples/original_stability_guidance/`) uses them directly. The new example (`examples/stability_guidance/main.py`) uses proteingen abstractions.
 - Importing from `atomworks` prints env var warnings (CCD_MIRROR_PATH, PDB_MIRROR_PATH) — harmless

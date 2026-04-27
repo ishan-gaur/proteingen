@@ -24,7 +24,7 @@ from config import AF3_POLL_INTERVAL, AF3_SERVER_URL, AF3_TIMEOUT, DATA_DIR, OUT
 
 from af3_server import AF3Client
 
-from protstar.data import fold_sequence_and_download_cif
+from proteingen.data import fold_sequence_and_download_cif
 
 
 def collect_sequences_to_fold() -> dict[str, str]:

@@ -41,7 +41,7 @@ from config import (
     MODEL_CONFIGS,
     OUTPUT_DIR,
 )
-from protstar.eval import plot_decoding_log_prob_trajectories
+from proteingen.eval import plot_decoding_log_prob_trajectories
 
 # Colors for model families
 FAMILY_COLORS = {

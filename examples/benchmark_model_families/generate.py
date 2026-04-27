@@ -29,15 +29,15 @@ from config import DATA_DIR, MASK_FRACTIONS, MODEL_CONFIGS, N_ORDERS, OUTPUT_DIR
 def load_model(family: str, checkpoint: str, device: str):
     """Instantiate a GenerativeModel by family and checkpoint."""
     if family == "esmc":
-        from protstar.modeling import ESMC
+        from proteingen.modeling import ESMC
 
         return ESMC(checkpoint).to(device).eval()
     elif family == "esm3":
-        from protstar.modeling import ESM3
+        from proteingen.modeling import ESM3
 
         return ESM3(checkpoint).to(device).eval()
     elif family == "dplm2":
-        from protstar.modeling import DPLM2
+        from proteingen.modeling import DPLM2
 
         return DPLM2(checkpoint).to(device).eval()
     else:
@@ -117,7 +117,7 @@ def save_teacher_forced_trajectory(
     all_orders: list[list[list[int]]],
 ):
     """Compute and save per-step teacher-forced decode likelihoods."""
-    from protstar.eval import compute_decoding_log_prob_trajectory
+    from proteingen.eval import compute_decoding_log_prob_trajectory
 
     tf_path = model_dir / "teacher_forced_trajectory.json"
     if tf_path.exists():
@@ -159,7 +159,7 @@ def run_generation_for_model(
     """Run ordered ancestral sampling for one model across all configs."""
     import math
 
-    from protstar.sampling import sample
+    from proteingen.sampling import sample
 
     print(f"\n{'=' * 60}")
     print(f"Generating with {display_name} ({checkpoint})")

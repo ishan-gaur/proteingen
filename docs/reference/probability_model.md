@@ -137,4 +137,4 @@ For example, `GenerativeModel.save` writes a `lora_adapter/` directory if LoRA i
 
 ## API Reference
 
-::: protstar.modeling.probability_model
+::: proteingen.modeling.probability_model

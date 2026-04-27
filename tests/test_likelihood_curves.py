@@ -1,4 +1,4 @@
-"""Tests for protstar.eval.likelihood_curves.
+"""Tests for proteingen.eval.likelihood_curves.
 
 Tests compute_log_prob_trajectory and plot_log_prob_trajectories using
 mock generative models (deterministic and uniform) so tests are fast,
@@ -9,8 +9,8 @@ import torch
 import pytest
 from torch import nn
 
-from protstar.modeling import GenerativeModel, PassThroughLogitFormatter
-from protstar.eval.likelihood_curves import (
+from proteingen.modeling import GenerativeModel, PassThroughLogitFormatter
+from proteingen.eval.likelihood_curves import (
     compute_decoding_log_prob_trajectory,
     compute_log_prob_trajectory,
     plot_decoding_log_prob_trajectories,

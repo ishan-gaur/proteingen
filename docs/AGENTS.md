@@ -1,11 +1,11 @@
 # Docs — Agent Notes
 
-MkDocs Material documentation site for ProtStar.
+MkDocs Material documentation site for ProteinGen.
 
 ## Build & Serve
 
 - Build: `uv run mkdocs build` — output in `site/`
-- Serve: `uv run mkdocs serve` — served at `/protstar/` prefix (from `site_url`), not root `/`
+- Serve: `uv run mkdocs serve` — served at `/proteingen/` prefix (from `site_url`), not root `/`
 - `site/` is in `.gitignore`
 
 ## Theme & Extensions
@@ -19,8 +19,8 @@ MkDocs Material documentation site for ProtStar.
 
 ## API Reference
 
-- `mkdocstrings[python]` configured with `paths: [src]` — resolves `protstar.*` modules
-- API reference pages are thin stubs with `::: protstar.<module>` directives
+- `mkdocstrings[python]` configured with `paths: [src]` — resolves `proteingen.*` modules
+- API reference pages are thin stubs with `::: proteingen.<module>` directives
 - griffe warnings about missing type annotations in `generative_modeling.py` (line 152 `**kwargs`, line 408 return) — harmless, fix by adding annotations
 
 ## Nav Structure

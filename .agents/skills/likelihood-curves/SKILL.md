@@ -11,10 +11,10 @@ Evaluate generative models by measuring average log p(x_true) at masked position
 
 ## API
 
-Everything lives in `protstar.eval`:
+Everything lives in `proteingen.eval`:
 
 ```python
-from protstar.eval import compute_log_prob_trajectory, plot_log_prob_trajectories, LogProbTrajectory
+from proteingen.eval import compute_log_prob_trajectory, plot_log_prob_trajectories, LogProbTrajectory
 ```
 
 `LogProbTrajectory` is a data structure for storing the likelihood curve informationfor a model on a set of sequences.
@@ -38,7 +38,7 @@ Defer to the user, but if they aren't sure, depending on the how fast they want 
 
 ## Reference
 
-- Implementation: `src/protstar/eval/likelihood_curves.py`
+- Implementation: `src/proteingen/eval/likelihood_curves.py`
 - End-to-end example: `examples/trpb_likelihood_curves.py`
 ```bash
 uv run python examples/trpb_likelihood_curves.py --device cuda

@@ -1,6 +1,6 @@
 # Workflows
 
-ProtStar organizes its guides into **workflows** and **modules**.
+ProteinGen organizes its guides into **workflows** and **modules**.
 
 **Workflows** are end-to-end recipes at the level of a paper's method — they compose multiple modules into a complete pipeline. **Modules** are the reusable building blocks, each implementing a specific mathematical or engineering idea. Modules are organized by the four library design areas: Data, Models, Sampling, and Evaluation.
 
@@ -55,14 +55,14 @@ Sampler selection and configuration is covered in the [sampling reference](../re
 
 ## Skills
 
-Skills are structured instructions that AI coding agents can load on-demand to perform specific tasks. They live in [`.agents/skills/`](https://github.com/ishan-gaur/protstar/tree/main/.agents/skills) and follow the [Agent Skills standard](https://agentskills.io/specification). Feel free to write your own when making your own workflows and sharing them with the community by [contributing](../contributing.md) to ProtStar.
+Skills are structured instructions that AI coding agents can load on-demand to perform specific tasks. They live in [`.agents/skills/`](https://github.com/ishan-gaur/proteingen/tree/main/.agents/skills) and follow the [Agent Skills standard](https://agentskills.io/specification). Feel free to write your own when making your own workflows and sharing them with the community by [contributing](../contributing.md) to ProteinGen.
 
 !!! tip "Setup"
     To setup skills, make sure to follow the [setup instructions](../setup.md#add-agent-skills), making sure to adapt them to the particular of what your model provider, e.g. Anthropic, OpenAI, Z.ai, etc. expect.
 
 | Skill | Description |
 |-------|-------------|
-| [`follow-workflow`](https://github.com/ishan-gaur/protstar/blob/main/.agents/skills/follow-workflow/SKILL.md) | Plan and implement a library design pipeline by walking through workflows step-by-step |
-| [`add-generative-model`](https://github.com/ishan-gaur/protstar/blob/main/.agents/skills/add-generative-model/SKILL.md) | Integrate a new generative (transition) model into the library |
-| [`add-predictive-model`](https://github.com/ishan-gaur/protstar/blob/main/.agents/skills/add-predictive-model/SKILL.md) | Integrate a new predictive model into the library |
-| [`likelihood-curves`](https://github.com/ishan-gaur/protstar/blob/main/.agents/skills/likelihood-curves/SKILL.md) | Evaluate and plot log-likelihood trajectories for generative models |
+| [`follow-workflow`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/follow-workflow/SKILL.md) | Plan and implement a library design pipeline by walking through workflows step-by-step |
+| [`add-generative-model`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/add-generative-model/SKILL.md) | Integrate a new generative (transition) model into the library |
+| [`add-predictive-model`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/add-predictive-model/SKILL.md) | Integrate a new predictive model into the library |
+| [`likelihood-curves`](https://github.com/ishan-gaur/proteingen/blob/main/.agents/skills/likelihood-curves/SKILL.md) | Evaluate and plot log-likelihood trajectories for generative models |

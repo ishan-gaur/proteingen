@@ -1,6 +1,6 @@
 import torch
 import pytest
-from protstar.modeling import ESMC
+from proteingen.modeling import ESMC
 
 
 @pytest.fixture
