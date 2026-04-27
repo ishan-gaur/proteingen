@@ -8,8 +8,8 @@ DATA_DIR = BASE_DIR / "data"
 OUTPUT_DIR = BASE_DIR / "outputs"
 
 # ── Experiment parameters ────────────────────────────────────────────────
-N_SWISSPROT_SEQS = 10
-N_ORDERS = 5  # random decoding orders per protein
+N_SWISSPROT_SEQS = 20
+N_ORDERS = 1  # single shared decoding order per protein
 MASK_FRACTIONS = [0.10, 0.25, 0.50, 1.00]
 RNG_SEED = 42
 

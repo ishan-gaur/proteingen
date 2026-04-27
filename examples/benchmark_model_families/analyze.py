@@ -2,14 +2,14 @@
 
 Computes:
     - Sequence recovery (% identity to original)
-    - Per-step log-probability trajectories during generation
+    - Teacher-forced per-step decode log-likelihood trajectories
     - AF3 pLDDT and pTM scores
     - TM-score to original structure (requires AF3 CIF files)
     - Fold class classification from secondary structure content (DSSP on AF3 outputs)
     - Scaling analysis within model families
 
 Produces:
-    - Likelihood trajectory plots per masking level
+    - Teacher-forced decode likelihood trajectories (normalized by % unmasked)
     - pLDDT vs masking level (bar charts per model)
     - TM-score vs masking level
     - Sequence recovery vs masking level
@@ -29,6 +29,7 @@ from pathlib import Path
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 
 matplotlib.use("Agg")
 
@@ -40,6 +41,7 @@ from config import (
     MODEL_CONFIGS,
     OUTPUT_DIR,
 )
+from protstar.eval import plot_decoding_log_prob_trajectories
 
 # Colors for model families
 FAMILY_COLORS = {
@@ -213,16 +215,22 @@ def load_all_results() -> dict:
         data["entries"] = json.load(f)
     data["sequences"] = [e["sequence"] for e in data["entries"]]
 
-    # Generation results per model
+    # Generation + teacher-forced trajectory results per model
     data["generation"] = {}
+    data["teacher_forced"] = {}
     for model_dir in sorted(OUTPUT_DIR.iterdir()):
         if not model_dir.is_dir():
             continue
+
         results_path = model_dir / "generation_results.json"
-        if not results_path.exists():
-            continue
-        with open(results_path) as f:
-            data["generation"][model_dir.name] = json.load(f)
+        if results_path.exists():
+            with open(results_path) as f:
+                data["generation"][model_dir.name] = json.load(f)
+
+        tf_path = model_dir / "teacher_forced_trajectory.json"
+        if tf_path.exists():
+            with open(tf_path) as f:
+                data["teacher_forced"][model_dir.name] = json.load(f)
 
     # Fold results
     fold_path = OUTPUT_DIR / "fold_results" / "fold_results.json"
@@ -334,68 +342,44 @@ def build_metrics_table(data: dict) -> list[dict]:
 # ── Plotting ─────────────────────────────────────────────────────────────
 
 
-def plot_likelihood_trajectories(metrics: list[dict]):
-    """Plot per-step log-probability curves grouped by mask fraction and model.
+def plot_teacher_forced_likelihood_trajectories(data: dict):
+    """Plot teacher-forced decode log-likelihood curves across models."""
+    trajectories = []
+    labels = []
 
-    2×2 grid, mean curve + shaded ±1 std region only (no individual trajectories).
-    """
-    n = len(MASK_FRACTIONS)
-    nrows, ncols = 2, 2
-    fig, axes = plt.subplots(nrows, ncols, figsize=(12, 10), sharey=True)
-    axes = axes.flatten()
+    for _, display_name, _, _ in MODEL_CONFIGS:
+        model_dir_name = display_name.replace(" ", "_")
+        raw = data.get("teacher_forced", {}).get(model_dir_name)
+        if raw is None:
+            continue
 
-    for idx, mf in enumerate(MASK_FRACTIONS):
-        ax = axes[idx]
-        for model_name, color in MODEL_COLORS.items():
-            model_rows = [
-                r
-                for r in metrics
-                if r["model"] == model_name and r["mask_fraction"] == mf
-            ]
-            if not model_rows:
-                continue
+        trajectories.append(
+            {
+                "percent_unmasked": [
+                    torch.tensor(x, dtype=torch.float32)
+                    for x in raw["percent_unmasked"]
+                ],
+                "decoded_position_log_probs": [
+                    torch.tensor(y, dtype=torch.float32)
+                    for y in raw["decoded_position_log_probs"]
+                ],
+            }
+        )
+        labels.append(display_name)
 
-            all_lps = [
-                row["step_log_probs"] for row in model_rows if row["step_log_probs"]
-            ]
-            if not all_lps:
-                continue
+    if not trajectories:
+        print("No teacher-forced trajectories found; skipping trajectory plot")
+        return
 
-            common_grid = np.linspace(0, 1, 50)
-            interp_lps = []
-            for lps in all_lps:
-                xs = np.linspace(0, 1, len(lps))
-                interp_lps.append(np.interp(common_grid, xs, lps))
-            mean_lp = np.mean(interp_lps, axis=0)
-            std_lp = np.std(interp_lps, axis=0)
-            ax.plot(common_grid, mean_lp, color=color, linewidth=2, label=model_name)
-            ax.fill_between(
-                common_grid,
-                mean_lp - std_lp,
-                mean_lp + std_lp,
-                alpha=0.2,
-                color=color,
-            )
-
-        ax.set_title(f"Mask = {mf:.0%}", fontsize=12)
-        ax.set_xlabel("Fraction of masked positions filled")
-        if idx % ncols == 0:
-            ax.set_ylabel("Log p(sampled token)")
-
-    # Hide unused subplots if MASK_FRACTIONS < 4
-    for idx in range(n, nrows * ncols):
-        axes[idx].set_visible(False)
-
-    # Single legend outside the grid
-    handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(
-        handles, labels, loc="center right", bbox_to_anchor=(1.12, 0.5), fontsize=9
+    out_path = PLOT_DIR / "teacher_forced_likelihood_trajectories.png"
+    plot_decoding_log_prob_trajectories(
+        trajectories=trajectories,
+        labels=labels,
+        output_path=out_path,
+        show_individual=False,
+        title="Teacher-forced log-likelihood of decoded position",
     )
-    fig.suptitle("Generation log-likelihood trajectories", fontsize=14)
-    fig.tight_layout()
-    fig.savefig(PLOT_DIR / "likelihood_trajectories.png", dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    print(f"Saved: {PLOT_DIR / 'likelihood_trajectories.png'}")
+    print(f"Saved: {out_path}")
 
 
 def plot_metric_vs_masking(
@@ -483,7 +467,6 @@ def plot_scaling_analysis(metrics: list[dict]):
 
     for metric_key, ylabel in [
         ("sequence_identity", "Sequence Identity"),
-        ("mean_step_log_prob", "Mean Step Log Prob"),
         ("plddt", "AF3 pLDDT"),
         ("tm_score", "TM-score"),
     ]:
@@ -687,6 +670,7 @@ def main():
     data = load_all_results()
     print(f"  {len(data['entries'])} original sequences")
     print(f"  {len(data['generation'])} models with generation results")
+    print(f"  {len(data['teacher_forced'])} models with teacher-forced trajectories")
     print(f"  {len(data['fold'])} fold results")
 
     if not data["generation"]:
@@ -712,12 +696,9 @@ def main():
 
     # Generate plots
     print("\nGenerating plots...")
-    plot_likelihood_trajectories(metrics)
+    plot_teacher_forced_likelihood_trajectories(data)
     plot_metric_vs_masking(
         metrics, "sequence_identity", "Sequence Identity", "sequence_identity.png"
-    )
-    plot_metric_vs_masking(
-        metrics, "mean_step_log_prob", "Mean Step Log Prob", "mean_step_log_prob.png"
     )
 
     if any(not np.isnan(r.get("plddt", float("nan"))) for r in metrics):

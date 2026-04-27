@@ -11,7 +11,9 @@ from torch import nn
 
 from protstar.modeling import GenerativeModel, PassThroughLogitFormatter
 from protstar.eval.likelihood_curves import (
+    compute_decoding_log_prob_trajectory,
     compute_log_prob_trajectory,
+    plot_decoding_log_prob_trajectories,
     plot_log_prob_trajectories,
 )
 
@@ -276,6 +278,37 @@ class TestEdgeCases:
 
 
 # ---------------------------------------------------------------------------
+# compute_decoding_log_prob_trajectory
+# ---------------------------------------------------------------------------
+
+
+class TestDecodingTrajectory:
+    def test_returns_one_curve_per_sequence(self, uniform_model):
+        seqs = ["01234", "43210"]
+        orders = [torch.tensor([1, 2, 3, 4, 5]), torch.tensor([1, 2, 3, 4, 5])]
+        result = compute_decoding_log_prob_trajectory(seqs, uniform_model, orders)
+
+        assert len(result["percent_unmasked"]) == 2
+        assert len(result["decoded_position_log_probs"]) == 2
+        assert result["percent_unmasked"][0].shape == (5,)
+        assert result["decoded_position_log_probs"][0].shape == (5,)
+
+    def test_uniform_model_values_are_constant(self, uniform_model):
+        seqs = ["01234"]
+        orders = [torch.tensor([1, 2, 3, 4, 5])]
+        result = compute_decoding_log_prob_trajectory(seqs, uniform_model, orders)
+        expected = torch.tensor(1 / 5.0).log()
+        lp = result["decoded_position_log_probs"][0]
+        assert torch.allclose(lp, expected.expand_as(lp), atol=1e-4)
+
+    def test_invalid_order_raises(self, uniform_model):
+        seqs = ["01234"]
+        orders = [torch.tensor([0, 1, 2, 3, 4])]  # includes BOS (non-maskable)
+        with pytest.raises(ValueError):
+            compute_decoding_log_prob_trajectory(seqs, uniform_model, orders)
+
+
+# ---------------------------------------------------------------------------
 # plot_log_prob_trajectories — file output
 # ---------------------------------------------------------------------------
 
@@ -339,5 +372,15 @@ class TestMultiConditionPlot:
         """show_individual=False should still produce a valid plot."""
         traj = compute_log_prob_trajectory(["01234"], det_model, n_time_points=3)
         plot_log_prob_trajectories([traj], ["test"], tmp_plot, show_individual=False)
+        assert tmp_plot.exists()
+        assert tmp_plot.stat().st_size > 0
+
+
+class TestDecodingPlot:
+    def test_decoding_plot_file_created(self, uniform_model, tmp_plot):
+        seqs = ["01234", "43210"]
+        orders = [torch.tensor([1, 2, 3, 4, 5]), torch.tensor([1, 2, 3, 4, 5])]
+        traj = compute_decoding_log_prob_trajectory(seqs, uniform_model, orders)
+        plot_decoding_log_prob_trajectories([traj], ["uniform"], tmp_plot)
         assert tmp_plot.exists()
         assert tmp_plot.stat().st_size > 0

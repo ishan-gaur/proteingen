@@ -6,7 +6,7 @@ Available skills:
 - `follow-workflow` — plan and implement a library design pipeline by walking through workflows step-by-step
 - `add-generative-model` — workflow for integrating a new generative model into the library
 - `add-predictive-model` — workflow for integrating a new predictive model into the library
-- `likelihood-curves` — evaluate and plot log-likelihood trajectories for generative models under progressive unmasking
+- `likelihood-curves` — evaluate and plot log-likelihood trajectories for generative models under progressive unmasking. Also supports teacher-forced decode trajectories via `compute_decoding_log_prob_trajectory`.
 
 ## Project Management
 
@@ -49,6 +49,14 @@ Available skills:
 - `docs/` — MkDocs documentation site. See → [docs/AGENTS.md](docs/AGENTS.md)
 - `TODO.md`, `PLAN.md`, `DESIGN.md` — roadmap and design docs
 
+
+## Benchmark Model Families Notes
+
+- `examples/benchmark_model_families/prepare_data.py` currently queries `(reviewed:true) AND (length:[min TO max])` without an organism diversity constraint; with seed 42 this returns all-human sequences. If taxonomic diversity matters, add an explicit organism filter/sampling strategy.
+- Teacher-forced trajectories are saved per model at `outputs/<MODEL>/teacher_forced_trajectory.json` and plotted by `analyze.py` as `teacher_forced_likelihood_trajectories.png`.
+- Teacher-forced trajectory computation is the slow part of `generate.py` (~5-50s per sequence on GPU depending on length). It batches `batch_size=32` decode steps per forward pass.
+- Running all 6 models on 4 GPUs in parallel via backgrounded `CUDA_VISIBLE_DEVICES` processes works well. Each model only needs ~2-8 GB VRAM for 20 sequences of length 80-300.
+- With 20 sequences × 1 order × 4 masking levels = 80 generation samples per model, 480 total.
 
 ## AF3 Server
 

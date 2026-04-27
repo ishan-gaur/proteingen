@@ -13,6 +13,19 @@ traj = compute_log_prob_trajectory(sequences, model, n_time_points=20)
 plot_log_prob_trajectories([traj], ["ESMC-300M"], "likelihood.png")
 ```
 
+For fixed-order teacher-forced decoding diagnostics (log p of the *true token* at
+the position currently being decoded):
+
+```python
+from protstar.eval import (
+    compute_decoding_log_prob_trajectory,
+    plot_decoding_log_prob_trajectories,
+)
+
+traj = compute_decoding_log_prob_trajectory(sequences, model, orders)
+plot_decoding_log_prob_trajectories([traj], ["ESMC-300M"], "decode_likelihood.png")
+```
+
 At each noise level $t \in [0, 1)$, positions are randomly unmasked with probability $t$, and the model's average log $p(x_\text{true})$ at the remaining masked positions is recorded. This produces a curve from "no context" (left) to "full context" (right).
 
 **What to look for:**
