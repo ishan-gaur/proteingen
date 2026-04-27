@@ -139,6 +139,7 @@ Replaces old `GuidanceDataset`. Key design choices from discussion:
 - `dfm-worktrees/` may contain orphaned directories not tracked by `git worktree list` — check with `ls` not just `git worktree list`
 - If a worktree folder was manually deleted, run `git worktree prune --verbose` in the main repo to remove stale registrations (`git worktree remove` cannot run if the path is already gone).
 - Current registered worktrees: `main`, `spawn/pbrr-walkthrough`, `spawn/progen`, `spawn/recursive-modules`, `docs`, `spawn/pmpnn`, `spawn/gaussian-predictors`.
+- `spawn/progen` was based on pre-reorg layout (`docs/models.md`, `src/proteingen/models/progen3`). Integrating it into current main requires mapping to `docs/models/index.md` and `src/proteingen/modeling/models/progen3`.
 - Deleted branches that still have stale local/remote refs: `spawn/cinderdrella`, `spawn/likelihood-curves` — can be cleaned with `git branch -d` / `git push origin --delete`
 - One stash exists on `spawn/landing-page` branch: `WIP on spawn/landing-page: 1d4d90d`
 - `dfm-worktrees/landing-page-copy/` also exists — status unknown
