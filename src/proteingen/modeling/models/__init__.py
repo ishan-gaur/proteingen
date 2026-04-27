@@ -14,6 +14,13 @@ __all__ = [
 ]
 
 try:
+    from .progen3 import ProGen3
+
+    __all__.append("ProGen3")
+except ImportError:
+    pass
+
+try:
     from .mpnn import ProteinMPNN
 
     __all__.append("ProteinMPNN")

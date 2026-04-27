@@ -71,6 +71,13 @@ __all__ = [
 ]
 
 try:
+    from .models import ProGen3
+
+    __all__.append("ProGen3")
+except ImportError:
+    pass
+
+try:
     from .models import ProteinMPNN
 
     __all__.append("ProteinMPNN")

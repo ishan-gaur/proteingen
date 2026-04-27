@@ -4,16 +4,16 @@ These tests require the progen3 package and a GPU with Flash Attention support.
 Skip with: pytest -k "not progen3"
 """
 
+import importlib.util
+
 import pytest
 import torch
 
-progen3_available = False
-try:
+progen3_available = importlib.util.find_spec("progen3") is not None
+
+if progen3_available:
     from proteingen.models.progen3 import ProGen3
 
-    progen3_available = True
-except ImportError:
-    pass
 
 pytestmark = pytest.mark.skipif(
     not progen3_available, reason="progen3 package not installed"

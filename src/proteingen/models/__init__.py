@@ -44,7 +44,7 @@ except ImportError:
     pass
 
 try:
-    from .progen3 import ProGen3
+    from proteingen.modeling.models import ProGen3
 
     __all__.append("ProGen3")
 except ImportError:
@@ -67,7 +67,7 @@ _MODULE_ALIASES = {
     "esm_api": "proteingen.modeling.models.esm.esm_api",
     "dplm2": "proteingen.modeling.models.dplm2",
     "frame2seq": "proteingen.modeling.models.frame2seq",
-    "progen3": "proteingen.models.progen3",
+    "progen3": "proteingen.modeling.models.progen3",
     "mpnn": "proteingen.modeling.models.mpnn",
     "rocklin_ddg": "proteingen.modeling.models.rocklin_ddg",
     "utils": "proteingen.data.structure",

@@ -23,7 +23,7 @@ from typing import Any, TypedDict
 import torch
 from torch import nn
 
-from proteingen.generative_modeling import (
+from proteingen.modeling.generative_modeling import (
     GenerativeModelWithEmbedding,
     LogitFormatter,
 )
