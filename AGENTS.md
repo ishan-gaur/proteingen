@@ -10,7 +10,7 @@ Available skills:
 
 ## Project Management
 
-- Use `uv` for all package management and running Python code [×21]
+- Use `uv` for all package management and running Python code [×22]
   - Install dependencies: `uv add <package>`
   - Run scripts: `uv run python <script>`
   - Sync environment: `uv sync`
@@ -106,7 +106,7 @@ Available skills:
 - Setup docs use tab pairs: always show both "uv" and "conda / pip" paths
 - Conda tab recommends Miniforge (ships with mamba) but calls everything "conda" to avoid confusing users
 - `??? note` admonition = collapsed by default (used for Installing Claude Code section)
-- Material announcement bars require a theme override (`docs/overrides/main.html` with `{% block announce %}`) plus `theme.custom_dir`; `extra.announcement` alone does not render in this setup.
+- Material announcement bars require a theme override (`docs/overrides/main.html` with `{% block announce %}`) plus `theme.custom_dir`; `extra.announcement` alone does not render in this setup. [×5]
 
 ## ProteinDataset Design Decisions
 
