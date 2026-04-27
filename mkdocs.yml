@@ -34,6 +34,9 @@ extra_javascript:
   - https://unpkg.com/mermaid@10/dist/mermaid.min.js
   - assets/javascripts/mermaid-init.js
 
+extra:
+  announcement: "🧪 ProteinGen is in private beta, <a href='mailto:ishang@berkeley.edu?subject=ProteinGen%20Private%20Beta'>email me</a> at ishang@berkeley.edu to join."
+
 markdown_extensions:
   - admonition
   - pymdownx.details
