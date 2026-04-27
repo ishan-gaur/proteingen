@@ -29,6 +29,7 @@ class GuidanceProjection(nn.Module, ABC):
         logp_gen_SPT: torch.FloatTensor,
         *,
         use_clean_classifier: bool,
+        n_samples: int = 1,
     ) -> PreparedGuidanceInput:
         """Build predictor input tokens and Taylor baseline in gen token space."""
         ...
@@ -145,9 +146,12 @@ class LinearGuidanceProjection(GuidanceProjection):
         logp_gen_SPT: torch.FloatTensor,
         *,
         use_clean_classifier: bool,
+        n_samples: int = 1,
     ) -> PreparedGuidanceInput:
         seq_for_grad_SP = seq_gen_SP
         if use_clean_classifier:
+            if n_samples > 1:
+                raise NotImplementedError("n_samples > 1 not implemented for TAG yet")
             seq_for_grad_SP = _fill_masked_with_argmax(
                 seq_gen_SP,
                 logp_gen_SPT,
@@ -208,16 +212,28 @@ class LinearGuidanceProjection(GuidanceProjection):
         return delta_gen_SPT
 
 
-def _fill_masked_with_argmax(seq_SP, logp_gen_SPT, mask_token_id, vocab_size):
-    """Replace mask tokens with gen model's argmax predictions."""
+def _fill_masked_with_argmax(seq_SP, logp_gen_SPT, mask_token_id, vocab_size, n_samples=1):
+    """Replace mask tokens with gen model's argmax predictions.
+    If n_samples > 1, samples from the distribution instead.
+    """
     if mask_token_id is None:
-        return seq_SP
+        return seq_SP.repeat(n_samples, 1)
     mask = seq_SP == mask_token_id
     if not mask.any():
-        return seq_SP
-    gen_argmax = logp_gen_SPT[..., :vocab_size].argmax(dim=-1)
-    filled = seq_SP.clone()
-    filled[mask] = gen_argmax[mask]
+        return seq_SP.repeat(n_samples, 1)
+    
+    filled = seq_SP.repeat(n_samples, 1)
+    mask_expanded = mask.repeat(n_samples, 1)
+    
+    if n_samples == 1:
+        gen_preds = logp_gen_SPT[..., :vocab_size].argmax(dim=-1)
+        filled[mask] = gen_preds[mask]
+    else:
+        # logp_gen_SPT is [1, P, V] here
+        probs = torch.softmax(logp_gen_SPT[0, ..., :vocab_size], dim=-1) # [P, V]
+        gen_preds = torch.multinomial(probs, num_samples=n_samples, replacement=True).transpose(0, 1) # [n_samples, P]
+        filled[mask_expanded] = gen_preds[mask_expanded]
+        
     return filled
 
 
@@ -237,6 +253,7 @@ class TAG(GenerativeModel):
         pred_model: PredictiveModel,
         use_clean_classifier: bool = False,
         projection: Optional[GuidanceProjection] = None,
+        n_fill_samples: int = 1,
     ):
         super().__init__(
             model=gen_model.model,
@@ -246,6 +263,7 @@ class TAG(GenerativeModel):
         self.gen_model = gen_model
         self.pred_model = pred_model
         self.argmax_masked_positions = use_clean_classifier
+        self.n_fill_samples = n_fill_samples
         if projection is None:
             projection = LinearGuidanceProjection(
                 tokenizer_gen=gen_model.tokenizer,
@@ -264,6 +282,7 @@ class TAG(GenerativeModel):
             seq_SP,
             logp_xtilde_g_x_SPT,
             use_clean_classifier=self.argmax_masked_positions,
+            n_samples=self.n_fill_samples,
         )
         # Compute gradient at temp=1 for natural gradient shape (no sigmoid
         # saturation), then use the predictor's temperature purely as a linear
@@ -288,6 +307,7 @@ class DEG(GenerativeModel):
         gen_model: GenerativeModel,
         pred_model: PredictiveModel,
         argmax_masked_positions: bool = False,
+        n_fill_samples: int = 1,
     ):
         super().__init__(
             model=gen_model.model,
@@ -298,6 +318,7 @@ class DEG(GenerativeModel):
         self.gen_model = gen_model
         self.pred_model = pred_model
         self.argmax_masked_positions = argmax_masked_positions
+        self.n_fill_samples = n_fill_samples
         self.positions_to_score_S = None
 
     @contextmanager
@@ -327,20 +348,31 @@ class DEG(GenerativeModel):
                 continue
             base = seq_SP[s].clone()
             if self.argmax_masked_positions:
-                base = _fill_masked_with_argmax(
+                base_M = _fill_masked_with_argmax(
                     base.unsqueeze(0),
                     logp_xtilde_g_x_SPT[s].unsqueeze(0),
                     mask_token_id,
                     n_tok,
-                ).squeeze(0)
-            # for simplicity just try all possible tokens--including special ones TODO[pi] we could instead use the
-            # logitformatter mask in order to only try the valid transitions here
-            seq_XP = base.unsqueeze(0).repeat(
-                n_tok, 1
-            )  # X is the index over tokens we're trying
-            seq_XP[:, p] = torch.arange(n_tok, device=seq_SP.device)
+                    n_samples=self.n_fill_samples,
+                ) # [n_samples, P]
+            else:
+                base_M = base.unsqueeze(0)
+            
+            n_samples = base_M.shape[0]
+            # Create [n_samples, n_tok, P] by expanding base_M
+            seq_MXP = base_M.unsqueeze(1).repeat(1, n_tok, 1)
+            # Set the current position p to all possible tokens
+            seq_MXP[:, :, p] = torch.arange(n_tok, device=seq_SP.device).unsqueeze(0).expand(n_samples, -1)
+            # Flatten to [n_samples * n_tok, P]
+            seq_flat = seq_MXP.view(-1, seq_SP.size(1))
+            
             with torch.no_grad():
-                logp_y_g_xtilde_X = self.pred_model.get_log_probs(seq_XP)
+                logp_y_g_xtilde_flat = self.pred_model.get_log_probs(seq_flat)
+            # Reshape back to [n_samples, n_tok]
+            logp_y_g_xtilde_MX = logp_y_g_xtilde_flat.view(n_samples, n_tok)
+            # Log-mean-exp over the samples: log( (1/M) sum_m exp(logp_m) )
+            logp_y_g_xtilde_X = torch.logsumexp(logp_y_g_xtilde_MX, dim=0) - torch.log(torch.tensor(n_samples, dtype=torch.float32, device=seq_SP.device))
+            
             logp_y_g_xtilde_SPT[s, p, :n_tok] = logp_y_g_xtilde_X
             # Don't need to take care of making the others -inf since the logit_formatter will take care of the invalid ones (including the invalid ones we tested lol)
         return logp_y_g_xtilde_SPT + logp_xtilde_g_x_SPT

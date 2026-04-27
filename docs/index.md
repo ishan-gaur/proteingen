@@ -204,11 +204,14 @@ With ProtStar, designing libraries to optimize some property of a protein requir
 3. [Sampling](reference/sampling.md): generating a library to optimize your property using the models
 4. [Evaluation](reference/evaluation.md): tools to sanity check the pipeline at each of the 3 preceding stages
 
+Let's now look at two examples of this breakdown: unconditional and guided library design.
 
 
 
 
-### Unconditional Sampling (Models + Sampling)
+
+### Unconditional Sampling
+
 
 The simplest pipeline: sample from a pretrained model with no data and no property optimization. This demonstrates the **Models** and **Sampling** modules.
 
@@ -224,16 +227,21 @@ seqs = sample(model, ["<mask>" * 100] * 8)["sequences"]  # 8 random proteins
 
 That's it, four lines. The `sample` function calls the `ESMC` model's `get_log_probs` function under the hood. Using the probabilities `ESMC` predicts at each masked position, the sampler iteratively fills in the amino acids in the sequence. See the [unconditional sampling example](examples/unconditional-sampling.md) for details.
 
-### Guided Library Design (All Four Modules)
+### Guided Library Design
 
-In the previous section, we looked at a very simple example of doing library design with protein gen. Unconditional sampling just uses a pre-trained model and gets sequences from it; however, most workflows that we'd use to design a real library are a little more involved. One example is a conditional generation method from a recent paper called Protein Guide. Protein Guide keeps the same masked sequence modeling core, but trains a separate property predictor (e.g. of stability or activity) and uses it to guide the sequence models generations.
 
-- Unconditional: `ESMC → Sample → Library`
-- ProteinGuide: `ESMC + Assay Data → Train + Validate Predictor → Construct Guided Model → Sample → In-silico Library Validation`
+In the previous section, we looked at a very simple example of doing library design with ProteinGen. Unconditional sampling just uses a pre-trained model and gets sequences from it; however, most workflows that we'd use to design a real library are a little more involved. One example is a conditional generation method from a recent paper called ProteinGuide. ProteinGuide keeps the same masked sequence modeling core, but trains a separate property predictor (e.g. of stability or activity) and uses it to guide the sequence models generations.
 
 
 
-Below is we've delineated the main steps of ProteinGuide and which ProtStar APIs they use. For more conceptual detail on the method, checkout the [ProteinGuide workflow](add-link-pls).
+- Unconditional: `ESMC → Sample → Library Validation`
+
+- ProteinGuide: `ESMC + Assay Data → Train + Validate Predictor → Construct Guided Model → Sample → Library Validation`
+
+
+
+
+Below is we've delineated the main steps of ProteinGuide and which ProtStar APIs they use. For more conceptual detail on the method, checkout the [ProteinGuide workflow](workflows/protein-guide.md).
 
 1. Data: create a [`ProteinDataset`](reference/data.md#proteindataset) using your assay-labeled variants
 2. Train and validate models: then use the [Data Splits](workflows/data-splits.md) to [train](workflows/training-predictors.md) several `PredictiveModels` (e.g. `OHEMLP`, `LinearProbe`, `SecondOrderLinearModel`) and select the one that seems to generalize best.

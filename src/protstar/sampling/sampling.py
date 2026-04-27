@@ -19,12 +19,14 @@ class SamplingTrajectory(TypedDict):
     step_positions: (S, n_total) — which position was sampled at each step.
         Padding entries are 0 (the BOS position).
     step_tokens: (S, n_total) — which token was sampled at each step.
+    step_p_y_gt_t: (S, n_total) — optional tracking of property probabilities.
     """
 
     sequences: list[str]
     step_log_probs: torch.Tensor
     step_positions: torch.Tensor
     step_tokens: torch.Tensor
+    step_p_y_gt_t: torch.Tensor | None
 
 
 SamplingStep = Callable[
@@ -230,6 +232,7 @@ def sample(
     n_parallel: int = 1,
     in_order: Optional[list[torch.LongTensor] | str] = None,
     live_preview: bool = True,
+    record_p_y_gt_t: bool = False,
 ) -> SamplingTrajectory:
     """Ancestral sampling for masked generative models.
 
@@ -299,6 +302,7 @@ def sample(
     step_log_probs = torch.full((S, padded_len), float("nan"))
     step_positions = order_flat.clone()
     step_tokens = torch.full((S, padded_len), -1, dtype=torch.long)
+    step_p_y_gt_t = torch.full((S, padded_len), float("nan")) if record_p_y_gt_t else None
 
     preview = LiveSamplingPreview(model.tokenizer, enabled=live_preview)
 
@@ -343,6 +347,12 @@ def sample(
             step_log_probs[:, flat_start:flat_end] = token_log_probs.cpu()
             step_tokens[:, flat_start:flat_end] = tokens.cpu()
 
+            if record_p_y_gt_t and hasattr(model, "pred_model"):
+                pred_log_probs = model.pred_model.get_log_probs(x_SP)
+                p_y_gt_t = torch.exp(pred_log_probs).cpu()
+                if step_p_y_gt_t is not None:
+                    step_p_y_gt_t[:, flat_start:flat_end] = p_y_gt_t.unsqueeze(-1).expand(S, n_parallel)
+
             pbar.update(1)
 
             preview.update(x_SP)
@@ -355,6 +365,7 @@ def sample(
         step_log_probs=step_log_probs,
         step_positions=step_positions,
         step_tokens=step_tokens,
+        step_p_y_gt_t=step_p_y_gt_t,
     )
 
 

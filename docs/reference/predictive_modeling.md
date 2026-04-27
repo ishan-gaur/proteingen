@@ -126,4 +126,4 @@ Key details:
 
 ## API Reference
 
-::: protstar.predictive_modeling
+::: protstar.modeling.predictive_modeling

@@ -109,4 +109,4 @@ model.load_lora("adapters/my_adapter")
 
 ## API Reference
 
-::: protstar.generative_modeling
+::: protstar.modeling.generative_modeling
