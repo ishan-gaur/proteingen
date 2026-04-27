@@ -10,7 +10,7 @@ Available skills:
 
 ## Project Management
 
-- Use `uv` for all package management and running Python code [×17]
+- Use `uv` for all package management and running Python code [×18]
   - Install dependencies: `uv add <package>`
   - Run scripts: `uv run python <script>`
   - Sync environment: `uv sync`
@@ -89,11 +89,13 @@ Available skills:
 
 ## Optional Dependency Extras
 
-- `proteingen[pmpnn]` → `rc-foundry[all]`, `proteingen[af3]` → `af3-server`, `proteingen[all]` → both
+- `proteingen[pmpnn]` → `rc-foundry[all]`, `proteingen[progen3]` → `progen3`, `proteingen[af3]` → `af3-server`
+- `pmpnn` and `progen3` are marked as conflicting extras in `[tool.uv.conflicts]` (CUDA stack mismatch: Foundry wants newer cu12 libs; ProGen3 pins `torch<2.5.2`). They need separate env syncs.
+- Dev convenience groups mirror optional model deps: `dev-pmpnn`, `dev-progen3`, `dev-af3` (use `uv sync --group <name>` in addition to `--group dev` as needed).
 - `models/__init__.py` guards ProteinMPNN and PreTrainedStabilityPredictor imports with `try/except ImportError` so base `import proteingen` works without optional extras
 - ProteinMPNN weights auto-download on first use via `foundry_cli.download_checkpoints.install_model` — no manual `foundry install proteinmpnn` step needed
 - `af3-server` is not imported anywhere in proteingen source — purely a convenience dependency for users
-- `mkdocs-liveedit` and `af3-server` both resolve via `[tool.uv.sources]` git URLs — pip users without uv can't resolve these from PyPI (af3-server: `pip install git+https://github.com/ishan-gaur/af3-server.git`)
+- `mkdocs-liveedit`, `af3-server`, and `progen3` resolve via `[tool.uv.sources]` git URLs — pip users without uv can't resolve these from PyPI (af3-server: `pip install git+https://github.com/ishan-gaur/af3-server.git`, progen3: `pip install git+https://github.com/Profluent-AI/progen3.git`)
 - Dev/docs dependencies (mkdocs, ruff, pytest, python-lsp-server) stay in base package — users are contributors by default
 
 ## Docs Conventions

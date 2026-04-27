@@ -27,18 +27,50 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+pmpnn = ["rc-foundry[all]"]
 progen3 = ["progen3"]
+af3 = ["af3-server"]
 
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
     "ruff>=0.15.1",
 ]
+dev-pmpnn = [
+    "rc-foundry[all]",
+]
+dev-progen3 = [
+    "progen3",
+]
+dev-af3 = [
+    "af3-server",
+]
 
 [build-system]
 requires = ["uv_build>=0.9.22,<0.10.0"]
 build-backend = "uv_build"
 
+[tool.uv]
+conflicts = [
+    [
+        { extra = "pmpnn" },
+        { extra = "progen3" },
+    ],
+    [
+        { group = "dev-pmpnn" },
+        { extra = "progen3" },
+    ],
+    [
+        { group = "dev-pmpnn" },
+        { group = "dev-progen3" },
+    ],
+    [
+        { extra = "pmpnn" },
+        { group = "dev-progen3" },
+    ],
+]
+
 [tool.uv.sources]
 mkdocs-liveedit = { git = "https://github.com/ishan-gaur/mkdocs-liveedit.git" }
+af3-server = { git = "https://github.com/ishan-gaur/af3-server.git" }
 progen3 = { git = "https://github.com/Profluent-AI/progen3.git" }

@@ -2,11 +2,22 @@ version = 1
 revision = 3
 requires-python = "==3.12.*"
 resolution-markers = [
-    "sys_platform == 'win32'",
-    "sys_platform == 'emscripten'",
     "sys_platform == 'linux'",
-    "sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32'",
+    "sys_platform != 'linux'",
 ]
+conflicts = [[
+    { package = "proteingen", extra = "pmpnn" },
+    { package = "proteingen", extra = "progen3" },
+], [
+    { package = "proteingen", extra = "progen3" },
+    { package = "proteingen", group = "dev-pmpnn" },
+], [
+    { package = "proteingen", group = "dev-pmpnn" },
+    { package = "proteingen", group = "dev-progen3" },
+], [
+    { package = "proteingen", extra = "pmpnn" },
+    { package = "proteingen", group = "dev-progen3" },
+]]
 
 [[package]]
 name = "absl-py"
@@ -28,11 +39,20 @@ dependencies = [
     { name = "psutil" },
     { name = "pyyaml" },
     { name = "safetensors" },
-    { name = "torch" },
+    { name = "torch", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ca/14/787e5498cd062640f0f3d92ef4ae4063174f76f9afd29d13fc52a319daae/accelerate-1.13.0.tar.gz", hash = "sha256:d631b4e0f5b3de4aff2d7e9e6857d164810dfc3237d54d017f075122d057b236", size = 402835, upload-time = "2026-03-04T19:34:12.359Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7e/46/02ac5e262d4af18054b3e922b2baedbb2a03289ee792162de60a865defc5/accelerate-1.13.0-py3-none-any.whl", hash = "sha256:cf1a3efb96c18f7b152eb0fa7490f3710b19c3f395699358f08decca2b8b62e0", size = 383744, upload-time = "2026-03-04T19:34:10.313Z" },
+]
+
+[[package]]
+name = "af3-server"
+version = "0.1.0"
+source = { git = "https://github.com/ishan-gaur/af3-server.git#fbf21e1c90d3c1067c4739084afd871d20dc331f" }
+dependencies = [
+    { name = "requests" },
 ]
 
 [[package]]
@@ -182,7 +202,8 @@ ml = [
     { name = "beartype" },
     { name = "einops" },
     { name = "jaxtyping" },
-    { name = "torch" },
+    { name = "torch", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
 ]
 
 [[package]]
@@ -362,7 +383,7 @@ name = "cffi"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pycparser", marker = "implementation_name != 'PyPy'" },
+    { name = "pycparser", marker = "implementation_name != 'PyPy' or (extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/eb/56/b1ba7935a17738ae8453301356628e8147c79dbb825bcbc73dc7401f9846/cffi-2.0.0.tar.gz", hash = "sha256:44d1b5909021139fe36001ae048dbdde8214afa20200eda0f64c068cac5d5529", size = 523588, upload-time = "2025-09-08T23:24:04.541Z" }
 wheels = [
@@ -410,7 +431,7 @@ name = "click"
 version = "8.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/3d/fa/656b739db8587d7b5dfa22e22ed02566950fbfbcdc20311993483657a5c0/click-8.3.1.tar.gz", hash = "sha256:12ff4785d337a1bb490bb7e9c2b1ee5da3112e94a8622f26a6c77f5d2fc6842a", size = 295065, upload-time = "2025-11-15T20:45:42.706Z" }
 wheels = [
@@ -464,6 +485,62 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/cf/8f/5847f44a7fddf859704217a99a23a4f6417b10e5ab1256a179264561540e/contourpy-1.3.3-cp312-cp312-win32.whl", hash = "sha256:023b44101dfe49d7d53932be418477dba359649246075c996866106da069af69", size = 185018, upload-time = "2025-07-26T12:01:35.64Z" },
     { url = "https://files.pythonhosted.org/packages/19/e8/6026ed58a64563186a9ee3f29f41261fd1828f527dd93d33b60feca63352/contourpy-1.3.3-cp312-cp312-win_amd64.whl", hash = "sha256:8153b8bfc11e1e4d75bcb0bff1db232f9e10b274e0929de9d608027e0d34ff8b", size = 226567, upload-time = "2025-07-26T12:01:36.804Z" },
     { url = "https://files.pythonhosted.org/packages/d1/e2/f05240d2c39a1ed228d8328a78b6f44cd695f7ef47beb3e684cf93604f86/contourpy-1.3.3-cp312-cp312-win_arm64.whl", hash = "sha256:07ce5ed73ecdc4a03ffe3e1b3e3c1166db35ae7584be76f65dbbe28a7791b0cc", size = 193655, upload-time = "2025-07-26T12:01:37.999Z" },
+]
+
+[[package]]
+name = "cuequivariance"
+version = "0.10.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "networkx" },
+    { name = "numpy" },
+    { name = "opt-einsum" },
+    { name = "scipy" },
+    { name = "sympy", version = "1.14.0", source = { registry = "https://pypi.org/simple" } },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9e/df/eaad918ad320805c08ec29ca5f3df8f89b1d0b6c828668d0c10e94ae6b6e/cuequivariance-0.10.0.tar.gz", hash = "sha256:8be785f84a0c25b6b3e927e551078be261f0900c583a7c8c95744bcd5fa1967d", size = 214826, upload-time = "2026-04-22T01:20:40.317Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1b/52/3131b6dc9577eaa556b2b66584a44df32a9d4356aa641ff5d33c8b797225/cuequivariance-0.10.0-py3-none-any.whl", hash = "sha256:340f5160b99efe57f8a220db75747e59b8a0f9f3bbced7ec527c46f8cc615e87", size = 246357, upload-time = "2026-04-22T01:20:38.828Z" },
+]
+
+[[package]]
+name = "cuequivariance-ops-cu12"
+version = "0.10.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "nvidia-cublas-cu12", version = "12.6.4.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "nvidia-ml-py" },
+    { name = "platformdirs" },
+    { name = "tqdm" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7d/67/2973cc46a08c4363c3d35357d374a827edc70f354ee7c20d86fd34a03ddb/cuequivariance_ops_cu12-0.10.0-py3-none-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:446516fa0f576eefb453339d174227b7743ff806e882a14b72ff81282cd87c83", size = 31084985, upload-time = "2026-04-22T01:14:19.747Z" },
+    { url = "https://files.pythonhosted.org/packages/9b/aa/ff2ac0defafd3862cc35498a1b6fcf4efdf51c43b043befbb5af64e11b24/cuequivariance_ops_cu12-0.10.0-py3-none-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:ca09836949cd86dd64fe7ef224b6212531049b94b9b5b4c1d928985eff0cf0b3", size = 31147043, upload-time = "2026-04-22T01:14:22.879Z" },
+]
+
+[[package]]
+name = "cuequivariance-ops-torch-cu12"
+version = "0.10.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cuequivariance-ops-cu12" },
+    { name = "scipy" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7e/21/c878914f61f1832fece26290220d1ee2cd1982744b18b9549e2db487a157/cuequivariance_ops_torch_cu12-0.10.0-cp312-cp312-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:e4e02b88a11853a63e95362e41f8c50b5e8e01613dddb03aeaa80191c7c00085", size = 396067, upload-time = "2026-04-22T01:14:42.29Z" },
+    { url = "https://files.pythonhosted.org/packages/27/6d/9661acc68515e02063bf582d477faa07acc10948391c1784fd2541358855/cuequivariance_ops_torch_cu12-0.10.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:36c24d187f456f36e25cdbba475fb08297652f43415e6c183fea1af4074de652", size = 403068, upload-time = "2026-04-22T01:14:43.543Z" },
+]
+
+[[package]]
+name = "cuequivariance-torch"
+version = "0.10.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cuequivariance" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/35/d6/b2e18f0c7f176741804ecdaec1821b954988b952f668b619ae463ea31818/cuequivariance_torch-0.10.0.tar.gz", hash = "sha256:90af8143f3b8f6e97beeca2853a31fd67f1de9c1820a0547465f82d78b423df8", size = 167365, upload-time = "2026-04-22T01:20:46.178Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2b/a3/5c2b6cac9bf5d210536c26bfb1ba191c3c36883ec8188076576332a4a49f/cuequivariance_torch-0.10.0-py3-none-any.whl", hash = "sha256:3a13afba71c5e2c2dc154032879c640e9d8653a177efeca0bc9fb99e607cf540", size = 183213, upload-time = "2026-04-22T01:20:45.018Z" },
 ]
 
 [[package]]
@@ -638,7 +715,8 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "frozendict" },
     { name = "numpy" },
-    { name = "sympy" },
+    { name = "sympy", version = "1.13.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "sympy", version = "1.14.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/95/af/2a2f83f981e969ae3ec5dc30f9b0cd1a258acabc2ff7b33eb9726e334e55/einx-0.3.0.tar.gz", hash = "sha256:17ff87c6a0f68ab358c1da489f00e95f1de106fd12ff17d0fb3e210aaa1e5f8c", size = 84758, upload-time = "2024-06-11T13:49:37.532Z" }
 wheels = [
@@ -681,9 +759,11 @@ dependencies = [
     { name = "pygtrie" },
     { name = "scikit-learn" },
     { name = "tenacity" },
-    { name = "torch" },
+    { name = "torch", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
     { name = "torchtext" },
-    { name = "torchvision" },
+    { name = "torchvision", version = "0.20.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "torchvision", version = "0.22.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
     { name = "transformers" },
     { name = "zstd" },
 ]
@@ -737,7 +817,8 @@ dependencies = [
     { name = "pandas" },
     { name = "pytorch-lightning" },
     { name = "scipy" },
-    { name = "torch" },
+    { name = "torch", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/6d/c7/9262a263ff9344aaab14fa9422b5d68f564e65fb7f0e97543fcb1fc3a669/frame2seq-0.0.8.tar.gz", hash = "sha256:aea4f9e7d9cc357ff5f600699bc925a453c68c1803002400e78ae68d5222064b", size = 86354996, upload-time = "2024-01-31T20:46:32.717Z" }
 wheels = [
@@ -896,7 +977,7 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "filelock" },
     { name = "fsspec" },
-    { name = "hf-xet", marker = "platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64'" },
+    { name = "hf-xet", marker = "platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64' or (extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
     { name = "packaging" },
     { name = "pyyaml" },
     { name = "requests" },
@@ -973,7 +1054,7 @@ name = "ipykernel"
 version = "7.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "appnope", marker = "sys_platform == 'darwin'" },
+    { name = "appnope", marker = "sys_platform == 'darwin' or (extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
     { name = "comm" },
     { name = "debugpy" },
     { name = "ipython" },
@@ -997,12 +1078,12 @@ name = "ipython"
 version = "9.10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
     { name = "decorator" },
     { name = "ipython-pygments-lexers" },
     { name = "jedi" },
     { name = "matplotlib-inline" },
-    { name = "pexpect", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "pexpect", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32') or (sys_platform == 'emscripten' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform == 'emscripten' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform == 'emscripten' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform == 'emscripten' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform == 'win32' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform == 'win32' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform == 'win32' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform == 'win32' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
     { name = "prompt-toolkit" },
     { name = "pygments" },
     { name = "stack-data" },
@@ -1164,7 +1245,8 @@ dependencies = [
     { name = "packaging" },
     { name = "pytorch-lightning" },
     { name = "pyyaml" },
-    { name = "torch" },
+    { name = "torch", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
     { name = "torchmetrics" },
     { name = "tqdm" },
     { name = "typing-extensions" },
@@ -1308,7 +1390,7 @@ version = "1.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
     { name = "ghp-import" },
     { name = "jinja2" },
     { name = "markdown" },
@@ -1560,59 +1642,175 @@ wheels = [
 
 [[package]]
 name = "nvidia-cublas-cu12"
+version = "12.4.5.8"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7f/7f/7fbae15a3982dc9595e49ce0f19332423b260045d0a6afe93cdbe2f1f624/nvidia_cublas_cu12-12.4.5.8-py3-none-manylinux2014_aarch64.whl", hash = "sha256:0f8aa1706812e00b9f19dfe0cdb3999b092ccb8ca168c0db5b8ea712456fd9b3", size = 363333771, upload-time = "2024-06-18T19:28:09.881Z" },
+    { url = "https://files.pythonhosted.org/packages/ae/71/1c91302526c45ab494c23f61c7a84aa568b8c1f9d196efa5993957faf906/nvidia_cublas_cu12-12.4.5.8-py3-none-manylinux2014_x86_64.whl", hash = "sha256:2fc8da60df463fdefa81e323eef2e36489e1c94335b5358bcb38360adf75ac9b", size = 363438805, upload-time = "2024-04-03T20:57:06.025Z" },
+    { url = "https://files.pythonhosted.org/packages/e2/2a/4f27ca96232e8b5269074a72e03b4e0d43aa68c9b965058b1684d07c6ff8/nvidia_cublas_cu12-12.4.5.8-py3-none-win_amd64.whl", hash = "sha256:5a796786da89203a0657eda402bcdcec6180254a8ac22d72213abc42069522dc", size = 396895858, upload-time = "2024-04-03T21:03:31.996Z" },
+]
+
+[[package]]
+name = "nvidia-cublas-cu12"
 version = "12.6.4.1"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/af/eb/ff4b8c503fa1f1796679dce648854d58751982426e4e4b37d6fce49d259c/nvidia_cublas_cu12-12.6.4.1-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:08ed2686e9875d01b58e3cb379c6896df8e76c75e0d4a7f7dace3d7b6d9ef8eb", size = 393138322, upload-time = "2024-11-20T17:40:25.65Z" },
+    { url = "https://files.pythonhosted.org/packages/97/0d/f1f0cadbf69d5b9ef2e4f744c9466cb0a850741d08350736dfdb4aa89569/nvidia_cublas_cu12-12.6.4.1-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:235f728d6e2a409eddf1df58d5b0921cf80cfa9e72b9f2775ccb7b4a87984668", size = 390794615, upload-time = "2024-11-20T17:39:52.715Z" },
+    { url = "https://files.pythonhosted.org/packages/84/f7/985e9bdbe3e0ac9298fcc8cfa51a392862a46a0ffaccbbd56939b62a9c83/nvidia_cublas_cu12-12.6.4.1-py3-none-win_amd64.whl", hash = "sha256:9e4fa264f4d8a4eb0cdbd34beadc029f453b3bafae02401e999cf3d5a5af75f8", size = 434535301, upload-time = "2024-11-20T17:50:41.681Z" },
+]
+
+[[package]]
+name = "nvidia-cuda-cupti-cu12"
+version = "12.4.127"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/93/b5/9fb3d00386d3361b03874246190dfec7b206fd74e6e287b26a8fcb359d95/nvidia_cuda_cupti_cu12-12.4.127-py3-none-manylinux2014_aarch64.whl", hash = "sha256:79279b35cf6f91da114182a5ce1864997fd52294a87a16179ce275773799458a", size = 12354556, upload-time = "2024-06-18T19:30:40.546Z" },
+    { url = "https://files.pythonhosted.org/packages/67/42/f4f60238e8194a3106d06a058d494b18e006c10bb2b915655bd9f6ea4cb1/nvidia_cuda_cupti_cu12-12.4.127-py3-none-manylinux2014_x86_64.whl", hash = "sha256:9dec60f5ac126f7bb551c055072b69d85392b13311fcc1bcda2202d172df30fb", size = 13813957, upload-time = "2024-04-03T20:55:01.564Z" },
+    { url = "https://files.pythonhosted.org/packages/f3/79/8cf313ec17c58ccebc965568e5bcb265cdab0a1df99c4e674bb7a3b99bfe/nvidia_cuda_cupti_cu12-12.4.127-py3-none-win_amd64.whl", hash = "sha256:5688d203301ab051449a2b1cb6690fbe90d2b372f411521c86018b950f3d7922", size = 9938035, upload-time = "2024-04-03T21:01:01.109Z" },
 ]
 
 [[package]]
 name = "nvidia-cuda-cupti-cu12"
 version = "12.6.80"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/e6/8b/2f6230cb715646c3a9425636e513227ce5c93c4d65823a734f4bb86d43c3/nvidia_cuda_cupti_cu12-12.6.80-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:166ee35a3ff1587f2490364f90eeeb8da06cd867bd5b701bf7f9a02b78bc63fc", size = 8236764, upload-time = "2024-11-20T17:35:41.03Z" },
+    { url = "https://files.pythonhosted.org/packages/25/0f/acb326ac8fd26e13c799e0b4f3b2751543e1834f04d62e729485872198d4/nvidia_cuda_cupti_cu12-12.6.80-py3-none-manylinux2014_aarch64.whl", hash = "sha256:358b4a1d35370353d52e12f0a7d1769fc01ff74a191689d3870b2123156184c4", size = 8236756, upload-time = "2024-10-01T16:57:45.507Z" },
     { url = "https://files.pythonhosted.org/packages/49/60/7b6497946d74bcf1de852a21824d63baad12cd417db4195fc1bfe59db953/nvidia_cuda_cupti_cu12-12.6.80-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:6768bad6cab4f19e8292125e5f1ac8aa7d1718704012a0e3272a6f61c4bce132", size = 8917980, upload-time = "2024-11-20T17:36:04.019Z" },
     { url = "https://files.pythonhosted.org/packages/a5/24/120ee57b218d9952c379d1e026c4479c9ece9997a4fb46303611ee48f038/nvidia_cuda_cupti_cu12-12.6.80-py3-none-manylinux2014_x86_64.whl", hash = "sha256:a3eff6cdfcc6a4c35db968a06fcadb061cbc7d6dde548609a941ff8701b98b73", size = 8917972, upload-time = "2024-10-01T16:58:06.036Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/81/7796f096afaf726796b1b648f3bc80cafc61fe7f77f44a483c89e6c5ef34/nvidia_cuda_cupti_cu12-12.6.80-py3-none-win_amd64.whl", hash = "sha256:bbe6ae76e83ce5251b56e8c8e61a964f757175682bbad058b170b136266ab00a", size = 5724175, upload-time = "2024-10-01T17:09:47.955Z" },
+]
+
+[[package]]
+name = "nvidia-cuda-nvrtc-cu12"
+version = "12.4.127"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/77/aa/083b01c427e963ad0b314040565ea396f914349914c298556484f799e61b/nvidia_cuda_nvrtc_cu12-12.4.127-py3-none-manylinux2014_aarch64.whl", hash = "sha256:0eedf14185e04b76aa05b1fea04133e59f465b6f960c0cbf4e37c3cb6b0ea198", size = 24133372, upload-time = "2024-06-18T19:32:00.576Z" },
+    { url = "https://files.pythonhosted.org/packages/2c/14/91ae57cd4db3f9ef7aa99f4019cfa8d54cb4caa7e00975df6467e9725a9f/nvidia_cuda_nvrtc_cu12-12.4.127-py3-none-manylinux2014_x86_64.whl", hash = "sha256:a178759ebb095827bd30ef56598ec182b85547f1508941a3d560eb7ea1fbf338", size = 24640306, upload-time = "2024-04-03T20:56:01.463Z" },
+    { url = "https://files.pythonhosted.org/packages/7c/30/8c844bfb770f045bcd8b2c83455c5afb45983e1a8abf0c4e5297b481b6a5/nvidia_cuda_nvrtc_cu12-12.4.127-py3-none-win_amd64.whl", hash = "sha256:a961b2f1d5f17b14867c619ceb99ef6fcec12e46612711bcec78eb05068a60ec", size = 19751955, upload-time = "2024-04-03T21:01:51.133Z" },
 ]
 
 [[package]]
 name = "nvidia-cuda-nvrtc-cu12"
 version = "12.6.77"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/f4/2f/72df534873235983cc0a5371c3661bebef7c4682760c275590b972c7b0f9/nvidia_cuda_nvrtc_cu12-12.6.77-py3-none-manylinux2014_aarch64.whl", hash = "sha256:5847f1d6e5b757f1d2b3991a01082a44aad6f10ab3c5c0213fa3e25bddc25a13", size = 23162955, upload-time = "2024-10-01T16:59:50.922Z" },
     { url = "https://files.pythonhosted.org/packages/75/2e/46030320b5a80661e88039f59060d1790298b4718944a65a7f2aeda3d9e9/nvidia_cuda_nvrtc_cu12-12.6.77-py3-none-manylinux2014_x86_64.whl", hash = "sha256:35b0cc6ee3a9636d5409133e79273ce1f3fd087abb0532d2d2e8fff1fe9efc53", size = 23650380, upload-time = "2024-10-01T17:00:14.643Z" },
+    { url = "https://files.pythonhosted.org/packages/f5/46/d3a1cdda8bb113c80f43a0a6f3a853356d487b830f3483f92d49ce87fa55/nvidia_cuda_nvrtc_cu12-12.6.77-py3-none-win_amd64.whl", hash = "sha256:f7007dbd914c56bd80ea31bc43e8e149da38f68158f423ba845fc3292684e45a", size = 39026742, upload-time = "2024-10-01T17:10:49.058Z" },
+]
+
+[[package]]
+name = "nvidia-cuda-runtime-cu12"
+version = "12.4.127"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a1/aa/b656d755f474e2084971e9a297def515938d56b466ab39624012070cb773/nvidia_cuda_runtime_cu12-12.4.127-py3-none-manylinux2014_aarch64.whl", hash = "sha256:961fe0e2e716a2a1d967aab7caee97512f71767f852f67432d572e36cb3a11f3", size = 894177, upload-time = "2024-06-18T19:32:52.877Z" },
+    { url = "https://files.pythonhosted.org/packages/ea/27/1795d86fe88ef397885f2e580ac37628ed058a92ed2c39dc8eac3adf0619/nvidia_cuda_runtime_cu12-12.4.127-py3-none-manylinux2014_x86_64.whl", hash = "sha256:64403288fa2136ee8e467cdc9c9427e0434110899d07c779f25b5c068934faa5", size = 883737, upload-time = "2024-04-03T20:54:51.355Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/8b/450e93fab75d85a69b50ea2d5fdd4ff44541e0138db16f9cd90123ef4de4/nvidia_cuda_runtime_cu12-12.4.127-py3-none-win_amd64.whl", hash = "sha256:09c2e35f48359752dfa822c09918211844a3d93c100a715d79b59591130c5e1e", size = 878808, upload-time = "2024-04-03T21:00:49.77Z" },
 ]
 
 [[package]]
 name = "nvidia-cuda-runtime-cu12"
 version = "12.6.77"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/8f/ea/590b2ac00d772a8abd1c387a92b46486d2679ca6622fd25c18ff76265663/nvidia_cuda_runtime_cu12-12.6.77-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:6116fad3e049e04791c0256a9778c16237837c08b27ed8c8401e2e45de8d60cd", size = 908052, upload-time = "2024-11-20T17:35:19.905Z" },
+    { url = "https://files.pythonhosted.org/packages/b7/3d/159023799677126e20c8fd580cca09eeb28d5c5a624adc7f793b9aa8bbfa/nvidia_cuda_runtime_cu12-12.6.77-py3-none-manylinux2014_aarch64.whl", hash = "sha256:d461264ecb429c84c8879a7153499ddc7b19b5f8d84c204307491989a365588e", size = 908040, upload-time = "2024-10-01T16:57:22.221Z" },
     { url = "https://files.pythonhosted.org/packages/e1/23/e717c5ac26d26cf39a27fbc076240fad2e3b817e5889d671b67f4f9f49c5/nvidia_cuda_runtime_cu12-12.6.77-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:ba3b56a4f896141e25e19ab287cd71e52a6a0f4b29d0d31609f60e3b4d5219b7", size = 897690, upload-time = "2024-11-20T17:35:30.697Z" },
     { url = "https://files.pythonhosted.org/packages/f0/62/65c05e161eeddbafeca24dc461f47de550d9fa8a7e04eb213e32b55cfd99/nvidia_cuda_runtime_cu12-12.6.77-py3-none-manylinux2014_x86_64.whl", hash = "sha256:a84d15d5e1da416dd4774cb42edf5e954a3e60cc945698dc1d5be02321c44dc8", size = 897678, upload-time = "2024-10-01T16:57:33.821Z" },
+    { url = "https://files.pythonhosted.org/packages/fa/76/4c80fa138333cc975743fd0687a745fccb30d167f906f13c1c7f9a85e5ea/nvidia_cuda_runtime_cu12-12.6.77-py3-none-win_amd64.whl", hash = "sha256:86c58044c824bf3c173c49a2dbc7a6c8b53cb4e4dca50068be0bf64e9dab3f7f", size = 891773, upload-time = "2024-10-01T17:09:26.362Z" },
+]
+
+[[package]]
+name = "nvidia-cudnn-cu12"
+version = "9.1.0.70"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
+dependencies = [
+    { name = "nvidia-cublas-cu12", version = "12.4.5.8", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9f/fd/713452cd72343f682b1c7b9321e23829f00b842ceaedcda96e742ea0b0b3/nvidia_cudnn_cu12-9.1.0.70-py3-none-manylinux2014_x86_64.whl", hash = "sha256:165764f44ef8c61fcdfdfdbe769d687e06374059fbb388b6c89ecb0e28793a6f", size = 664752741, upload-time = "2024-04-22T15:24:15.253Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/d0/f90ee6956a628f9f04bf467932c0a25e5a7e706a684b896593c06c82f460/nvidia_cudnn_cu12-9.1.0.70-py3-none-win_amd64.whl", hash = "sha256:6278562929433d68365a07a4a1546c237ba2849852c0d4b2262a486e805b977a", size = 679925892, upload-time = "2024-04-22T15:24:53.333Z" },
 ]
 
 [[package]]
 name = "nvidia-cudnn-cu12"
 version = "9.5.1.17"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
 dependencies = [
-    { name = "nvidia-cublas-cu12", marker = "sys_platform == 'linux'" },
+    { name = "nvidia-cublas-cu12", version = "12.6.4.1", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (extra == 'extra-10-proteingen-pmpnn' and extra != 'group-10-proteingen-dev-pmpnn') or (extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-pmpnn') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-pmpnn' and extra != 'group-10-proteingen-dev-progen3')" },
 ]
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/99/93/a201a12d3ec1caa8c6ac34c1c2f9eeb696b886f0c36ff23c638b46603bd0/nvidia_cudnn_cu12-9.5.1.17-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:9fd4584468533c61873e5fda8ca41bac3a38bcb2d12350830c69b0a96a7e4def", size = 570523509, upload-time = "2024-10-25T19:53:03.148Z" },
     { url = "https://files.pythonhosted.org/packages/2a/78/4535c9c7f859a64781e43c969a3a7e84c54634e319a996d43ef32ce46f83/nvidia_cudnn_cu12-9.5.1.17-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:30ac3869f6db17d170e0e556dd6cc5eee02647abc31ca856634d5a40f82c15b2", size = 570988386, upload-time = "2024-10-25T19:54:26.39Z" },
+    { url = "https://files.pythonhosted.org/packages/b6/b2/3f60d15f037fa5419d9d7f788b100ef33ea913ae5315c87ca6d6fa606c35/nvidia_cudnn_cu12-9.5.1.17-py3-none-win_amd64.whl", hash = "sha256:d7af0f8a4f3b4b9dbb3122f2ef553b45694ed9c384d5a75bab197b8eefb79ab8", size = 565440743, upload-time = "2024-10-25T19:55:49.74Z" },
+]
+
+[[package]]
+name = "nvidia-cufft-cu12"
+version = "11.2.1.3"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
+dependencies = [
+    { name = "nvidia-nvjitlink-cu12", version = "12.4.127", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7a/8a/0e728f749baca3fbeffad762738276e5df60851958be7783af121a7221e7/nvidia_cufft_cu12-11.2.1.3-py3-none-manylinux2014_aarch64.whl", hash = "sha256:5dad8008fc7f92f5ddfa2101430917ce2ffacd86824914c82e28990ad7f00399", size = 211422548, upload-time = "2024-06-18T19:33:39.396Z" },
+    { url = "https://files.pythonhosted.org/packages/27/94/3266821f65b92b3138631e9c8e7fe1fb513804ac934485a8d05776e1dd43/nvidia_cufft_cu12-11.2.1.3-py3-none-manylinux2014_x86_64.whl", hash = "sha256:f083fc24912aa410be21fa16d157fed2055dab1cc4b6934a0e03cba69eb242b9", size = 211459117, upload-time = "2024-04-03T20:57:40.402Z" },
+    { url = "https://files.pythonhosted.org/packages/f6/ee/3f3f8e9874f0be5bbba8fb4b62b3de050156d159f8b6edc42d6f1074113b/nvidia_cufft_cu12-11.2.1.3-py3-none-win_amd64.whl", hash = "sha256:d802f4954291101186078ccbe22fc285a902136f974d369540fd4a5333d1440b", size = 210576476, upload-time = "2024-04-03T21:04:06.422Z" },
 ]
 
 [[package]]
 name = "nvidia-cufft-cu12"
 version = "11.3.0.4"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
 dependencies = [
-    { name = "nvidia-nvjitlink-cu12", marker = "sys_platform == 'linux'" },
+    { name = "nvidia-nvjitlink-cu12", version = "12.6.85", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (extra == 'extra-10-proteingen-pmpnn' and extra != 'group-10-proteingen-dev-pmpnn') or (extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-pmpnn') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-pmpnn' and extra != 'group-10-proteingen-dev-progen3')" },
 ]
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/1f/37/c50d2b2f2c07e146776389e3080f4faf70bcc4fa6e19d65bb54ca174ebc3/nvidia_cufft_cu12-11.3.0.4-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:d16079550df460376455cba121db6564089176d9bac9e4f360493ca4741b22a6", size = 200164144, upload-time = "2024-11-20T17:40:58.288Z" },
+    { url = "https://files.pythonhosted.org/packages/ce/f5/188566814b7339e893f8d210d3a5332352b1409815908dad6a363dcceac1/nvidia_cufft_cu12-11.3.0.4-py3-none-manylinux2014_aarch64.whl", hash = "sha256:8510990de9f96c803a051822618d42bf6cb8f069ff3f48d93a8486efdacb48fb", size = 200164135, upload-time = "2024-10-01T17:03:24.212Z" },
     { url = "https://files.pythonhosted.org/packages/8f/16/73727675941ab8e6ffd86ca3a4b7b47065edcca7a997920b831f8147c99d/nvidia_cufft_cu12-11.3.0.4-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:ccba62eb9cef5559abd5e0d54ceed2d9934030f51163df018532142a8ec533e5", size = 200221632, upload-time = "2024-11-20T17:41:32.357Z" },
     { url = "https://files.pythonhosted.org/packages/60/de/99ec247a07ea40c969d904fc14f3a356b3e2a704121675b75c366b694ee1/nvidia_cufft_cu12-11.3.0.4-py3-none-manylinux2014_x86_64.whl", hash = "sha256:768160ac89f6f7b459bee747e8d175dbf53619cfe74b2a5636264163138013ca", size = 200221622, upload-time = "2024-10-01T17:03:58.79Z" },
+    { url = "https://files.pythonhosted.org/packages/b4/38/36fd800cec8f6e89b7c1576edaaf8076e69ec631644cdbc1b5f2e2b5a9df/nvidia_cufft_cu12-11.3.0.4-py3-none-win_amd64.whl", hash = "sha256:6048ebddfb90d09d2707efb1fd78d4e3a77cb3ae4dc60e19aab6be0ece2ae464", size = 199356881, upload-time = "2024-10-01T17:13:01.861Z" },
 ]
 
 [[package]]
@@ -1621,41 +1819,107 @@ version = "1.11.1.6"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b2/66/cc9876340ac68ae71b15c743ddb13f8b30d5244af344ec8322b449e35426/nvidia_cufile_cu12-1.11.1.6-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:cc23469d1c7e52ce6c1d55253273d32c565dd22068647f3aa59b3c6b005bf159", size = 1142103, upload-time = "2024-11-20T17:42:11.83Z" },
+    { url = "https://files.pythonhosted.org/packages/17/bf/cc834147263b929229ce4aadd62869f0b195e98569d4c28b23edc72b85d9/nvidia_cufile_cu12-1.11.1.6-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:8f57a0051dcf2543f6dc2b98a98cb2719c37d3cee1baba8965d57f3bbc90d4db", size = 1066155, upload-time = "2024-11-20T17:41:49.376Z" },
+]
+
+[[package]]
+name = "nvidia-curand-cu12"
+version = "10.3.5.147"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/80/9c/a79180e4d70995fdf030c6946991d0171555c6edf95c265c6b2bf7011112/nvidia_curand_cu12-10.3.5.147-py3-none-manylinux2014_aarch64.whl", hash = "sha256:1f173f09e3e3c76ab084aba0de819c49e56614feae5c12f69883f4ae9bb5fad9", size = 56314811, upload-time = "2024-06-18T19:34:48.575Z" },
+    { url = "https://files.pythonhosted.org/packages/8a/6d/44ad094874c6f1b9c654f8ed939590bdc408349f137f9b98a3a23ccec411/nvidia_curand_cu12-10.3.5.147-py3-none-manylinux2014_x86_64.whl", hash = "sha256:a88f583d4e0bb643c49743469964103aa59f7f708d862c3ddb0fc07f851e3b8b", size = 56305206, upload-time = "2024-04-03T20:58:08.722Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/22/2573503d0d4e45673c263a313f79410e110eb562636b0617856fdb2ff5f6/nvidia_curand_cu12-10.3.5.147-py3-none-win_amd64.whl", hash = "sha256:f307cc191f96efe9e8f05a87096abc20d08845a841889ef78cb06924437f6771", size = 55799918, upload-time = "2024-04-03T21:04:34.45Z" },
 ]
 
 [[package]]
 name = "nvidia-curand-cu12"
 version = "10.3.7.77"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/42/ac/36543605358a355632f1a6faa3e2d5dfb91eab1e4bc7d552040e0383c335/nvidia_curand_cu12-10.3.7.77-py3-none-manylinux2014_aarch64.whl", hash = "sha256:6e82df077060ea28e37f48a3ec442a8f47690c7499bff392a5938614b56c98d8", size = 56289881, upload-time = "2024-10-01T17:04:18.981Z" },
     { url = "https://files.pythonhosted.org/packages/73/1b/44a01c4e70933637c93e6e1a8063d1e998b50213a6b65ac5a9169c47e98e/nvidia_curand_cu12-10.3.7.77-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:a42cd1344297f70b9e39a1e4f467a4e1c10f1da54ff7a85c12197f6c652c8bdf", size = 56279010, upload-time = "2024-11-20T17:42:50.958Z" },
     { url = "https://files.pythonhosted.org/packages/4a/aa/2c7ff0b5ee02eaef890c0ce7d4f74bc30901871c5e45dee1ae6d0083cd80/nvidia_curand_cu12-10.3.7.77-py3-none-manylinux2014_x86_64.whl", hash = "sha256:99f1a32f1ac2bd134897fc7a203f779303261268a65762a623bf30cc9fe79117", size = 56279000, upload-time = "2024-10-01T17:04:45.274Z" },
+    { url = "https://files.pythonhosted.org/packages/a6/02/5362a9396f23f7de1dd8a64369e87c85ffff8216fc8194ace0fa45ba27a5/nvidia_curand_cu12-10.3.7.77-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:7b2ed8e95595c3591d984ea3603dd66fe6ce6812b886d59049988a712ed06b6e", size = 56289882, upload-time = "2024-11-20T17:42:25.222Z" },
+    { url = "https://files.pythonhosted.org/packages/a9/a8/0cd0cec757bd4b4b4ef150fca62ec064db7d08a291dced835a0be7d2c147/nvidia_curand_cu12-10.3.7.77-py3-none-win_amd64.whl", hash = "sha256:6d6d935ffba0f3d439b7cd968192ff068fafd9018dbf1b85b37261b13cfc9905", size = 55783873, upload-time = "2024-10-01T17:13:30.377Z" },
+]
+
+[[package]]
+name = "nvidia-cusolver-cu12"
+version = "11.6.1.9"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
+dependencies = [
+    { name = "nvidia-cublas-cu12", version = "12.4.5.8", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "nvidia-cusparse-cu12", version = "12.3.1.170", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "nvidia-nvjitlink-cu12", version = "12.4.127", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/46/6b/a5c33cf16af09166845345275c34ad2190944bcc6026797a39f8e0a282e0/nvidia_cusolver_cu12-11.6.1.9-py3-none-manylinux2014_aarch64.whl", hash = "sha256:d338f155f174f90724bbde3758b7ac375a70ce8e706d70b018dd3375545fc84e", size = 127634111, upload-time = "2024-06-18T19:35:01.793Z" },
+    { url = "https://files.pythonhosted.org/packages/3a/e1/5b9089a4b2a4790dfdea8b3a006052cfecff58139d5a4e34cb1a51df8d6f/nvidia_cusolver_cu12-11.6.1.9-py3-none-manylinux2014_x86_64.whl", hash = "sha256:19e33fa442bcfd085b3086c4ebf7e8debc07cfe01e11513cc6d332fd918ac260", size = 127936057, upload-time = "2024-04-03T20:58:28.735Z" },
+    { url = "https://files.pythonhosted.org/packages/f2/be/d435b7b020e854d5d5a682eb5de4328fd62f6182507406f2818280e206e2/nvidia_cusolver_cu12-11.6.1.9-py3-none-win_amd64.whl", hash = "sha256:e77314c9d7b694fcebc84f58989f3aa4fb4cb442f12ca1a9bde50f5e8f6d1b9c", size = 125224015, upload-time = "2024-04-03T21:04:53.339Z" },
 ]
 
 [[package]]
 name = "nvidia-cusolver-cu12"
 version = "11.7.1.2"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
 dependencies = [
-    { name = "nvidia-cublas-cu12", marker = "sys_platform == 'linux'" },
-    { name = "nvidia-cusparse-cu12", marker = "sys_platform == 'linux'" },
-    { name = "nvidia-nvjitlink-cu12", marker = "sys_platform == 'linux'" },
+    { name = "nvidia-cublas-cu12", version = "12.6.4.1", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (extra == 'extra-10-proteingen-pmpnn' and extra != 'group-10-proteingen-dev-pmpnn') or (extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-pmpnn') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-pmpnn' and extra != 'group-10-proteingen-dev-progen3')" },
+    { name = "nvidia-cusparse-cu12", version = "12.5.4.2", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (extra == 'extra-10-proteingen-pmpnn' and extra != 'group-10-proteingen-dev-pmpnn') or (extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-pmpnn') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-pmpnn' and extra != 'group-10-proteingen-dev-progen3')" },
+    { name = "nvidia-nvjitlink-cu12", version = "12.6.85", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (extra == 'extra-10-proteingen-pmpnn' and extra != 'group-10-proteingen-dev-pmpnn') or (extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-pmpnn') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-pmpnn' and extra != 'group-10-proteingen-dev-progen3')" },
 ]
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/93/17/dbe1aa865e4fdc7b6d4d0dd308fdd5aaab60f939abfc0ea1954eac4fb113/nvidia_cusolver_cu12-11.7.1.2-py3-none-manylinux2014_aarch64.whl", hash = "sha256:0ce237ef60acde1efc457335a2ddadfd7610b892d94efee7b776c64bb1cac9e0", size = 157833628, upload-time = "2024-10-01T17:05:05.591Z" },
     { url = "https://files.pythonhosted.org/packages/f0/6e/c2cf12c9ff8b872e92b4a5740701e51ff17689c4d726fca91875b07f655d/nvidia_cusolver_cu12-11.7.1.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:e9e49843a7707e42022babb9bcfa33c29857a93b88020c4e4434656a655b698c", size = 158229790, upload-time = "2024-11-20T17:43:43.211Z" },
     { url = "https://files.pythonhosted.org/packages/9f/81/baba53585da791d043c10084cf9553e074548408e04ae884cfe9193bd484/nvidia_cusolver_cu12-11.7.1.2-py3-none-manylinux2014_x86_64.whl", hash = "sha256:6cf28f17f64107a0c4d7802be5ff5537b2130bfc112f25d5a30df227058ca0e6", size = 158229780, upload-time = "2024-10-01T17:05:39.875Z" },
+    { url = "https://files.pythonhosted.org/packages/7c/5f/07d0ba3b7f19be5a5ec32a8679fc9384cfd9fc6c869825e93be9f28d6690/nvidia_cusolver_cu12-11.7.1.2-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:dbbe4fc38ec1289c7e5230e16248365e375c3673c9c8bac5796e2e20db07f56e", size = 157833630, upload-time = "2024-11-20T17:43:16.77Z" },
+    { url = "https://files.pythonhosted.org/packages/d4/53/fff50a0808df7113d77e3bbc7c2b7eaed6f57d5eb80fbe93ead2aea1e09a/nvidia_cusolver_cu12-11.7.1.2-py3-none-win_amd64.whl", hash = "sha256:6813f9d8073f555444a8705f3ab0296d3e1cb37a16d694c5fc8b862a0d8706d7", size = 149287877, upload-time = "2024-10-01T17:13:49.804Z" },
+]
+
+[[package]]
+name = "nvidia-cusparse-cu12"
+version = "12.3.1.170"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
+dependencies = [
+    { name = "nvidia-nvjitlink-cu12", version = "12.4.127", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/96/a9/c0d2f83a53d40a4a41be14cea6a0bf9e668ffcf8b004bd65633f433050c0/nvidia_cusparse_cu12-12.3.1.170-py3-none-manylinux2014_aarch64.whl", hash = "sha256:9d32f62896231ebe0480efd8a7f702e143c98cfaa0e8a76df3386c1ba2b54df3", size = 207381987, upload-time = "2024-06-18T19:35:32.989Z" },
+    { url = "https://files.pythonhosted.org/packages/db/f7/97a9ea26ed4bbbfc2d470994b8b4f338ef663be97b8f677519ac195e113d/nvidia_cusparse_cu12-12.3.1.170-py3-none-manylinux2014_x86_64.whl", hash = "sha256:ea4f11a2904e2a8dc4b1833cc1b5181cde564edd0d5cd33e3c168eff2d1863f1", size = 207454763, upload-time = "2024-04-03T20:58:59.995Z" },
+    { url = "https://files.pythonhosted.org/packages/a2/e0/3155ca539760a8118ec94cc279b34293309bcd14011fc724f87f31988843/nvidia_cusparse_cu12-12.3.1.170-py3-none-win_amd64.whl", hash = "sha256:9bc90fb087bc7b4c15641521f31c0371e9a612fc2ba12c338d3ae032e6b6797f", size = 204684315, upload-time = "2024-04-03T21:05:26.031Z" },
 ]
 
 [[package]]
 name = "nvidia-cusparse-cu12"
 version = "12.5.4.2"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
 dependencies = [
-    { name = "nvidia-nvjitlink-cu12", marker = "sys_platform == 'linux'" },
+    { name = "nvidia-nvjitlink-cu12", version = "12.6.85", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (extra == 'extra-10-proteingen-pmpnn' and extra != 'group-10-proteingen-dev-pmpnn') or (extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-pmpnn') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-pmpnn' and extra != 'group-10-proteingen-dev-progen3')" },
 ]
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/eb/eb/6681efd0aa7df96b4f8067b3ce7246833dd36830bb4cec8896182773db7d/nvidia_cusparse_cu12-12.5.4.2-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:d25b62fb18751758fe3c93a4a08eff08effedfe4edf1c6bb5afd0890fe88f887", size = 216451147, upload-time = "2024-11-20T17:44:18.055Z" },
+    { url = "https://files.pythonhosted.org/packages/d3/56/3af21e43014eb40134dea004e8d0f1ef19d9596a39e4d497d5a7de01669f/nvidia_cusparse_cu12-12.5.4.2-py3-none-manylinux2014_aarch64.whl", hash = "sha256:7aa32fa5470cf754f72d1116c7cbc300b4e638d3ae5304cfa4a638a5b87161b1", size = 216451135, upload-time = "2024-10-01T17:06:03.826Z" },
     { url = "https://files.pythonhosted.org/packages/06/1e/b8b7c2f4099a37b96af5c9bb158632ea9e5d9d27d7391d7eb8fc45236674/nvidia_cusparse_cu12-12.5.4.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:7556d9eca156e18184b94947ade0fba5bb47d69cec46bf8660fd2c71a4b48b73", size = 216561367, upload-time = "2024-11-20T17:44:54.824Z" },
     { url = "https://files.pythonhosted.org/packages/43/ac/64c4316ba163e8217a99680c7605f779accffc6a4bcd0c778c12948d3707/nvidia_cusparse_cu12-12.5.4.2-py3-none-manylinux2014_x86_64.whl", hash = "sha256:23749a6571191a215cb74d1cdbff4a86e7b19f1200c071b3fcf844a5bea23a2f", size = 216561357, upload-time = "2024-10-01T17:06:29.861Z" },
+    { url = "https://files.pythonhosted.org/packages/45/ef/876ad8e4260e1128e6d4aac803d9d51baf3791ebdb4a9b8d9b8db032b4b0/nvidia_cusparse_cu12-12.5.4.2-py3-none-win_amd64.whl", hash = "sha256:4acb8c08855a26d737398cba8fb6f8f5045d93f82612b4cfd84645a2332ccf20", size = 213712630, upload-time = "2024-10-01T17:14:23.779Z" },
 ]
 
 [[package]]
@@ -1663,32 +1927,95 @@ name = "nvidia-cusparselt-cu12"
 version = "0.6.3"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/62/da/4de092c61c6dea1fc9c936e69308a02531d122e12f1f649825934ad651b5/nvidia_cusparselt_cu12-0.6.3-py3-none-manylinux2014_aarch64.whl", hash = "sha256:8371549623ba601a06322af2133c4a44350575f5a3108fb75f3ef20b822ad5f1", size = 156402859, upload-time = "2024-10-16T02:23:17.184Z" },
     { url = "https://files.pythonhosted.org/packages/3b/9a/72ef35b399b0e183bc2e8f6f558036922d453c4d8237dab26c666a04244b/nvidia_cusparselt_cu12-0.6.3-py3-none-manylinux2014_x86_64.whl", hash = "sha256:e5c8a26c36445dd2e6812f1177978a24e2d37cacce7e090f297a688d1ec44f46", size = 156785796, upload-time = "2024-10-15T21:29:17.709Z" },
+    { url = "https://files.pythonhosted.org/packages/46/3e/9e1e394a02a06f694be2c97bbe47288bb7c90ea84c7e9cf88f7b28afe165/nvidia_cusparselt_cu12-0.6.3-py3-none-win_amd64.whl", hash = "sha256:3b325bcbd9b754ba43df5a311488fca11a6b5dc3d11df4d190c000cf1a0765c7", size = 155595972, upload-time = "2024-10-15T22:58:35.426Z" },
+]
+
+[[package]]
+name = "nvidia-ml-py"
+version = "13.595.45"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ce/49/c29f6e30d8662d2e94fef17739ea7309cc76aba269922ae999e4cc07f268/nvidia_ml_py-13.595.45.tar.gz", hash = "sha256:c9f34897fe0441ff35bc8f35baf80f830a20b0f4e6ce71e0a325bc0e66acf079", size = 50780, upload-time = "2026-03-19T16:59:44.956Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8a/24/fc256107d23597fa33d319505ce77160fa1a2349c096d01901ffc7cb7fc4/nvidia_ml_py-13.595.45-py3-none-any.whl", hash = "sha256:b65a7977f503d56154b14d683710125ef93594adb63fbf7e559336e3318f1376", size = 51776, upload-time = "2026-03-19T16:59:43.603Z" },
+]
+
+[[package]]
+name = "nvidia-nccl-cu12"
+version = "2.21.5"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/df/99/12cd266d6233f47d00daf3a72739872bdc10267d0383508b0b9c84a18bb6/nvidia_nccl_cu12-2.21.5-py3-none-manylinux2014_x86_64.whl", hash = "sha256:8579076d30a8c24988834445f8d633c697d42397e92ffc3f63fa26766d25e0a0", size = 188654414, upload-time = "2024-04-03T15:32:57.427Z" },
 ]
 
 [[package]]
 name = "nvidia-nccl-cu12"
 version = "2.26.2"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/69/5b/ca2f213f637305633814ae8c36b153220e40a07ea001966dcd87391f3acb/nvidia_nccl_cu12-2.26.2-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:5c196e95e832ad30fbbb50381eb3cbd1fadd5675e587a548563993609af19522", size = 291671495, upload-time = "2025-03-13T00:30:07.805Z" },
     { url = "https://files.pythonhosted.org/packages/67/ca/f42388aed0fddd64ade7493dbba36e1f534d4e6fdbdd355c6a90030ae028/nvidia_nccl_cu12-2.26.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:694cf3879a206553cc9d7dbda76b13efaf610fdb70a50cba303de1b0d1530ac6", size = 201319755, upload-time = "2025-03-13T00:29:55.296Z" },
+]
+
+[[package]]
+name = "nvidia-nvjitlink-cu12"
+version = "12.4.127"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/02/45/239d52c05074898a80a900f49b1615d81c07fceadd5ad6c4f86a987c0bc4/nvidia_nvjitlink_cu12-12.4.127-py3-none-manylinux2014_aarch64.whl", hash = "sha256:4abe7fef64914ccfa909bc2ba39739670ecc9e820c83ccc7a6ed414122599b83", size = 20552510, upload-time = "2024-06-18T20:20:13.871Z" },
+    { url = "https://files.pythonhosted.org/packages/ff/ff/847841bacfbefc97a00036e0fce5a0f086b640756dc38caea5e1bb002655/nvidia_nvjitlink_cu12-12.4.127-py3-none-manylinux2014_x86_64.whl", hash = "sha256:06b3b9b25bf3f8af351d664978ca26a16d2c5127dbd53c0497e28d1fb9611d57", size = 21066810, upload-time = "2024-04-03T20:59:46.957Z" },
+    { url = "https://files.pythonhosted.org/packages/81/19/0babc919031bee42620257b9a911c528f05fb2688520dcd9ca59159ffea8/nvidia_nvjitlink_cu12-12.4.127-py3-none-win_amd64.whl", hash = "sha256:fd9020c501d27d135f983c6d3e244b197a7ccad769e34df53a42e276b0e25fa1", size = 95336325, upload-time = "2024-04-03T21:06:25.073Z" },
 ]
 
 [[package]]
 name = "nvidia-nvjitlink-cu12"
 version = "12.6.85"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9d/d7/c5383e47c7e9bf1c99d5bd2a8c935af2b6d705ad831a7ec5c97db4d82f4f/nvidia_nvjitlink_cu12-12.6.85-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl", hash = "sha256:eedc36df9e88b682efe4309aa16b5b4e78c2407eac59e8c10a6a47535164369a", size = 19744971, upload-time = "2024-11-20T17:46:53.366Z" },
+    { url = "https://files.pythonhosted.org/packages/31/db/dc71113d441f208cdfe7ae10d4983884e13f464a6252450693365e166dcf/nvidia_nvjitlink_cu12-12.6.85-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:cf4eaa7d4b6b543ffd69d6abfb11efdeb2db48270d94dfd3a452c24150829e41", size = 19270338, upload-time = "2024-11-20T17:46:29.758Z" },
+    { url = "https://files.pythonhosted.org/packages/89/76/93c1467b1387387440a4d25102d86b7794535449b689f8e2dc22c1c8ff7f/nvidia_nvjitlink_cu12-12.6.85-py3-none-win_amd64.whl", hash = "sha256:e61120e52ed675747825cdd16febc6a0730537451d867ee58bee3853b1b13d1c", size = 161908572, upload-time = "2024-11-20T17:52:40.124Z" },
+]
+
+[[package]]
+name = "nvidia-nvtx-cu12"
+version = "12.4.127"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/06/39/471f581edbb7804b39e8063d92fc8305bdc7a80ae5c07dbe6ea5c50d14a5/nvidia_nvtx_cu12-12.4.127-py3-none-manylinux2014_aarch64.whl", hash = "sha256:7959ad635db13edf4fc65c06a6e9f9e55fc2f92596db928d169c0bb031e88ef3", size = 100417, upload-time = "2024-06-18T20:16:22.484Z" },
+    { url = "https://files.pythonhosted.org/packages/87/20/199b8713428322a2f22b722c62b8cc278cc53dffa9705d744484b5035ee9/nvidia_nvtx_cu12-12.4.127-py3-none-manylinux2014_x86_64.whl", hash = "sha256:781e950d9b9f60d8241ccea575b32f5105a5baf4c2351cab5256a24869f12a1a", size = 99144, upload-time = "2024-04-03T20:56:12.406Z" },
+    { url = "https://files.pythonhosted.org/packages/54/1b/f77674fbb73af98843be25803bbd3b9a4f0a96c75b8d33a2854a5c7d2d77/nvidia_nvtx_cu12-12.4.127-py3-none-win_amd64.whl", hash = "sha256:641dccaaa1139f3ffb0d3164b4b84f9d253397e38246a4f2f36728b48566d485", size = 66307, upload-time = "2024-04-03T21:02:01.959Z" },
 ]
 
 [[package]]
 name = "nvidia-nvtx-cu12"
 version = "12.6.77"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/b9/93/80f8a520375af9d7ee44571a6544653a176e53c2b8ccce85b97b83c2491b/nvidia_nvtx_cu12-12.6.77-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:f44f8d86bb7d5629988d61c8d3ae61dddb2015dee142740536bc7481b022fe4b", size = 90549, upload-time = "2024-11-20T17:38:17.387Z" },
+    { url = "https://files.pythonhosted.org/packages/2b/53/36e2fd6c7068997169b49ffc8c12d5af5e5ff209df6e1a2c4d373b3a638f/nvidia_nvtx_cu12-12.6.77-py3-none-manylinux2014_aarch64.whl", hash = "sha256:adcaabb9d436c9761fca2b13959a2d237c5f9fd406c8e4b723c695409ff88059", size = 90539, upload-time = "2024-10-01T17:00:27.179Z" },
     { url = "https://files.pythonhosted.org/packages/56/9a/fff8376f8e3d084cd1530e1ef7b879bb7d6d265620c95c1b322725c694f4/nvidia_nvtx_cu12-12.6.77-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:b90bed3df379fa79afbd21be8e04a0314336b8ae16768b58f2d34cb1d04cd7d2", size = 89276, upload-time = "2024-11-20T17:38:27.621Z" },
     { url = "https://files.pythonhosted.org/packages/9e/4e/0d0c945463719429b7bd21dece907ad0bde437a2ff12b9b12fee94722ab0/nvidia_nvtx_cu12-12.6.77-py3-none-manylinux2014_x86_64.whl", hash = "sha256:6574241a3ec5fdc9334353ab8c479fe75841dbe8f4532a8fc97ce63503330ba1", size = 89265, upload-time = "2024-10-01T17:00:38.172Z" },
+    { url = "https://files.pythonhosted.org/packages/f7/cd/98a447919d4ed14d407ac82b14b0a0c9c1dbfe81099934b1fc3bfd1e6316/nvidia_nvtx_cu12-12.6.77-py3-none-win_amd64.whl", hash = "sha256:2fb11a4af04a5e6c84073e6404d26588a34afd35379f0855a99797897efa75c0", size = 56434, upload-time = "2024-10-01T17:11:13.124Z" },
 ]
 
 [[package]]
@@ -1782,7 +2109,8 @@ dependencies = [
     { name = "psutil" },
     { name = "pyyaml" },
     { name = "safetensors" },
-    { name = "torch" },
+    { name = "torch", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
     { name = "tqdm" },
     { name = "transformers" },
 ]
@@ -1796,7 +2124,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "ptyprocess" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [
@@ -1823,6 +2151,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pip"
+version = "26.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/73/7e/d2b04004e1068ad4fdfa2f227b839b5d03e602e47cdbbf49de71137c9546/pip-26.1.tar.gz", hash = "sha256:81e13ebcca3ffa8cc85e4deff5c27e1ee26dea0aa7fc2f294a073ac208806ff3", size = 1840316, upload-time = "2026-04-26T21:00:05.406Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/70/7a/be4bd8bcbb24ea475856dd68159d78b03b2bb53dae369f69c9606b8888f5/pip-26.1-py3-none-any.whl", hash = "sha256:4e8486d821d814b77319acb7b9e8bf5a4ee7590a643e7cb21029f209be8573c1", size = 1812804, upload-time = "2026-04-26T21:00:03.194Z" },
+]
+
+[[package]]
 name = "platformdirs"
 version = "4.9.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1838,6 +2175,23 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f9/e2/3e91f31a7d2b083fe6ef3fa267035b518369d9511ffab804f839851d2779/pluggy-1.6.0.tar.gz", hash = "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3", size = 69412, upload-time = "2025-05-15T12:30:07.975Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746", size = 20538, upload-time = "2025-05-15T12:30:06.134Z" },
+]
+
+[[package]]
+name = "progen3"
+version = "0.1.0"
+source = { git = "https://github.com/Profluent-AI/progen3.git#5c8c88c10b369a8c3044e11d586266f68dfca0bf" }
+dependencies = [
+    { name = "accelerate" },
+    { name = "biopython" },
+    { name = "click" },
+    { name = "pandas" },
+    { name = "pip" },
+    { name = "scipy" },
+    { name = "tokenizers" },
+    { name = "torch", version = "2.5.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "tqdm" },
+    { name = "transformers" },
 ]
 
 [[package]]
@@ -1877,21 +2231,6 @@ wheels = [
 ]
 
 [[package]]
-name = "protobuf"
-version = "6.33.5"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/ba/25/7c72c307aafc96fa87062aa6291d9f7c94836e43214d43722e86037aac02/protobuf-6.33.5.tar.gz", hash = "sha256:6ddcac2a081f8b7b9642c09406bc6a4290128fce5f471cddd165960bb9119e5c", size = 444465, upload-time = "2026-01-29T21:51:33.494Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b1/79/af92d0a8369732b027e6d6084251dd8e782c685c72da161bd4a2e00fbabb/protobuf-6.33.5-cp310-abi3-win32.whl", hash = "sha256:d71b040839446bac0f4d162e758bea99c8251161dae9d0983a3b88dee345153b", size = 425769, upload-time = "2026-01-29T21:51:21.751Z" },
-    { url = "https://files.pythonhosted.org/packages/55/75/bb9bc917d10e9ee13dee8607eb9ab963b7cf8be607c46e7862c748aa2af7/protobuf-6.33.5-cp310-abi3-win_amd64.whl", hash = "sha256:3093804752167bcab3998bec9f1048baae6e29505adaf1afd14a37bddede533c", size = 437118, upload-time = "2026-01-29T21:51:24.022Z" },
-    { url = "https://files.pythonhosted.org/packages/a2/6b/e48dfc1191bc5b52950246275bf4089773e91cb5ba3592621723cdddca62/protobuf-6.33.5-cp39-abi3-macosx_10_9_universal2.whl", hash = "sha256:a5cb85982d95d906df1e2210e58f8e4f1e3cdc088e52c921a041f9c9a0386de5", size = 427766, upload-time = "2026-01-29T21:51:25.413Z" },
-    { url = "https://files.pythonhosted.org/packages/4e/b1/c79468184310de09d75095ed1314b839eb2f72df71097db9d1404a1b2717/protobuf-6.33.5-cp39-abi3-manylinux2014_aarch64.whl", hash = "sha256:9b71e0281f36f179d00cbcb119cb19dec4d14a81393e5ea220f64b286173e190", size = 324638, upload-time = "2026-01-29T21:51:26.423Z" },
-    { url = "https://files.pythonhosted.org/packages/c5/f5/65d838092fd01c44d16037953fd4c2cc851e783de9b8f02b27ec4ffd906f/protobuf-6.33.5-cp39-abi3-manylinux2014_s390x.whl", hash = "sha256:8afa18e1d6d20af15b417e728e9f60f3aa108ee76f23c3b2c07a2c3b546d3afd", size = 339411, upload-time = "2026-01-29T21:51:27.446Z" },
-    { url = "https://files.pythonhosted.org/packages/9b/53/a9443aa3ca9ba8724fdfa02dd1887c1bcd8e89556b715cfbacca6b63dbec/protobuf-6.33.5-cp39-abi3-manylinux2014_x86_64.whl", hash = "sha256:cbf16ba3350fb7b889fca858fb215967792dc125b35c7976ca4818bee3521cf0", size = 323465, upload-time = "2026-01-29T21:51:28.925Z" },
-    { url = "https://files.pythonhosted.org/packages/57/bf/2086963c69bdac3d7cff1cc7ff79b8ce5ea0bec6797a017e1be338a46248/protobuf-6.33.5-py3-none-any.whl", hash = "sha256:69915a973dd0f60f31a08b8318b73eab2bd6a392c79184b3612226b0a3f8ec02", size = 170687, upload-time = "2026-01-29T21:51:32.557Z" },
-]
-
-[[package]]
 name = "proteingen"
 version = "0.1.0"
 source = { editable = "." }
@@ -1909,9 +2248,21 @@ dependencies = [
     { name = "python-lsp-server" },
     { name = "rc-foundry" },
     { name = "tmtools" },
-    { name = "torch" },
+    { name = "torch", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
     { name = "transformers" },
     { name = "wandb" },
+]
+
+[package.optional-dependencies]
+af3 = [
+    { name = "af3-server" },
+]
+pmpnn = [
+    { name = "rc-foundry", extra = ["all"], marker = "extra == 'extra-10-proteingen-pmpnn' or (extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
+]
+progen3 = [
+    { name = "progen3" },
 ]
 
 [package.dev-dependencies]
@@ -1919,9 +2270,19 @@ dev = [
     { name = "pytest" },
     { name = "ruff" },
 ]
+dev-af3 = [
+    { name = "af3-server" },
+]
+dev-pmpnn = [
+    { name = "rc-foundry", extra = ["all"], marker = "(extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (extra != 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-pmpnn') or (extra == 'extra-10-proteingen-pmpnn' and extra != 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
+]
+dev-progen3 = [
+    { name = "progen3" },
+]
 
 [package.metadata]
 requires-dist = [
+    { name = "af3-server", marker = "extra == 'af3'", git = "https://github.com/ishan-gaur/af3-server.git" },
     { name = "datasets", specifier = ">=2.14.4" },
     { name = "esm", specifier = ">=3.2.3" },
     { name = "frame2seq", specifier = ">=0.0.8" },
@@ -1932,18 +2293,39 @@ requires-dist = [
     { name = "numpy" },
     { name = "pandas" },
     { name = "peft", specifier = ">=0.13.0" },
+    { name = "progen3", marker = "extra == 'progen3'", git = "https://github.com/Profluent-AI/progen3.git" },
     { name = "python-lsp-server", specifier = ">=1.14.0" },
     { name = "rc-foundry", specifier = ">=0.1.11" },
+    { name = "rc-foundry", extras = ["all"], marker = "extra == 'pmpnn'" },
     { name = "tmtools", specifier = ">=0.3.0" },
     { name = "torch" },
     { name = "transformers", specifier = "<4.48.2" },
     { name = "wandb", specifier = ">=0.25.0" },
 ]
+provides-extras = ["pmpnn", "progen3", "af3"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "ruff", specifier = ">=0.15.1" },
+]
+dev-af3 = [{ name = "af3-server", git = "https://github.com/ishan-gaur/af3-server.git" }]
+dev-pmpnn = [{ name = "rc-foundry", extras = ["all"] }]
+dev-progen3 = [{ name = "progen3", git = "https://github.com/Profluent-AI/progen3.git" }]
+
+[[package]]
+name = "protobuf"
+version = "6.33.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ba/25/7c72c307aafc96fa87062aa6291d9f7c94836e43214d43722e86037aac02/protobuf-6.33.5.tar.gz", hash = "sha256:6ddcac2a081f8b7b9642c09406bc6a4290128fce5f471cddd165960bb9119e5c", size = 444465, upload-time = "2026-01-29T21:51:33.494Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b1/79/af92d0a8369732b027e6d6084251dd8e782c685c72da161bd4a2e00fbabb/protobuf-6.33.5-cp310-abi3-win32.whl", hash = "sha256:d71b040839446bac0f4d162e758bea99c8251161dae9d0983a3b88dee345153b", size = 425769, upload-time = "2026-01-29T21:51:21.751Z" },
+    { url = "https://files.pythonhosted.org/packages/55/75/bb9bc917d10e9ee13dee8607eb9ab963b7cf8be607c46e7862c748aa2af7/protobuf-6.33.5-cp310-abi3-win_amd64.whl", hash = "sha256:3093804752167bcab3998bec9f1048baae6e29505adaf1afd14a37bddede533c", size = 437118, upload-time = "2026-01-29T21:51:24.022Z" },
+    { url = "https://files.pythonhosted.org/packages/a2/6b/e48dfc1191bc5b52950246275bf4089773e91cb5ba3592621723cdddca62/protobuf-6.33.5-cp39-abi3-macosx_10_9_universal2.whl", hash = "sha256:a5cb85982d95d906df1e2210e58f8e4f1e3cdc088e52c921a041f9c9a0386de5", size = 427766, upload-time = "2026-01-29T21:51:25.413Z" },
+    { url = "https://files.pythonhosted.org/packages/4e/b1/c79468184310de09d75095ed1314b839eb2f72df71097db9d1404a1b2717/protobuf-6.33.5-cp39-abi3-manylinux2014_aarch64.whl", hash = "sha256:9b71e0281f36f179d00cbcb119cb19dec4d14a81393e5ea220f64b286173e190", size = 324638, upload-time = "2026-01-29T21:51:26.423Z" },
+    { url = "https://files.pythonhosted.org/packages/c5/f5/65d838092fd01c44d16037953fd4c2cc851e783de9b8f02b27ec4ffd906f/protobuf-6.33.5-cp39-abi3-manylinux2014_s390x.whl", hash = "sha256:8afa18e1d6d20af15b417e728e9f60f3aa108ee76f23c3b2c07a2c3b546d3afd", size = 339411, upload-time = "2026-01-29T21:51:27.446Z" },
+    { url = "https://files.pythonhosted.org/packages/9b/53/a9443aa3ca9ba8724fdfa02dd1887c1bcd8e89556b715cfbacca6b63dbec/protobuf-6.33.5-cp39-abi3-manylinux2014_x86_64.whl", hash = "sha256:cbf16ba3350fb7b889fca858fb215967792dc125b35c7976ca4818bee3521cf0", size = 323465, upload-time = "2026-01-29T21:51:28.925Z" },
+    { url = "https://files.pythonhosted.org/packages/57/bf/2086963c69bdac3d7cff1cc7ff79b8ce5ea0bec6797a017e1be338a46248/protobuf-6.33.5-py3-none-any.whl", hash = "sha256:69915a973dd0f60f31a08b8318b73eab2bd6a392c79184b3612226b0a3f8ec02", size = 170687, upload-time = "2026-01-29T21:51:32.557Z" },
 ]
 
 [[package]]
@@ -2067,7 +2449,8 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "einops" },
     { name = "numpy" },
-    { name = "torch" },
+    { name = "torch", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
     { name = "tqdm" },
 ]
 wheels = [
@@ -2128,7 +2511,7 @@ name = "pytest"
 version = "9.0.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
     { name = "iniconfig" },
     { name = "packaging" },
     { name = "pluggy" },
@@ -2212,7 +2595,8 @@ dependencies = [
     { name = "lightning-utilities" },
     { name = "packaging" },
     { name = "pyyaml" },
-    { name = "torch" },
+    { name = "torch", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
     { name = "torchmetrics" },
     { name = "tqdm" },
     { name = "typing-extensions" },
@@ -2266,7 +2650,7 @@ name = "pyzmq"
 version = "27.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cffi", marker = "implementation_name == 'pypy'" },
+    { name = "cffi", marker = "implementation_name == 'pypy' or (extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/04/0b/3c9baedbdf613ecaa7aa07027780b8867f57b6293b6ee50de316c9f3222b/pyzmq-27.1.0.tar.gz", hash = "sha256:ac0765e3d44455adb6ddbf4417dcce460fc40a05978c08efdf2948072f6db540", size = 281750, upload-time = "2025-09-08T23:10:18.157Z" }
 wheels = [
@@ -2304,13 +2688,22 @@ dependencies = [
     { name = "rich" },
     { name = "rootutils" },
     { name = "toolz" },
-    { name = "torch" },
+    { name = "torch", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
     { name = "typer" },
     { name = "wandb" },
     { name = "zstandard" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c2/b2/b7541f602045754f377316b292404de2d0e1dccd2b9fca013174ff0050cf/rc_foundry-0.1.11-py3-none-any.whl", hash = "sha256:1da2b4545135a1a57770b768a2504c4ed8f01e5d9e783e72bdb18de4a7c4a596", size = 620880, upload-time = "2026-02-05T03:36:27.605Z" },
+]
+
+[package.optional-dependencies]
+all = [
+    { name = "cuequivariance-ops-cu12", marker = "sys_platform == 'linux'" },
+    { name = "cuequivariance-ops-torch-cu12", marker = "sys_platform == 'linux'" },
+    { name = "cuequivariance-torch", marker = "sys_platform == 'linux'" },
+    { name = "pydantic" },
 ]
 
 [[package]]
@@ -2567,10 +2960,30 @@ wheels = [
 
 [[package]]
 name = "sympy"
+version = "1.13.1"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+    "sys_platform != 'linux'",
+]
+dependencies = [
+    { name = "mpmath", marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ca/99/5a5b6f19ff9f083671ddf7b9632028436167cd3d33e11015754e41b249a4/sympy-1.13.1.tar.gz", hash = "sha256:9cebf7e04ff162015ce31c9c6c9144daa34a93bd082f54fd8f12deca4f47515f", size = 7533040, upload-time = "2024-07-19T09:26:51.238Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b2/fe/81695a1aa331a842b582453b605175f419fe8540355886031328089d840a/sympy-1.13.1-py3-none-any.whl", hash = "sha256:db36cdc64bf61b9b24578b6f7bab1ecdd2452cf008f34faa33776680c26d66f8", size = 6189177, upload-time = "2024-07-19T09:26:48.863Z" },
+]
+
+[[package]]
+name = "sympy"
 version = "1.14.0"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+    "sys_platform != 'linux'",
+]
 dependencies = [
-    { name = "mpmath" },
+    { name = "mpmath", marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/83/d3/803453b36afefb7c2bb238361cd4ae6125a569b4db67cd9e79846ba2d68c/sympy-1.14.0.tar.gz", hash = "sha256:d3d3fe8df1e5a0b42f0e7bdf50541697dbe7d23746e894990c030e2b05e72517", size = 7793921, upload-time = "2025-04-27T18:05:01.611Z" }
 wheels = [
@@ -2650,31 +3063,72 @@ wheels = [
 
 [[package]]
 name = "torch"
+version = "2.5.1"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+    "sys_platform != 'linux'",
+]
+dependencies = [
+    { name = "filelock", marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "fsspec", marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "jinja2", marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "networkx", marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "nvidia-cublas-cu12", version = "12.4.5.8", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-progen3') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
+    { name = "nvidia-cuda-cupti-cu12", version = "12.4.127", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-progen3') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
+    { name = "nvidia-cuda-nvrtc-cu12", version = "12.4.127", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-progen3') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
+    { name = "nvidia-cuda-runtime-cu12", version = "12.4.127", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-progen3') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
+    { name = "nvidia-cudnn-cu12", version = "9.1.0.70", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-progen3') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
+    { name = "nvidia-cufft-cu12", version = "11.2.1.3", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-progen3') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
+    { name = "nvidia-curand-cu12", version = "10.3.5.147", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-progen3') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
+    { name = "nvidia-cusolver-cu12", version = "11.6.1.9", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-progen3') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
+    { name = "nvidia-cusparse-cu12", version = "12.3.1.170", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-progen3') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
+    { name = "nvidia-nccl-cu12", version = "2.21.5", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-progen3') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
+    { name = "nvidia-nvjitlink-cu12", version = "12.4.127", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-progen3') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
+    { name = "nvidia-nvtx-cu12", version = "12.4.127", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-progen3') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
+    { name = "setuptools", marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "sympy", version = "1.13.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "triton", version = "3.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-progen3') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
+    { name = "typing-extensions", marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8b/5c/36c114d120bfe10f9323ed35061bc5878cc74f3f594003854b0ea298942f/torch-2.5.1-cp312-cp312-manylinux1_x86_64.whl", hash = "sha256:ed231a4b3a5952177fafb661213d690a72caaad97d5824dd4fc17ab9e15cec03", size = 906389343, upload-time = "2024-10-29T17:37:06.758Z" },
+    { url = "https://files.pythonhosted.org/packages/6d/69/d8ada8b6e0a4257556d5b4ddeb4345ea8eeaaef3c98b60d1cca197c7ad8e/torch-2.5.1-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:3f4b7f10a247e0dcd7ea97dc2d3bfbfc90302ed36d7f3952b0008d0df264e697", size = 91811673, upload-time = "2024-10-29T17:32:42.789Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/ba/607d013b55b9fd805db2a5c2662ec7551f1910b4eef39653eeaba182c5b2/torch-2.5.1-cp312-cp312-win_amd64.whl", hash = "sha256:73e58e78f7d220917c5dbfad1a40e09df9929d3b95d25e57d9f8558f84c9a11c", size = 203046841, upload-time = "2024-10-29T17:35:48.665Z" },
+    { url = "https://files.pythonhosted.org/packages/57/6c/bf52ff061da33deb9f94f4121fde7ff3058812cb7d2036c97bc167793bd1/torch-2.5.1-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:8c712df61101964eb11910a846514011f0b6f5920c55dbf567bff8a34163d5b1", size = 63858109, upload-time = "2024-10-29T17:36:21.973Z" },
+]
+
+[[package]]
+name = "torch"
 version = "2.7.1"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+    "sys_platform != 'linux'",
+]
 dependencies = [
-    { name = "filelock" },
-    { name = "fsspec" },
-    { name = "jinja2" },
-    { name = "networkx" },
-    { name = "nvidia-cublas-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-cuda-cupti-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-cuda-nvrtc-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-cuda-runtime-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-cudnn-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-cufft-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-cufile-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-curand-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-cusolver-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-cusparse-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-cusparselt-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-nccl-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-nvjitlink-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "nvidia-nvtx-cu12", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "setuptools" },
-    { name = "sympy" },
-    { name = "triton", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "typing-extensions" },
+    { name = "filelock", marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
+    { name = "fsspec", marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
+    { name = "jinja2", marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
+    { name = "networkx", marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
+    { name = "nvidia-cublas-cu12", version = "12.6.4.1", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn')" },
+    { name = "nvidia-cuda-cupti-cu12", version = "12.6.80", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn')" },
+    { name = "nvidia-cuda-nvrtc-cu12", version = "12.6.77", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn')" },
+    { name = "nvidia-cuda-runtime-cu12", version = "12.6.77", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn')" },
+    { name = "nvidia-cudnn-cu12", version = "9.5.1.17", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn')" },
+    { name = "nvidia-cufft-cu12", version = "11.3.0.4", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn')" },
+    { name = "nvidia-cufile-cu12", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn')" },
+    { name = "nvidia-curand-cu12", version = "10.3.7.77", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn')" },
+    { name = "nvidia-cusolver-cu12", version = "11.7.1.2", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn')" },
+    { name = "nvidia-cusparse-cu12", version = "12.5.4.2", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn')" },
+    { name = "nvidia-cusparselt-cu12", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn')" },
+    { name = "nvidia-nccl-cu12", version = "2.26.2", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn')" },
+    { name = "nvidia-nvjitlink-cu12", version = "12.6.85", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn')" },
+    { name = "nvidia-nvtx-cu12", version = "12.6.77", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn')" },
+    { name = "setuptools", marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
+    { name = "sympy", version = "1.14.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
+    { name = "triton", version = "3.3.1", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (platform_machine != 'x86_64' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (platform_machine != 'x86_64' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (sys_platform != 'linux' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (sys_platform != 'linux' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn')" },
+    { name = "typing-extensions", marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/87/93/fb505a5022a2e908d81fe9a5e0aa84c86c0d5f408173be71c6018836f34e/torch-2.7.1-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:27ea1e518df4c9de73af7e8a720770f3628e7f667280bce2be7a16292697e3fa", size = 98948276, upload-time = "2025-06-04T17:39:12.852Z" },
@@ -2691,7 +3145,8 @@ dependencies = [
     { name = "lightning-utilities" },
     { name = "numpy" },
     { name = "packaging" },
-    { name = "torch" },
+    { name = "torch", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/85/2e/48a887a59ecc4a10ce9e8b35b3e3c5cef29d902c4eac143378526e7485cb/torchmetrics-1.8.2.tar.gz", hash = "sha256:cf64a901036bf107f17a524009eea7781c9c5315d130713aeca5747a686fe7a5", size = 580679, upload-time = "2025-09-03T14:00:54.077Z" }
 wheels = [
@@ -2705,7 +3160,8 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "requests" },
-    { name = "torch" },
+    { name = "torch", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
     { name = "tqdm" },
 ]
 wheels = [
@@ -2716,12 +3172,36 @@ wheels = [
 
 [[package]]
 name = "torchvision"
+version = "0.20.1"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+    "sys_platform != 'linux'",
+]
+dependencies = [
+    { name = "numpy", marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "pillow", marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+    { name = "torch", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c5/eb/4ba19616378f2bc085999432fded2b7dfdbdccc6dd0fc293203452508100/torchvision-0.20.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:1a31256ff945d64f006bb306813a7c95a531fe16bfb2535c837dd4c104533d7a", size = 1787553, upload-time = "2024-10-29T17:40:50.63Z" },
+    { url = "https://files.pythonhosted.org/packages/d4/75/00a852275ade58d3dc474530f7a7b6bc999a817148f0eb59d4fde12eb955/torchvision-0.20.1-cp312-cp312-manylinux1_x86_64.whl", hash = "sha256:17cd78adddf81dac57d7dccc9277a4d686425b1c55715f308769770cb26cad5c", size = 7240323, upload-time = "2024-10-29T17:40:44.951Z" },
+    { url = "https://files.pythonhosted.org/packages/af/f0/ca1445406eb12cbeb7a41fc833a1941ede78e7c55621198b83ecd7bcfd0f/torchvision-0.20.1-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:9f853ba4497ac4691815ad41b523ee23cf5ba4f87b1ce869d704052e233ca8b7", size = 14266936, upload-time = "2024-10-29T17:40:31.335Z" },
+    { url = "https://files.pythonhosted.org/packages/c3/18/00993d420b1d6e88582e51d4bc82c824c99a2e9c045d50eaf9b34fff729a/torchvision-0.20.1-cp312-cp312-win_amd64.whl", hash = "sha256:4a330422c36dbfc946d3a6c1caec3489db07ecdf3675d83369adb2e5a0ca17c4", size = 1562392, upload-time = "2024-10-29T17:40:47.6Z" },
+]
+
+[[package]]
+name = "torchvision"
 version = "0.22.1"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+    "sys_platform != 'linux'",
+]
 dependencies = [
-    { name = "numpy" },
-    { name = "pillow" },
-    { name = "torch" },
+    { name = "numpy", marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
+    { name = "pillow", marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-10-proteingen-pmpnn' or extra == 'group-10-proteingen-dev-pmpnn' or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-progen3')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/02/90/f4e99a5112dc221cf68a485e853cc3d9f3f1787cb950b895f3ea26d1ea98/torchvision-0.22.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:153f1790e505bd6da123e21eee6e83e2e155df05c0fe7d56347303067d8543c5", size = 1947827, upload-time = "2025-06-04T17:43:11.945Z" },
@@ -2754,7 +3234,7 @@ name = "tqdm"
 version = "4.67.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/09/a9/6ba95a270c6f1fbcd8dac228323f2777d886cb206987444e4bce66338dd4/tqdm-4.67.3.tar.gz", hash = "sha256:7d825f03f89244ef73f1d4ce193cb1774a8179fd96f31d7e1dcde62092b960bb", size = 169598, upload-time = "2026-02-03T17:35:53.048Z" }
 wheels = [
@@ -2793,10 +3273,27 @@ wheels = [
 
 [[package]]
 name = "triton"
+version = "3.1.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
+dependencies = [
+    { name = "filelock", marker = "extra == 'extra-10-proteingen-progen3' or extra == 'group-10-proteingen-dev-progen3'" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/78/eb/65f5ba83c2a123f6498a3097746607e5b2f16add29e36765305e4ac7fdd8/triton-3.1.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c8182f42fd8080a7d39d666814fa36c5e30cc00ea7eeeb1a2983dbb4c99a0fdc", size = 209551444, upload-time = "2024-10-14T16:05:53.433Z" },
+]
+
+[[package]]
+name = "triton"
 version = "3.3.1"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'linux'",
+]
 dependencies = [
-    { name = "setuptools", marker = "sys_platform == 'linux'" },
+    { name = "setuptools", marker = "(sys_platform == 'linux' and extra == 'extra-10-proteingen-pmpnn') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'extra-10-proteingen-progen3') or (extra == 'extra-10-proteingen-pmpnn' and extra != 'group-10-proteingen-dev-pmpnn') or (extra == 'extra-10-proteingen-progen3' and extra == 'group-10-proteingen-dev-pmpnn') or (extra != 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-pmpnn') or (extra == 'extra-10-proteingen-pmpnn' and extra == 'group-10-proteingen-dev-pmpnn' and extra == 'group-10-proteingen-dev-progen3') or (extra != 'extra-10-proteingen-progen3' and extra != 'group-10-proteingen-dev-pmpnn' and extra != 'group-10-proteingen-dev-progen3')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/24/5f/950fb373bf9c01ad4eb5a8cd5eaf32cdf9e238c02f9293557a2129b9c4ac/triton-3.3.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:9999e83aba21e1a78c1f36f21bce621b77bcaa530277a50484a7cb4a822f6e43", size = 155669138, upload-time = "2025-05-29T23:39:51.771Z" },
