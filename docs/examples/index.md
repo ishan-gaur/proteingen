@@ -18,6 +18,7 @@ Full pipelines that combine generative models with predictive models for propert
 Generate protein sequences using pretrained models.
 
 - **[Unconditional Sampling](unconditional-sampling.md)** — generate sequences from scratch with ESMC (Models + Sampling only)
+- **[Autoregressive Generation (ProGen3)](autoregressive-generation.md)** — unconditional protein generation with ProGen3's left-to-right sampling
 - **[Structure-Conditioned Sampling](structure-conditioned-sampling.md)** — inverse folding with ESM3 backbone conditioning
 
 ## Fine-tuning

@@ -26,6 +26,9 @@ dependencies = [
     "frame2seq>=0.0.8",
 ]
 
+[project.optional-dependencies]
+progen3 = ["progen3"]
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
@@ -38,4 +41,4 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 mkdocs-liveedit = { git = "https://github.com/ishan-gaur/mkdocs-liveedit.git" }
-
+progen3 = { git = "https://github.com/Profluent-AI/progen3.git" }
