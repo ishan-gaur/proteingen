@@ -1,0 +1,45 @@
+/* Wrap long lines in code blocks instead of horizontal scrolling */
+.md-typeset pre > code {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Hide logo icon; keep text title only */
+.md-header__button.md-logo,
+.md-nav__button.md-logo {
+  display: none !important;
+}
+
+/* Announcement banner: centered */
+.md-banner__inner {
+  justify-content: center;
+  text-align: center;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+/* Sticky bottom contact banner */
+.pg-contact-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  text-align: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+  border-top: 1px solid var(--md-default-fg-color--lightest);
+  background: var(--md-default-bg-color);
+}
+
+.pg-contact-banner a {
+  color: var(--md-typeset-a-color);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Keep page content and native footer visible above sticky banner */
+.md-main,
+.md-footer {
+  margin-bottom: 2.2rem;
+}
